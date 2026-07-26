@@ -1,0 +1,18 @@
+# Python
+*.pyc
+__pycache__/
+
+# Database
+*.db
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

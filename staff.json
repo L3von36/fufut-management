@@ -1,0 +1,72 @@
+[
+  {
+    "phone": "+251911234567",
+    "lastName": "Tesfaye",
+    "email": "amanuel@fufut.coffee",
+    "role": "Manager",
+    "firstName": "Amanuel",
+    "status": "active",
+    "id": "Sb4cd9bf1",
+    "created": "2026-07-21T02:26:45.541088"
+  },
+  {
+    "phone": "+251911765432",
+    "lastName": "Haile",
+    "email": "selam@fufut.coffee",
+    "role": "Head Chef",
+    "firstName": "Selam",
+    "status": "active",
+    "id": "Se1f3d0e5",
+    "created": "2026-07-21T02:26:45.610984"
+  },
+  {
+    "phone": "+251912345678",
+    "lastName": "Girmay",
+    "email": "yonas@fufut.coffee",
+    "role": "Head Waiter",
+    "firstName": "Yonas",
+    "status": "active",
+    "id": "S71aa74e2",
+    "created": "2026-07-21T02:26:45.653830"
+  },
+  {
+    "phone": "+251913456789",
+    "lastName": "Assefa",
+    "email": "bethel@fufut.coffee",
+    "role": "Cashier",
+    "firstName": "Bethel",
+    "status": "active",
+    "id": "Sb36ef80a",
+    "created": "2026-07-21T02:26:45.719410"
+  },
+  {
+    "phone": "+251914567890",
+    "lastName": "Muluye",
+    "email": "tigist@fufut.coffee",
+    "role": "Assistant Chef",
+    "firstName": "Tigist",
+    "status": "active",
+    "id": "Sc36ef80b",
+    "created": "2026-07-21T02:26:45.719410"
+  },
+  {
+    "phone": "+251915678901",
+    "lastName": "Bililgne",
+    "email": "gebremedhin@fufut.coffee",
+    "role": "Delivery Staff",
+    "firstName": "Gebremedhin",
+    "status": "active",
+    "id": "Sd36ef80c",
+    "created": "2026-07-21T02:26:45.719410"
+  },
+  {
+    "phone": "+251916789012",
+    "lastName": "Abebe",
+    "email": "asnegash@fufut.coffee",
+    "role": "Cleaner",
+    "firstName": "Asnegash",
+    "status": "active",
+    "id": "Se36ef80d",
+    "created": "2026-07-21T02:26:45.719410"
+  }
+]

@@ -1,0 +1,596 @@
+A PRD (Product Requirements Document) is exactly what you should create before writing more code. It acts as the blueprint for the entire system and makes development much smoother.
+
+# Product Requirements Document (PRD)
+
+## Product Name
+
+**Fufut Restaurant Management System (FRMS)**
+
+Version: 1.0
+
+---
+
+# 1. Overview
+
+## Purpose
+
+The Fufut Restaurant Management System is a web-based platform that digitizes restaurant operations, including table management, order processing, kitchen workflow, payments, inventory, employee management, delivery, and reporting.
+
+The goal is to replace paper-based operations with a centralized system that improves efficiency, reduces mistakes, and provides real-time visibility into business performance.
+
+---
+
+# 2. Business Objectives
+
+* Improve customer service speed
+* Reduce order errors
+* Track daily sales accurately
+* Monitor employee performance
+* Manage inventory efficiently
+* Support both dine-in and delivery
+* Generate financial and operational reports
+* Scale to multiple restaurant branches in the future
+
+---
+
+# 3. Restaurant Information
+
+Current Setup
+
+Restaurant Name: Fufut Coffee (placeholder)
+
+Tables: 10
+
+Seats: 40
+
+Employees: 6
+
+Current Roles
+
+| Name        | Role           |
+| ----------- | -------------- |
+| እህተማሪያም በልሁ | Head Chef      |
+| መቅደስ ስዩም    | Cashier        |
+| ስንታየሁ ጎሽሜ   | Head Waiter    |
+| ትግስት ሙልዬ    | Assistant Chef |
+| ገብሬ ቢልልኝ    | Delivery Staff |
+| አስነጋሽ አበበ   | Cleaner        |
+
+---
+
+# 4. User Roles
+
+## Owner
+
+Access Level
+
+Full System Access
+
+Responsibilities
+
+* View reports
+* Manage employees
+* Configure menu
+* Inventory management
+* Sales analytics
+* Expenses
+* Payroll
+* User permissions
+
+---
+
+## Head Chef
+
+Responsibilities
+
+* Receive kitchen orders
+* Update cooking status
+* Manage kitchen workflow
+* Monitor inventory
+* Maintain food quality
+
+---
+
+## Assistant Chef
+
+Responsibilities
+
+* Assist food preparation
+* Update assigned order status
+
+---
+
+## Head Waiter
+
+Responsibilities
+
+* Seat customers
+* Manage tables
+* Create orders
+* Modify orders
+* Transfer tables
+* Close tables
+
+---
+
+## Cashier
+
+Responsibilities
+
+* Process payments
+* Print receipts
+* Daily cash reconciliation
+
+---
+
+## Delivery Staff
+
+Responsibilities
+
+* Accept assigned deliveries
+* Update delivery status
+* Confirm completed deliveries
+
+---
+
+## Cleaner
+
+Responsibilities
+
+* View cleaning schedule
+* Complete cleaning tasks
+
+---
+
+# 5. Core Modules
+
+## Authentication
+
+Features
+
+* Secure login
+* Logout
+* Password reset
+* Role-based authorization
+* Session management
+
+---
+
+## Employee Management
+
+Features
+
+* Employee profiles
+* Salary
+* Attendance
+* Shift scheduling
+* Performance tracking
+* Employment status
+
+---
+
+## Table Management
+
+Restaurant Layout
+
+10 Tables
+
+Statuses
+
+* Available
+* Occupied
+* Reserved
+* Cleaning
+
+Actions
+
+* Assign table
+* Transfer table
+* Merge tables (future)
+* Split bills (future)
+
+---
+
+## Order Management
+
+Order Types
+
+* Dine In
+* Takeaway
+* Delivery
+
+Order Status
+
+* Pending
+* Preparing
+* Ready
+* Served
+* Delivered
+* Completed
+* Cancelled
+
+Capabilities
+
+* Add items
+* Remove items
+* Modify quantities
+* Add notes
+* Kitchen notifications
+
+---
+
+## Kitchen Display System (KDS)
+
+Features
+
+Real-time order queue
+
+Color indicators
+
+Pending
+
+Preparing
+
+Ready
+
+Completed
+
+Chef notes
+
+Cooking timer
+
+Priority orders
+
+---
+
+## POS (Cashier)
+
+Features
+
+Payment Methods
+
+* Cash
+* Card
+* Telebirr
+* Bank Transfer
+
+Receipt Printing
+
+Refund Management
+
+Discounts
+
+Taxes
+
+Daily Closing
+
+---
+
+## Menu Management
+
+Features
+
+Categories
+
+Items
+
+Pricing
+
+Availability
+
+Photos
+
+Preparation Time
+
+Recipe Reference (optional)
+
+---
+
+## Inventory
+
+Features
+
+Ingredients
+
+Suppliers
+
+Purchase History
+
+Stock Levels
+
+Expiry Dates
+
+Low Stock Alerts
+
+Consumption Tracking
+
+---
+
+## Delivery
+
+Features
+
+Customer Address
+
+Driver Assignment
+
+Delivery Status
+
+Estimated Time
+
+Payment Collection
+
+---
+
+## Reservations
+
+Features
+
+Reserve Table
+
+Modify Reservation
+
+Cancel Reservation
+
+Customer Contact
+
+Arrival Time
+
+---
+
+## Reports
+
+Sales Reports
+
+Daily
+
+Weekly
+
+Monthly
+
+Yearly
+
+Inventory Reports
+
+Employee Reports
+
+Profit Reports
+
+Expense Reports
+
+Best Selling Items
+
+Peak Hours
+
+---
+
+## Notifications
+
+Examples
+
+New Order
+
+Food Ready
+
+Low Inventory
+
+Employee Clock In
+
+Reservation Reminder
+
+Delivery Assigned
+
+---
+
+# 6. Employee Workflow
+
+Customer Arrives
+
+↓
+
+Waiter Assigns Table
+
+↓
+
+Order Created
+
+↓
+
+Kitchen Receives Order
+
+↓
+
+Chef Starts Cooking
+
+↓
+
+Food Ready
+
+↓
+
+Waiter Serves Food
+
+↓
+
+Customer Pays
+
+↓
+
+Cashier Prints Receipt
+
+↓
+
+Table Becomes Available
+
+---
+
+# 7. Functional Requirements
+
+### Authentication
+
+Users shall log in securely.
+
+Users shall only access permitted modules.
+
+---
+
+### Table Management
+
+System shall display table availability in real time.
+
+System shall prevent assigning occupied tables.
+
+---
+
+### Order Processing
+
+Orders shall instantly appear in the kitchen.
+
+Order modifications shall synchronize automatically.
+
+---
+
+### Kitchen
+
+Chef shall update cooking progress.
+
+Waiters shall receive notifications when food is ready.
+
+---
+
+### Payments
+
+Cashier shall process multiple payment methods.
+
+System shall generate printable receipts.
+
+---
+
+### Inventory
+
+Inventory shall decrease automatically based on recipes (future enhancement).
+
+System shall alert low stock.
+
+---
+
+### Reports
+
+Owner shall view reports by any date range.
+
+Reports shall be exportable to PDF and Excel.
+
+---
+
+# 8. Non-Functional Requirements
+
+Performance
+
+Dashboard loads in under 2 seconds.
+
+Reliability
+
+99.9% uptime.
+
+Security
+
+Encrypted passwords.
+
+HTTPS.
+
+Role-based authorization.
+
+Automatic backups.
+
+Scalability
+
+Support future expansion to:
+
+* Multiple branches
+* Multiple kitchens
+* Multiple cashiers
+* Hundreds of employees
+
+---
+
+# 9. Technology Stack
+
+Frontend
+
+* Next.js
+* TypeScript
+* Tailwind CSS
+* shadcn/ui
+
+Backend
+
+* Next.js API or NestJS
+
+Database
+
+* PostgreSQL
+
+ORM
+
+* Prisma
+
+Authentication
+
+* Better Auth or Auth.js
+
+Real-Time
+
+* WebSockets
+
+Storage
+
+* Cloudflare R2 (images)
+
+Deployment
+
+* Cloudflare Pages + Workers (or another backend platform if needed)
+
+---
+
+# 10. Future Features
+
+* QR code ordering from tables
+* Mobile waiter app
+* Kitchen display tablets
+* Customer loyalty program
+* Gift cards
+* SMS notifications
+* Online ordering
+* Multi-branch management
+* AI sales forecasting
+* AI inventory prediction
+* Expense management
+* Payroll
+* Accounting integration
+* Supplier portal
+
+---
+
+# 11. Success Metrics (KPIs)
+
+* Average order preparation time
+* Average table turnover time
+* Daily revenue
+* Number of completed orders
+* Inventory waste percentage
+* Employee attendance rate
+* Customer satisfaction score
+* Delivery completion time
+* Payment accuracy
+* System uptime
+
+## Recommendation
+
+Since you're building this from scratch, I'd split the work into milestones:
+
+1. **MVP**: Authentication, employee roles, tables, menu, orders, kitchen display, cashier/POS.
+2. **Operations**: Inventory, attendance, reservations, reporting.
+3. **Advanced**: Delivery, notifications, analytics, exports.
+4. **Enterprise**: Multi-branch support, payroll, AI insights, customer loyalty.
+
+This phased approach gets a usable system into the restaurant quickly while leaving room for future expansion.

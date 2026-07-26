@@ -1,0 +1,52 @@
+[
+  {
+    "id": "R001",
+    "name": "Abebe Kebede",
+    "phone": "+251911223344",
+    "email": "abebe@email.com",
+    "date": "2026-07-22",
+    "time": "19:00",
+    "guests": 4,
+    "tableId": "T1",
+    "status": "confirmed",
+    "notes": "Window seat, birthday celebration",
+    "created": "2026-07-21T10:00:00"
+  },
+  {
+    "id": "R002",
+    "name": "Sara Mekonnen",
+    "phone": "+251922334455",
+    "email": "sara@email.com",
+    "date": "2026-07-22",
+    "time": "12:00",
+    "guests": 2,
+    "tableId": "T3",
+    "status": "new",
+    "notes": "",
+    "created": "2026-07-21T11:00:00"
+  },
+  {
+    "id": "R003",
+    "name": "Daniel Assefa",
+    "phone": "+251933445566",
+    "email": "daniel@email.com",
+    "date": "2026-07-23",
+    "time": "20:00",
+    "guests": 6,
+    "tableId": "",
+    "status": "new",
+    "notes": "Business dinner, private area preferred",
+    "created": "2026-07-21T12:00:00"
+  },
+  {
+    "name": "Test Customer",
+    "phone": "+251911234567",
+    "email": "test@test.com",
+    "date": "2026-07-25",
+    "time": "19:00",
+    "guests": 4,
+    "status": "confirmed",
+    "id": "Ra4b2e0ee",
+    "created": "2026-07-25T10:29:59.969404"
+  }
+]

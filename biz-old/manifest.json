@@ -1,0 +1,21 @@
+{
+  "name": "FU FUT Café & Kitchen — Business Manager",
+  "short_name": "FU FUT Biz",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#FAFAF8",
+  "theme_color": "#0F7B78",
+  "description": "Business management system for FU FUT Café & Kitchen",
+  "icons": [
+    {
+      "src": "../assets/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "../assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "DL001",
+    "orderId": "O1001",
+    "customer": "Hanna Tadesse",
+    "address": "Bole Road, Addis Ababa",
+    "driver": "Gebremedhin",
+    "status": "in-transit",
+    "eta": "25 min",
+    "phone": "+251911111111",
+    "notes": "Apartment 4B",
+    "created": "2026-07-22T08:30:00"
+  },
+  {
+    "id": "DL002",
+    "orderId": "O1002",
+    "customer": "Kidist Alemayehu",
+    "address": "Atlas Area, Addis Ababa",
+    "driver": "",
+    "status": "pending",
+    "eta": "35 min",
+    "phone": "+251922222222",
+    "notes": "",
+    "created": "2026-07-22T08:45:00"
+  }
+]

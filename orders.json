@@ -1,0 +1,97 @@
+[
+  {
+    "total": 180,
+    "status": "ready",
+    "items": "Latte, Croissant",
+    "id": "O291c8b50",
+    "created": "2026-07-21T02:27:37.685458"
+  },
+  {
+    "total": 90,
+    "status": "completed",
+    "items": "Cappuccino",
+    "id": "O068b0e68",
+    "created": "2026-07-21T02:27:37.864156"
+  },
+  {
+    "total": 160,
+    "status": "ready",
+    "items": "Cold Brew, Muffin",
+    "id": "O5fb6293a",
+    "created": "2026-07-21T02:27:38.160340"
+  },
+  {
+    "total": 75,
+    "status": "preparing",
+    "items": "Espresso",
+    "id": "O65c420a6",
+    "created": "2026-07-21T02:27:38.181311"
+  },
+  {
+    "total": 120,
+    "status": "completed",
+    "items": "Americano, Bagel",
+    "id": "Obb1b54dc",
+    "created": "2026-07-21T02:27:38.196327"
+  },
+  {
+    "total": 85,
+    "status": "ready",
+    "items": "Macchiato",
+    "id": "Of015453a",
+    "created": "2026-07-21T02:27:38.211911"
+  },
+  {
+    "total": 145,
+    "status": "completed",
+    "items": "Flat White, Sandwich",
+    "id": "O28e4a673",
+    "created": "2026-07-21T02:27:38.307008"
+  },
+  {
+    "total": 65,
+    "status": "completed",
+    "items": "Latte",
+    "id": "O8534ac98",
+    "created": "2026-07-21T02:27:38.367520"
+  },
+  {
+    "total": 170,
+    "status": "completed",
+    "items": "Iced Coffee, Brownie",
+    "id": "O754fbca5",
+    "created": "2026-07-21T02:27:38.389732"
+  },
+  {
+    "total": 120,
+    "status": "completed",
+    "items": "Cappuccino, Croissant",
+    "id": "O3b8b6696",
+    "created": "2026-07-21T02:27:38.508553"
+  },
+  {
+    "items": "Coffee",
+    "total": 50,
+    "status": "preparing",
+    "id": "Ob7a93feb",
+    "created": "2026-07-21T04:00:09.445086"
+  },
+  {
+    "items": "Test",
+    "total": 100,
+    "status": "new",
+    "id": "Oe18a6eb4",
+    "created": "2026-07-25T10:19:33.803643"
+  },
+  {
+    "items": "Espresso x2, Croissant x1",
+    "total": 280,
+    "payment": "cash",
+    "type": "dine-in",
+    "table_id": "T01",
+    "customer": "Test",
+    "status": "new",
+    "id": "Oe3630b76",
+    "created": "2026-07-25T10:29:58.769838"
+  }
+]

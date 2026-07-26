@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Espresso Beans",
+    "quantity": 18,
+    "cost": 425,
+    "unit": "kg",
+    "category": "Coffee",
+    "minLevel": 10,
+    "id": "Icd0a399d",
+    "created": "2026-07-21T02:26:45.284415"
+  },
+  {
+    "name": "Whole Milk",
+    "quantity": 8,
+    "cost": 28,
+    "unit": "L",
+    "category": "Dairy",
+    "minLevel": 15,
+    "id": "Ia88731ac",
+    "created": "2026-07-21T02:26:45.358550"
+  },
+  {
+    "name": "Oat Milk",
+    "quantity": 4,
+    "cost": 65,
+    "unit": "L",
+    "category": "Dairy",
+    "minLevel": 8,
+    "id": "Ic790422a",
+    "created": "2026-07-21T02:26:45.377245"
+  },
+  {
+    "name": "Vanilla Syrup",
+    "quantity": 2,
+    "cost": 180,
+    "unit": "pcs",
+    "category": "Syrups",
+    "minLevel": 3,
+    "id": "I0cfb4bcb",
+    "created": "2026-07-21T02:26:45.391974"
+  },
+  {
+    "name": "Paper Cups 12oz",
+    "quantity": 500,
+    "cost": 2.5,
+    "unit": "pcs",
+    "category": "Packaging",
+    "minLevel": 200,
+    "id": "Id803bbe0",
+    "created": "2026-07-21T02:26:45.436062"
+  },
+  {
+    "name": "Lids",
+    "quantity": 150,
+    "cost": 1.2,
+    "unit": "pcs",
+    "category": "Packaging",
+    "minLevel": 200,
+    "id": "Iceddf6ae",
+    "created": "2026-07-21T02:26:45.459514"
+  },
+  {
+    "name": "Dish Soap",
+    "quantity": 3,
+    "cost": 95,
+    "unit": "pcs",
+    "category": "Cleaning",
+    "minLevel": 2,
+    "id": "I5384ba62",
+    "created": "2026-07-21T02:26:45.492872"
+  }
+]
