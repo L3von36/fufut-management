@@ -73,15 +73,18 @@ const items = ref([])
 const filter = ref('')
 const statuses = ['new', 'confirmed', 'seated', 'completed', 'cancelled', 'no-show']
 
-const filtered = computed(() =>
-  !filter.value ? items.value : items.value.filter(r => r.status === filter.value)
-)
+const filtered = computed(() => {
+  const list = !filter.value ? items.value : items.value.filter(r => r.status === filter.value)
+  // Newest bookings first.
+  return [...list].sort((a, b) => new Date(b.created || b.date || 0) - new Date(a.created || a.date || 0))
+})
 
 onMounted(loadData)
 
 async function loadData() {
   try {
-    items.value = await apiGet('reservations')
+    const data = await apiGet('reservations')
+    items.value = Array.isArray(data) ? data : []
   } catch {
     toast('Failed to load reservations', 'error')
   }
