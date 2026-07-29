@@ -1,0 +1,86 @@
+name: Build & Deploy All Apps
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: admin/package-lock.json
+      - run: cd admin && npm ci
+      - run: cp admin/index.html.source admin/index.html
+      - name: Build Admin
+        env:
+          VITE_API_URL: ${{ vars.API_BASE_URL }}
+        run: cd admin && npx vite build --base /
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy admin/dist --project-name=fufut-admin --branch=main
+
+  build-pos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: pos/package-lock.json
+      - run: cd pos && npm ci
+      - run: |
+          if [ -f pos/index.html.source ]; then
+            cp pos/index.html.source pos/index.html
+          fi
+      - name: Build POS
+        env:
+          VITE_API_URL: ${{ vars.API_BASE_URL }}
+        run: cd pos && npx vite build --base /
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy pos/dist --project-name=fufut-pos --branch=main
+      - name: Commit built assets back
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -rf pos/assets
+          cp -r pos/dist/assets pos/assets
+          cp pos/dist/index.html pos/index.html.built
+          cp pos/dist/index.html pos/index.html
+          rm -rf pos/dist
+          git add pos/index.html pos/index.html.built pos/assets/ || true
+          git diff --cached --quiet || git commit -m "build: auto-build POS [skip ci]" --no-verify
+          git push || true
+
+  build-backoffice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backoffice/package-lock.json
+      - run: cd backoffice && npm ci
+      - run: cp backoffice/index.html.source backoffice/index.html
+      - name: Build Backoffice
+        env:
+          VITE_API_URL: ${{ vars.API_BASE_URL }}
+        run: cd backoffice && npx vite build --base /
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy backoffice/dist --project-name=fufut-backoffice --branch=main

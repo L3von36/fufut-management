@@ -1,0 +1,27 @@
+{
+  "name": "FU FUT COFFEE — POS",
+  "short_name": "FUFUT POS",
+  "description": "Ethiopian restaurant POS system",
+  "start_url": "/pos/",
+  "display": "standalone",
+  "background_color": "#FAFAF8",
+  "theme_color": "#0F7B78",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/pos/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/pos/assets/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/pos/assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

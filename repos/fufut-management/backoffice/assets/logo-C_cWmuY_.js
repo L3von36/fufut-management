@@ -1,0 +1,1 @@
+var e=`/backoffice/assets/logo-BdtndPUy.webp`;export{e as t};

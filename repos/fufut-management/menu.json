@@ -1,0 +1,704 @@
+[
+  {
+    "id": "M001",
+    "name": "Espresso",
+    "category": "Coffee",
+    "price": 80,
+    "cost": 15,
+    "modifiers": [
+      "single",
+      "double"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M002",
+    "name": "Americano",
+    "category": "Coffee",
+    "price": 100,
+    "cost": 18,
+    "modifiers": [
+      "hot",
+      "iced"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M003",
+    "name": "Cappuccino",
+    "category": "Coffee",
+    "price": 130,
+    "cost": 28,
+    "modifiers": [
+      "hot",
+      "iced",
+      "oat-milk"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M004",
+    "name": "Latte",
+    "category": "Coffee",
+    "price": 140,
+    "cost": 30,
+    "modifiers": [
+      "hot",
+      "iced",
+      "oat-milk",
+      "vanilla",
+      "caramel",
+      "hazelnut"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M005",
+    "name": "Mocha",
+    "category": "Coffee",
+    "price": 160,
+    "cost": 35,
+    "modifiers": [
+      "hot",
+      "iced",
+      "whipped-cream"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M006",
+    "name": "Macchiato",
+    "category": "Coffee",
+    "price": 120,
+    "cost": 22,
+    "modifiers": [
+      "single",
+      "double"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M007",
+    "name": "Flat White",
+    "category": "Coffee",
+    "price": 150,
+    "cost": 32,
+    "modifiers": [],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M008",
+    "name": "Drip Coffee",
+    "category": "Coffee",
+    "price": 60,
+    "cost": 10,
+    "modifiers": [
+      "small",
+      "medium",
+      "large"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M009",
+    "name": "Pour Over",
+    "category": "Coffee",
+    "price": 120,
+    "cost": 20,
+    "modifiers": [
+      "single-origin"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M010",
+    "name": "French Press",
+    "category": "Coffee",
+    "price": 150,
+    "cost": 18,
+    "modifiers": [],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M011",
+    "name": "Cold Brew",
+    "category": "Drinks",
+    "price": 130,
+    "cost": 15,
+    "modifiers": [
+      "black",
+      "vanilla",
+      "sweet-cream"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M012",
+    "name": "Iced Tea",
+    "category": "Drinks",
+    "price": 90,
+    "cost": 8,
+    "modifiers": [
+      "lemon",
+      "peach",
+      "mint"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M013",
+    "name": "Frappuccino",
+    "category": "Drinks",
+    "price": 180,
+    "cost": 38,
+    "modifiers": [
+      "mocha",
+      "caramel",
+      "vanilla",
+      "strawberry"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M014",
+    "name": "Smoothie",
+    "category": "Drinks",
+    "price": 200,
+    "cost": 42,
+    "modifiers": [
+      "mango",
+      "banana-berry",
+      "green"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M015",
+    "name": "Fresh Juice",
+    "category": "Drinks",
+    "price": 150,
+    "cost": 30,
+    "modifiers": [
+      "orange",
+      "mango",
+      "papaya",
+      "watermelon"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M016",
+    "name": "Ethiopian Tea",
+    "category": "Drinks",
+    "price": 60,
+    "cost": 8,
+    "modifiers": [
+      "black",
+      "chai",
+      "honey"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M017",
+    "name": "Mineral Water",
+    "category": "Drinks",
+    "price": 30,
+    "cost": 5,
+    "modifiers": [
+      "sparkling",
+      "still"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M018",
+    "name": "Croissant",
+    "category": "Pastries",
+    "price": 120,
+    "cost": 35,
+    "modifiers": [
+      "plain",
+      "chocolate",
+      "cheese"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M019",
+    "name": "Muffin",
+    "category": "Pastries",
+    "price": 100,
+    "cost": 28,
+    "modifiers": [
+      "blueberry",
+      "chocolate",
+      "banana"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M020",
+    "name": "Bagel",
+    "category": "Pastries",
+    "price": 90,
+    "cost": 22,
+    "modifiers": [
+      "plain",
+      "sesame",
+      "cream-cheese"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M021",
+    "name": "Croissant Sandwich",
+    "category": "Breakfast",
+    "price": 220,
+    "cost": 65,
+    "modifiers": [
+      "chicken",
+      "veggie",
+      "cheese"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M022",
+    "name": "Full Breakfast",
+    "category": "Breakfast",
+    "price": 350,
+    "cost": 120,
+    "modifiers": [
+      "eggs any style",
+      "eggs scrambled",
+      "eggs fried"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M023",
+    "name": "Omelette",
+    "category": "Breakfast",
+    "price": 250,
+    "cost": 80,
+    "modifiers": [
+      "cheese",
+      "mushroom",
+      "mixed",
+      "veggie"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M024",
+    "name": "Pancakes",
+    "category": "Breakfast",
+    "price": 200,
+    "cost": 55,
+    "modifiers": [
+      "maple",
+      "honey",
+      "chocolate",
+      "mixed-berry"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M025",
+    "name": "French Toast",
+    "category": "Breakfast",
+    "price": 220,
+    "cost": 60,
+    "modifiers": [
+      "classic",
+      "caramel",
+      "berry"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M026",
+    "name": "Fruit Bowl",
+    "category": "Breakfast",
+    "price": 180,
+    "cost": 50,
+    "modifiers": [],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M027",
+    "name": "Sambusa",
+    "category": "Appetizers",
+    "price": 150,
+    "cost": 40,
+    "modifiers": [
+      "lentil",
+      "meat",
+      "vegetable"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M028",
+    "name": "Spring Rolls",
+    "category": "Appetizers",
+    "price": 180,
+    "cost": 45,
+    "modifiers": [
+      "vegetable",
+      "chicken",
+      "shrimp"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M029",
+    "name": "French Fries",
+    "category": "Appetizers",
+    "price": 120,
+    "cost": 25,
+    "modifiers": [
+      "regular",
+      "spicy",
+      "cheese"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M030",
+    "name": "Onion Rings",
+    "category": "Appetizers",
+    "price": 140,
+    "cost": 30,
+    "modifiers": [],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M031",
+    "name": "Chicken Wings",
+    "category": "Appetizers",
+    "price": 280,
+    "cost": 80,
+    "modifiers": [
+      "BBQ",
+      "hot",
+      "honey-garlic",
+      "lemon-pepper"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M032",
+    "name": "Mixed Salad",
+    "category": "Salads",
+    "price": 200,
+    "cost": 50,
+    "modifiers": [
+      "caesar",
+      "garden",
+      "greek",
+      "feta"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M033",
+    "name": "Pasta",
+    "category": "Mains",
+    "price": 320,
+    "cost": 95,
+    "modifiers": [
+      "bolognese",
+      "carbonara",
+      "alfredo",
+      "arrabbiata",
+      "pesto"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M034",
+    "name": "Pizza",
+    "category": "Mains",
+    "price": 380,
+    "cost": 110,
+    "modifiers": [
+      "margherita",
+      "pepperoni",
+      "vegetarian",
+      "hawaiian",
+      "spicy"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M035",
+    "name": "Grilled Chicken",
+    "category": "Mains",
+    "price": 350,
+    "cost": 100,
+    "modifiers": [
+      "rice",
+      "fries",
+      "salad",
+      "injera"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M036",
+    "name": "Beef Steak",
+    "category": "Mains",
+    "price": 550,
+    "cost": 180,
+    "modifiers": [
+      "rare",
+      "medium",
+      "well-done",
+      "pepper-sauce",
+      "mushroom-sauce"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M037",
+    "name": "Burger",
+    "category": "Mains",
+    "price": 320,
+    "cost": 90,
+    "modifiers": [
+      "beef",
+      "chicken",
+      "veggie",
+      "cheese",
+      "bacon"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M038",
+    "name": "Club Sandwich",
+    "category": "Mains",
+    "price": 250,
+    "cost": 70,
+    "modifiers": [
+      "chicken",
+      "turkey",
+      "veggie"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M039",
+    "name": "Shiro Wat",
+    "category": "Mains",
+    "price": 220,
+    "cost": 55,
+    "modifiers": [
+      "with injera",
+      "with rice",
+      "with bread"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M040",
+    "name": "Tibs",
+    "category": "Mains",
+    "price": 380,
+    "cost": 110,
+    "modifiers": [
+      "beef",
+      "lamb",
+      "chicken",
+      "with injera",
+      "with rice"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M041",
+    "name": "Doro Wat",
+    "category": "Mains",
+    "price": 350,
+    "cost": 100,
+    "modifiers": [
+      "with injera",
+      "with rice",
+      "spicy",
+      "mild"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M042",
+    "name": "Fish & Chips",
+    "category": "Mains",
+    "price": 380,
+    "cost": 110,
+    "modifiers": [],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M043",
+    "name": "Cake Slice",
+    "category": "Desserts",
+    "price": 180,
+    "cost": 50,
+    "modifiers": [
+      "chocolate",
+      "carrot",
+      "cheesecake",
+      "red-velvet"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M044",
+    "name": "Ice Cream",
+    "category": "Desserts",
+    "price": 120,
+    "cost": 25,
+    "modifiers": [
+      "vanilla",
+      "chocolate",
+      "strawberry",
+      "mango",
+      "mixed"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M045",
+    "name": "Cheesecake",
+    "category": "Desserts",
+    "price": 250,
+    "cost": 65,
+    "modifiers": [
+      "new-york",
+      "caramel",
+      "berry",
+      "chocolate"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M046",
+    "name": "Tiramisu",
+    "category": "Desserts",
+    "price": 220,
+    "cost": 55,
+    "modifiers": [],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M047",
+    "name": "Fruit Platter",
+    "category": "Desserts",
+    "price": 250,
+    "cost": 70,
+    "modifiers": [],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M048",
+    "name": "Tea",
+    "category": "Drinks",
+    "price": 40,
+    "cost": 5,
+    "modifiers": [
+      "black",
+      "green",
+      "chai",
+      "herbal",
+      "honey"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M049",
+    "name": "Soft Drinks",
+    "category": "Drinks",
+    "price": 50,
+    "cost": 15,
+    "modifiers": [
+      "coke",
+      "sprite",
+      "fanta",
+      "pepsi"
+    ],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "id": "M050",
+    "name": "Water",
+    "category": "Drinks",
+    "price": 20,
+    "cost": 2,
+    "modifiers": [],
+    "available": true,
+    "created": "2026-07-21T00:00:00"
+  },
+  {
+    "name": "Test Item",
+    "category": "Coffee",
+    "price": 100,
+    "cost": 20,
+    "modifiers": [
+      "hot"
+    ],
+    "available": true,
+    "id": "Ma2c01efc",
+    "created": "2026-07-25T10:29:59.148450"
+  }
+]

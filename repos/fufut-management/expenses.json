@@ -1,0 +1,50 @@
+[
+  {
+    "amount": 25000,
+    "category": "Rent",
+    "description": "Shop rent - July",
+    "date": "2026-07-01",
+    "id": "Ebb70ba55",
+    "created": "2026-07-21T02:26:44.890475"
+  },
+  {
+    "amount": 3200,
+    "category": "Utilities",
+    "description": "Electricity bill",
+    "date": "2026-07-10",
+    "id": "Ea03c970b",
+    "created": "2026-07-21T02:26:45.046458"
+  },
+  {
+    "amount": 8500,
+    "category": "Supplies",
+    "description": "Coffee beans - 20kg",
+    "date": "2026-07-15",
+    "id": "Ed9794834",
+    "created": "2026-07-21T02:26:45.073749"
+  },
+  {
+    "amount": 2400,
+    "category": "Supplies",
+    "description": "Milk and dairy",
+    "date": "2026-07-18",
+    "id": "Edff724ed",
+    "created": "2026-07-21T02:26:45.103757"
+  },
+  {
+    "amount": 1500,
+    "category": "Maintenance",
+    "description": "Espresso machine service",
+    "date": "2026-07-20",
+    "id": "Ee5dfd402",
+    "created": "2026-07-21T02:26:45.177577"
+  },
+  {
+    "category": "Food",
+    "description": "Test expense",
+    "amount": 500,
+    "date": "2026-07-25",
+    "id": "E8d9d7a1c",
+    "created": "2026-07-25T10:30:00.141884"
+  }
+]

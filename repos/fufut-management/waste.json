@@ -1,0 +1,13 @@
+[
+  {
+    "item_id": "I001",
+    "qty": 2,
+    "unit": "kg",
+    "reason": "spoilage",
+    "est_cost": 100,
+    "logged_by": "Sb4cd9bf1",
+    "date": "2026-07-25",
+    "id": "W9858c9d3",
+    "created": "2026-07-25T10:30:00.219531"
+  }
+]

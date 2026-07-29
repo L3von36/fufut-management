@@ -1,0 +1,68 @@
+<template>
+  <div>
+    <div class="table-toolbar">
+      <h3>Waste Log</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <select v-model="filter" class="select"><option value="">All</option><option value="Food">Food</option><option value="Beverage">Beverage</option><option value="Packaging">Packaging</option><option value="Other">Other</option></select>
+        <button class="btn btn-primary" @click="openAdd">+ Log Waste</button>
+        <button class="btn btn-outline" @click="loadData">Refresh</button>
+      </div>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card"><div class="num">{{ wasteItems.length }}</div><div class="lbl">Entries</div></div>
+      <div class="summary-card"><div class="num" style="color:var(--danger)">{{ totalWasteCost.toFixed(0) }}</div><div class="lbl">Total Cost (ETB)</div></div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Reason</th><th>Cost</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr v-for="w in filteredWaste" :key="w.id">
+              <td data-label="Item"><strong>{{ w.item||w.name }}</strong></td>
+              <td data-label="Category">{{ w.category||'—' }}</td>
+              <td data-label="Qty">{{ w.quantity||'-' }}</td>
+              <td data-label="Reason">{{ w.reason||'—' }}</td>
+              <td data-label="Cost">ETB {{ parseFloat(w.cost||0).toFixed(0) }}</td>
+              <td data-label="Date">{{ w.date||'—' }}</td>
+              <td data-label="Actions"><button class="btn btn-sm btn-ghost danger" @click="handleDelete(w)">Delete</button></td>
+            </tr>
+            <tr v-if="!filteredWaste.length"><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No waste logged</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination"><span>{{ filteredWaste.length }} entry(ies)</span></div>
+    </div>
+    <div class="modal-overlay" v-if="showModal" @click.self="showModal=false">
+      <div class="modal">
+        <h3>Log Waste</h3>
+        <p class="modal-sub">Record discarded items</p>
+        <div class="form-group"><label>Item</label><input v-model="form.name" /></div>
+        <div class="form-row">
+          <div class="form-group"><label>Category</label><select v-model="form.category" class="select"><option value="">Select...</option><option value="Food">Food</option><option value="Beverage">Beverage</option><option value="Packaging">Packaging</option><option value="Other">Other</option></select></div>
+          <div class="form-group"><label>Qty</label><input v-model.number="form.quantity" type="number" /></div>
+        </div>
+        <div class="form-group"><label>Reason</label><select v-model="form.reason" class="select"><option value="">Select...</option><option value="spoiled">Spoiled</option><option value="overproduction">Overproduction</option><option value="quality">Quality</option><option value="damaged">Damaged</option><option value="other">Other</option></select></div>
+        <div class="form-row">
+          <div class="form-group"><label>Cost (ETB)</label><input v-model.number="form.cost" type="number" step="0.01" /></div>
+          <div class="form-group"><label>Date</label><input v-model="form.date" type="date" /></div>
+        </div>
+        <div class="modal-actions"><button class="btn btn-secondary" @click="showModal=false">Cancel</button><button class="btn btn-primary" @click="saveItem">Log</button></div>
+      </div>
+    </div>
+  </div>
+</template>
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { apiGet, apiPost, apiDelete } from '../api'
+import { useToast } from '../composables/useToast'
+const { toast } = useToast()
+const wasteItems = ref([]); const filter = ref(''); const showModal = ref(false)
+const form = ref({ name:'', category:'', quantity:1, reason:'', cost:0, date:'' })
+const filteredWaste = computed(()=>!filter.value?wasteItems.value:wasteItems.value.filter(w=>w.category===filter.value))
+const totalWasteCost = computed(()=>wasteItems.value.reduce((s,w)=>s+parseFloat(w.cost||0),0))
+onMounted(()=>{form.value.date=new Date().toISOString().slice(0,10); loadData()})
+async function loadData() { try { wasteItems.value = await apiGet('waste') } catch {} }
+function openAdd() { form.value={name:'',category:'',quantity:1,reason:'',cost:0,date:new Date().toISOString().slice(0,10)}; showModal.value=true }
+async function saveItem() { try { await apiPost('waste',form.value); toast('Logged'); showModal.value=false; await loadData() } catch { toast('Failed','error') } }
+async function handleDelete(w) { if(!confirm('Delete?'))return; try { await apiDelete('waste/'+w.id); toast('Deleted'); await loadData() } catch { toast('Failed','error') } }
+</script>
