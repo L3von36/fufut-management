@@ -2,7 +2,7 @@ name: Build POS Frontend
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - 'pos/src/**'
       - 'pos/index.html.source'
