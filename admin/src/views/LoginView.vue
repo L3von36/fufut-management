@@ -48,6 +48,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { API } from '../api'
 
 const router = useRouter()
 const password = ref('')
@@ -61,7 +62,7 @@ async function login() {
 
   try {
     // Authenticate against the backend to get a real session cookie
-    const r = await fetch('/api/auth/login', {
+    const r = await fetch(`${API}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
