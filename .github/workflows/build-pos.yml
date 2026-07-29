@@ -17,7 +17,8 @@ jobs:
           cache-dependency-path: admin/package-lock.json
       - run: cd admin && npm ci
       - run: cp admin/index.html.source admin/index.html
-      - env:
+      - name: Build Admin
+        env:
           VITE_API_URL: ${{ vars.API_BASE_URL }}
         run: cd admin && npx vite build --base /
       - uses: cloudflare/wrangler-action@v3
@@ -44,7 +45,13 @@ jobs:
         env:
           VITE_API_URL: ${{ vars.API_BASE_URL }}
         run: cd pos && npx vite build --base /
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy pos/dist --project-name=fufut-pos
       - name: Commit built assets back
+        if: success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -53,13 +60,9 @@ jobs:
           cp pos/dist/index.html pos/index.html.built
           cp pos/dist/index.html pos/index.html
           rm -rf pos/dist
-          git add pos/index.html pos/index.html.built pos/assets/
-          git diff --cached --quiet || (git commit -m "build: auto-build POS [skip ci]" && git push)
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy pos/dist --project-name=fufut-pos
+          git add pos/index.html pos/index.html.built pos/assets/ || true
+          git diff --cached --quiet || git commit -m "build: auto-build POS [skip ci]" --no-verify
+          git push || true
 
   build-backoffice:
     runs-on: ubuntu-latest
