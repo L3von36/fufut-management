@@ -47,7 +47,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { useAuthStore } from '../stores/auth'
-import { apiPost, isOnline, onOnlineChange } from '../api'
+import { API, apiPost, isOnline, onOnlineChange } from '../api'
 
 const toast = inject('toast')
 const auth = useAuthStore()
@@ -69,7 +69,7 @@ onMounted(() => {
 })
 
 async function checkServer() {
-  try { const r = await fetch('/api/auth/me', { credentials: 'include' }); serverStatus.value = r.ok ? 'Connected' : 'Error' }
+  try { const r = await fetch(`${API}/api/auth/me`, { credentials: 'include' }); serverStatus.value = r.ok ? 'Connected' : 'Error' }
   catch { serverStatus.value = 'Unreachable' }
 }
 
