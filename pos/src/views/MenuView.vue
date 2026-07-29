@@ -43,6 +43,7 @@
               <h3>{{ item.name }}</h3>
               <span class="menu-price">ETB {{ parseFloat(item.price||0).toFixed(0) }}</span>
             </div>
+            <p v-if="item.description" class="menu-desc">{{ item.description }}</p>
             <div class="menu-meta">
               <span class="menu-category-tag">{{ item.category }}</span>
               <span v-if="item.cost && parseFloat(item.cost) > 0" class="menu-cost-badge">Gross {{ ((parseFloat(item.price)-parseFloat(item.cost))/parseFloat(item.price)*100).toFixed(0) }}%</span>
@@ -133,10 +134,22 @@ const cart = ref([])
 const showCart = ref(false)
 const orderSent = ref(false)
 
-const categories = ['Espresso', 'Filter', 'Cold', 'Blended', 'Food', 'Drinks']
+const categories = ref([])
 
 const categoryIcons = {
-  Espresso: '☕', Filter: '🫘', Cold: '🧊', Blended: '🥤', Food: '🍽️', Drinks: '🧋'
+  'Breakfast / ቁርስ': '🍳',
+  'Salad / ሰላጣ': '🥗',
+  'Ethiopian Dish / የሀበሻ ምግብ': '🫕',
+  'Half Bitt Half Foods / ግማሽ ግማሽ ምግቦች': '🍱',
+  'Pasta / ፓስታ': '🍝',
+  'Sandwich & Wrap / ሳንድዊች ና መለወ': '🥪',
+  'Burger / በርገር': '🍔',
+  'Pizza / ፒዛ': '🍕',
+  'Break time foods / መከሰስ': '🍟',
+  'Hot Drink / ትኩስ መጠጦች': '☕',
+  'Seasonal Juice / የፍራፍሬ ጭማቂዎች': '🧃',
+  'Soft Drink / ቀዝቃዛ መጠጦች': '🥤',
+  'Extra / ጭማሪዎች': '➕'
 }
 
 const foodImages = [
@@ -225,7 +238,15 @@ async function placeOrder() {
 }
 
 onMounted(loadData)
-async function loadData() { try { items.value = await apiGet('menu') } catch {} }
+async function loadData() {
+  try {
+    items.value = await apiGet('menu')
+    // Derive categories from actual data, preserving order of first appearance
+    const catSet = new Set()
+    items.value.forEach(i => { if (i.category) catSet.add(i.category) })
+    categories.value = Array.from(catSet)
+  } catch {}
+}
 </script>
 
 <style scoped>
@@ -249,9 +270,9 @@ async function loadData() { try { items.value = await apiGet('menu') } catch {} 
 .menu-search-input::placeholder{color:var(--neutral-400)}
 .search-clear{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.9rem;padding:2px 6px}
 
-/* Grid */
+/* Grid — LARGER CARDS */
 .menu-grid-wrapper{flex:1;overflow-y:auto;padding-bottom:80px}
-.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
 
 .menu-card{background:var(--surface);border-radius:var(--radius-md);border:1.5px solid var(--border);overflow:hidden;cursor:pointer;position:relative;transition:all var(--duration-base) var(--ease-out);box-shadow:var(--shadow-xs)}
 .menu-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-card-hover);border-color:var(--primary)}
@@ -261,17 +282,22 @@ async function loadData() { try { items.value = await apiGet('menu') } catch {} 
 .menu-card.pulse-add{animation:pulse-add .4s var(--ease-out)}
 @keyframes pulse-add{0%{transform:scale(1)}30%{transform:scale(.97)}60%{transform:scale(1.02)}100%{transform:scale(1)}}
 
-.menu-img{position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;background:var(--neutral-50)}
+.menu-img{position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;background:var(--neutral-50)}
 .menu-img img{width:100%;height:100%;object-fit:cover;transition:transform var(--duration-slow) var(--ease-out)}
 .menu-card:hover .menu-img img{transform:scale(1.08)}
 .menu-img-overlay{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:.82rem;text-transform:uppercase;letter-spacing:.06em}
 .menu-badge{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(15,123,120,.3);animation:badge-pop .3s var(--ease-out)}
 @keyframes badge-pop{0%{transform:scale(0)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
 
-.menu-info{padding:10px 12px 12px}
-.menu-name-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px}
-.menu-info h3{font-size:.92rem;font-weight:600;color:var(--text-heading);line-height:1.2}
-.menu-price{font-size:.92rem;font-weight:700;color:var(--primary);font-family:var(--font-mono);white-space:nowrap;flex-shrink:0}
+/* Card info — BIGGER TEXT & PADDING */
+.menu-info{padding:14px 16px 16px}
+.menu-name-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
+.menu-info h3{font-size:1.05rem;font-weight:700;color:var(--text-heading);line-height:1.3}
+.menu-price{font-size:1.05rem;font-weight:700;color:var(--primary);font-family:var(--font-mono);white-space:nowrap;flex-shrink:0}
+
+/* Description — NEW */
+.menu-desc{font-size:.82rem;color:var(--text-muted);line-height:1.45;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
 .menu-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
 .menu-category-tag{font-size:.62rem;color:var(--text-muted);background:var(--neutral-50);padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.04em;font-weight:500}
 .menu-cost-badge{font-size:.6rem;color:var(--success);background:var(--green-50);padding:2px 8px;border-radius:99px;font-weight:600}
@@ -279,10 +305,11 @@ async function loadData() { try { items.value = await apiGet('menu') } catch {} 
 .mod-tag{font-size:.65rem;color:var(--text-muted);background:var(--neutral-50);padding:2px 8px;border-radius:4px;border:1px solid var(--border)}
 .mod-more{color:var(--primary);background:var(--teal-50);border-color:var(--teal-200)}
 
-.menu-add-btn{position:absolute;bottom:10px;right:10px;width:34px;height:34px;border-radius:50%;border:none;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:all var(--duration-base) var(--ease-out);box-shadow:var(--shadow-primary)}
+/* Add button — BIGGER */
+.menu-add-btn{position:absolute;bottom:14px;right:14px;width:40px;height:40px;border-radius:50%;border:none;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:all var(--duration-base) var(--ease-out);box-shadow:var(--shadow-primary)}
 .menu-card:hover .menu-add-btn{opacity:1;transform:translateY(0)}
 .menu-add-btn:hover{background:var(--primary-hover);transform:scale(1.1)!important}
-.menu-add-btn svg{width:16px;height:16px}
+.menu-add-btn svg{width:20px;height:20px}
 
 .menu-empty{grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--text-muted)}
 .menu-empty-icon{font-size:2.5rem;margin-bottom:12px}
@@ -335,8 +362,12 @@ async function loadData() { try { items.value = await apiGet('menu') } catch {} 
   .menu-grid{grid-template-columns:repeat(2,1fr);gap:10px}
   .menu-card:hover{transform:none}
   .menu-card:hover .menu-img img{transform:none}
-  .menu-add-btn{opacity:1;bottom:8px;right:8px;width:30px;height:30px}
-  .menu-add-btn svg{width:14px;height:14px}
+  .menu-add-btn{opacity:1;bottom:10px;right:10px;width:34px;height:34px}
+  .menu-add-btn svg{width:16px;height:16px}
+  .menu-info{padding:10px 12px 12px}
+  .menu-info h3{font-size:.95rem}
+  .menu-price{font-size:.95rem}
+  .menu-desc{font-size:.75rem;-webkit-line-clamp:1}
   .floating-cart{bottom:80px;padding:10px 16px;min-width:200px}
   .cart-sheet{padding:16px;border-radius:var(--radius-md) var(--radius-md) 0 0}
 }
