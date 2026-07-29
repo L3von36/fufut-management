@@ -54,11 +54,31 @@ const password = ref('')
 const error = ref('')
 const loading = ref(false)
 
-function login() {
+async function login() {
   error.value = ''
   if (!password.value) { error.value = 'Enter password'; return }
   loading.value = true
-  setTimeout(() => {
+
+  try {
+    // Authenticate against the backend to get a real session cookie
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email: 'amanuel@fufut.coffee', password: password.value })
+    })
+
+    const data = await r.json()
+
+    if (data.ok) {
+      sessionStorage.setItem('admin_auth', '1')
+      router.push('/app/menu')
+    } else {
+      error.value = data.error || 'Invalid password'
+      loading.value = false
+    }
+  } catch (e) {
+    // Fallback: if backend is unreachable, try local auth as backup
     if (password.value === 'futfut2026') {
       sessionStorage.setItem('admin_auth', '1')
       router.push('/app/menu')
@@ -66,7 +86,7 @@ function login() {
       error.value = 'Invalid password'
       loading.value = false
     }
-  }, 300)
+  }
 }
 </script>
 

@@ -1,4 +1,6 @@
 export const NAV_ITEMS = [
+  { view: 'orders', label: 'Orders', icon: 'clipboard', section: 'Sales' },
+  { view: 'reservations', label: 'Reservations', icon: 'calendar', section: 'Sales' },
   { view: 'landing', label: 'Landing Page', icon: 'layout', section: 'Content' },
   { view: 'menu', label: 'Menu', icon: 'book', section: 'Content' },
   { view: 'reviews', label: 'Reviews', icon: 'star', section: 'Content' },

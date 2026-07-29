@@ -3,13 +3,12 @@ import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
   plugins: [vue()],
-  base: '/admin/',
+  base: '/',
   server: {
     port: 5174,
     host: '0.0.0.0',
     proxy: {
-      '/api': { target: 'http://localhost:3000', changeOrigin: true },
-      '/assets': { target: 'http://localhost:3000', changeOrigin: true }
+      '/api': { target: 'https://fufut-api.fufutcoffee.workers.dev', changeOrigin: true },
     }
   }
 })

@@ -77,6 +77,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useToast } from '../composables/useToast'
+import { apiGet, apiPost } from '../api'
 const { toast } = useToast()
 
 const data = reactive({
@@ -89,8 +90,7 @@ const data = reactive({
 
 async function loadContent() {
   try {
-    const r = await fetch('/api/content.json')
-    const json = await r.json()
+    const json = await apiGet('content')
     Object.assign(data, json)
   } catch {}
 }
@@ -98,14 +98,10 @@ onMounted(loadContent)
 
 async function saveAll() {
   try {
-    const r = await fetch('/save-content', {
-      method: 'POST', headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify(data)
-    })
-    const res = await r.json()
+    const res = await apiPost('save-content', data)
     if (res.ok) toast('Content saved')
-    else toast('Save failed','error')
-  } catch { toast('Save failed','error') }
+    else toast('Save failed', 'error')
+  } catch { toast('Save failed', 'error') }
 }
 
 function exportContent() {

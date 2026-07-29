@@ -5,6 +5,8 @@ import ReviewsView from '../views/ReviewsView.vue'
 import GalleryView from '../views/GalleryView.vue'
 import LandingView from '../views/LandingView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import OrdersView from '../views/OrdersView.vue'
+import ReservationsView from '../views/ReservationsView.vue'
 import AppLayout from '../components/AppLayout.vue'
 
 const routes = [
@@ -16,6 +18,8 @@ const routes = [
     { path: 'reviews', name: 'reviews', component: ReviewsView },
     { path: 'gallery', name: 'gallery', component: GalleryView },
     { path: 'landing', name: 'landing', component: LandingView },
+    { path: 'orders', name: 'orders', component: OrdersView },
+    { path: 'reservations', name: 'reservations', component: ReservationsView },
     { path: 'settings', name: 'settings', component: SettingsView }
   ]}
 ]
