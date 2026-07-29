@@ -25,7 +25,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy admin/dist --project-name=fufut-admin --branch=production
+          command: pages deploy admin/dist --project-name=fufut-admin --branch=main
 
   build-pos:
     runs-on: ubuntu-latest
@@ -49,7 +49,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy pos/dist --project-name=fufut-pos --branch=production
+          command: pages deploy pos/dist --project-name=fufut-pos --branch=main
       - name: Commit built assets back
         if: success()
         run: |
@@ -83,4 +83,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy backoffice/dist --project-name=fufut-backoffice --branch=production
+          command: pages deploy backoffice/dist --project-name=fufut-backoffice --branch=main
