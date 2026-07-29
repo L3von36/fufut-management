@@ -1,6 +1,8 @@
 import { dbGetAll, dbCacheAll, queueMutation } from '../db'
 
-const API = import.meta.env.VITE_API_URL || ''
+// Falls back to the deployed Cloudflare Worker API so the app still works
+// when VITE_API_URL is not provided at build time.
+export const API = import.meta.env.VITE_API_URL || 'https://fufut-api.fufutcoffee.workers.dev'
 
 // Reactive online state
 let _online = navigator.onLine
