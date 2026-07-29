@@ -17,6 +17,7 @@
           <thead>
             <tr>
               <th>Order ID</th>
+              <th>Customer</th>
               <th>Items</th>
               <th>Total</th>
               <th>Date</th>
@@ -27,7 +28,14 @@
           <tbody>
             <tr v-for="o in filtered" :key="o.id">
               <td><code class="order-id">{{ o.id }}</code></td>
-              <td>{{ o.items }}</td>
+              <td>
+                <span v-if="o.name || o.phone" class="cust-cell">
+                  <strong v-if="o.name">{{ o.name }}</strong>
+                  <span v-if="o.phone" class="text-muted">{{ o.phone }}</span>
+                </span>
+                <span v-else class="text-muted">Walk-in / Web</span>
+              </td>
+              <td>{{ formatItems(o.items) }}</td>
               <td><strong>ETB {{ Number(o.total).toFixed(0) }}</strong></td>
               <td class="text-muted">{{ formatDate(o.created) }}</td>
               <td>
@@ -40,7 +48,7 @@
               </td>
             </tr>
             <tr v-if="!filtered.length">
-              <td colspan="6" class="empty-state" style="padding:48px;text-align:center;color:var(--text-muted)">
+              <td colspan="7" class="empty-state" style="padding:48px;text-align:center;color:var(--text-muted)">
                 <div style="font-size:2rem;margin-bottom:8px">📋</div>
                 No orders found
               </td>
@@ -65,18 +73,34 @@ const items = ref([])
 const filter = ref('')
 const statuses = ['new', 'pending', 'confirmed', 'ready', 'completed', 'cancelled']
 
-const filtered = computed(() =>
-  !filter.value ? items.value : items.value.filter(o => o.status === filter.value)
-)
+const filtered = computed(() => {
+  const list = !filter.value ? items.value : items.value.filter(o => o.status === filter.value)
+  // Newest first so fresh web orders are always at the top.
+  return [...list].sort((a, b) => new Date(b.created || 0) - new Date(a.created || 0))
+})
 
 onMounted(loadData)
 
 async function loadData() {
   try {
-    items.value = await apiGet('orders')
+    const data = await apiGet('orders')
+    items.value = Array.isArray(data) ? data : []
   } catch {
     toast('Failed to load orders', 'error')
   }
+}
+
+// Orders can arrive as a plain string ("Latte, Croissant") from older records
+// or as an array of line items from the website cart.
+function formatItems(items) {
+  if (!items) return '\u2014'
+  if (typeof items === 'string') return items
+  if (Array.isArray(items)) {
+    return items
+      .map(i => (typeof i === 'string' ? i : `${i.name || 'Item'}${i.qty > 1 ? ' \u00d7' + i.qty : ''}`))
+      .join(', ')
+  }
+  return String(items)
 }
 
 function formatDate(d) {
@@ -107,6 +131,12 @@ async function handleDelete(o) {
 </script>
 
 <style scoped>
+.cust-cell {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+  font-size: .85rem;
+}
 .order-id {
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: .78rem;
