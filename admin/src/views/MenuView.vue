@@ -100,13 +100,38 @@
           <textarea v-model="editItemData.description" rows="3" placeholder="Item description in English"></textarea>
         </div>
 
+        <!-- Image field: upload button + URL fallback -->
         <div class="form-group">
-          <label>Image URL</label>
-          <input v-model="editItemData.image" placeholder="https://... or leave blank" />
-          <div v-if="editItemData.image" style="margin-top:8px;border-radius:8px;overflow:hidden;height:120px;background:var(--bg)">
-            <img :src="editItemData.image" style="width:100%;height:100%;object-fit:cover" @error="e=>e.target.style.display='none'" />
+          <label>Image</label>
+
+          <!-- Preview -->
+          <div v-if="editItemData.image" class="img-preview">
+            <img :src="editItemData.image" alt="Preview" @error="e => e.target.style.display='none'" />
+            <button class="img-remove-btn" type="button" @click="editItemData.image = ''" title="Remove image">✕</button>
           </div>
-          <small style="color:var(--muted)">Direct image URL (Cloudflare R2, Imgur, etc.)</small>
+
+          <!-- Upload button -->
+          <div class="img-upload-row">
+            <label class="btn btn-outline btn-sm img-upload-label" :class="{ 'uploading': imgUploading }">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                style="display:none"
+                @change="handleImageUpload"
+                ref="fileInput"
+              />
+              <span v-if="imgUploading" class="upload-spinner">⟳</span>
+              {{ imgUploading ? 'Uploading…' : '📤 Upload image' }}
+            </label>
+            <span class="img-upload-sep">or</span>
+            <input
+              v-model="editItemData.image"
+              class="img-url-input"
+              placeholder="Paste image URL…"
+            />
+          </div>
+          <small v-if="imgError" style="color:var(--danger)">{{ imgError }}</small>
+          <small v-else style="color:var(--muted)">JPEG, PNG, WebP or GIF · max 8 MB</small>
         </div>
 
         <div class="form-group">
@@ -155,7 +180,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { apiGet, apiPost } from '../api'
+import { apiGet, apiPost, API } from '../api'
 import { useToast } from '../composables/useToast'
 
 const { toast } = useToast()
@@ -189,6 +214,38 @@ const editItemData = reactive({
 let editItemCi = -1
 let editItemIi = -1
 let _newItemIdx = -999
+
+// Image upload state
+const imgUploading = ref(false)
+const imgError = ref('')
+const fileInput = ref(null)
+
+async function handleImageUpload(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  imgError.value = ''
+  imgUploading.value = true
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    const r = await fetch(`${API}/api/upload`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form
+    })
+    const data = await r.json()
+    if (!r.ok || !data.ok) throw new Error(data.error || `Upload failed (${r.status})`)
+    editItemData.image = data.url
+    toast('Image uploaded')
+  } catch (err) {
+    imgError.value = err.message || 'Upload failed'
+    toast(imgError.value, 'error')
+  } finally {
+    imgUploading.value = false
+    // Reset input so the same file can be re-selected if needed
+    if (fileInput.value) fileInput.value.value = ''
+  }
+}
 
 // Edit category modal state
 const catEditModal = ref(false)
@@ -315,30 +372,36 @@ function addItem(cat) {
   editItemData.available = true
   editItemData.tags = []
   editItemData.modifiersRaw = ''
+  imgError.value = ''
   cat.items.push({ name: '', price: '', description: '', image: '', available: true, tags: [], modifiers: [] })
   editModal.value = true
 }
 
 function editItem(ci, ii) {
-  const item = data.categories[ci].items[ii]
   editItemCi = ci
   editItemIi = ii
   _newItemIdx = -999
+  const item = data.categories[ci].items[ii]
   editItemData.name = item.name || ''
   editItemData.price = item.price || ''
   editItemData.description = item.description || ''
   editItemData.image = item.image || ''
   editItemData.available = item.available !== false && item.available !== 0
   editItemData.tags = Array.isArray(item.tags) ? [...item.tags] : parseTags(item.tags)
-  const mods = Array.isArray(item.modifiers) ? item.modifiers : (item.modifiers || '').split(',').map(m => m.trim()).filter(Boolean)
-  editItemData.modifiersRaw = mods.join(', ')
+  editItemData.modifiersRaw = Array.isArray(item.modifiers)
+    ? item.modifiers.join(', ')
+    : (item.modifiers || '')
+  imgError.value = ''
   editModal.value = true
 }
 
 function closeEditModal() {
-  const item = data.categories[editItemCi]?.items[editItemIi]
-  if (item && !item.name.trim() && !item.price.trim() && !item.description.trim() && !item.image) {
-    data.categories[editItemCi].items.splice(editItemIi, 1)
+  // If adding a new item and closing without saving, remove the placeholder
+  if (editItemIi === _newItemIdx && editItemCi >= 0) {
+    const cat = data.categories[editItemCi]
+    if (cat && cat.items && cat.items[editItemIi] && !cat.items[editItemIi].name) {
+      cat.items.splice(editItemIi, 1)
+    }
   }
   editModal.value = false
 }
@@ -348,23 +411,37 @@ function saveEditModal() {
     toast('Item name is required', 'error')
     return
   }
-  const item = data.categories[editItemCi].items[editItemIi]
-  if (!item) { toast('Item not found', 'error'); return }
-  item.name = editItemData.name.trim()
-  item.price = editItemData.price.trim()
-  item.description = editItemData.description.trim()
-  item.image = editItemData.image.trim()
-  item.available = editItemData.available
-  item.tags = [...editItemData.tags]
-  item.modifiers = editItemData.modifiersRaw.split(',').map(m => m.trim()).filter(Boolean)
+  const cat = data.categories[editItemCi]
+  if (!cat) return
+  const mods = editItemData.modifiersRaw
+    ? editItemData.modifiersRaw.split(',').map(m => m.trim()).filter(Boolean)
+    : []
+  cat.items[editItemIi] = {
+    name: editItemData.name.trim(),
+    price: editItemData.price.trim(),
+    description: editItemData.description.trim(),
+    image: editItemData.image.trim(),
+    available: editItemData.available,
+    tags: [...editItemData.tags],
+    modifiers: mods
+  }
   dirty.value = true
   editModal.value = false
-  toast('Item updated')
+  toast(editItemIi === _newItemIdx ? 'Item added' : 'Item updated')
+  _newItemIdx = -999
+}
+
+function deleteItem(ci, ii) {
+  const name = data.categories[ci].items[ii].name || 'this item'
+  if (!confirm(`Delete "${name}"?`)) return
+  data.categories[ci].items.splice(ii, 1)
+  dirty.value = true
+  toast('Item deleted')
 }
 
 function moveItem(ci, ii, dir) {
-  const target = ii + dir
   const items = data.categories[ci].items
+  const target = ii + dir
   if (target < 0 || target >= items.length) return
   const tmp = items[ii]
   items[ii] = items[target]
@@ -372,24 +449,22 @@ function moveItem(ci, ii, dir) {
   dirty.value = true
 }
 
-function deleteItem(ci, ii) {
-  data.categories[ci].items.splice(ii, 1)
-  dirty.value = true
-  toast('Item removed')
-}
-
 onMounted(loadData)
 </script>
 
 <style scoped>
-.menu-editor { padding-bottom: 40px; }
-.category-section { border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 12px; overflow: hidden; }
-.category-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-secondary); cursor: pointer; user-select: none; gap: 12px; }
+.menu-editor { padding: 0; }
+.category-section { border: 1px solid var(--border-light); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+.category-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; background: var(--bg-secondary); cursor: pointer;
+  user-select: none;
+}
 .category-header:hover { background: var(--bg-tertiary); }
-.category-title { display: flex; align-items: center; gap: 8px; font-size: .9rem; }
-.collapse-icon { font-size: .65rem; color: var(--muted); width: 10px; }
-.item-count { font-size: .72rem; color: var(--muted); font-weight: 400; }
-.category-actions { display: flex; gap: 2px; }
+.category-title { display: flex; align-items: center; gap: 10px; }
+.collapse-icon { font-size: .75rem; color: var(--muted); width: 12px; }
+.item-count { font-size: .72rem; color: var(--muted); padding: 2px 8px; background: var(--bg-tertiary); border-radius: 10px; }
+.category-actions { display: flex; gap: 4px; }
 .category-items { overflow-x: auto; }
 .item-row {
   display: grid;
@@ -439,4 +514,39 @@ onMounted(loadData)
   font-size: .7rem; font-weight: 600; padding: 2px 10px; border-radius: 10px;
   background: var(--primary); color: #fff; vertical-align: middle; margin-left: 6px;
 }
+
+/* Image upload UI */
+.img-preview {
+  position: relative; width: 100%; height: 140px;
+  border-radius: 8px; overflow: hidden; background: var(--bg-tertiary);
+  margin-bottom: 8px;
+}
+.img-preview img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.img-remove-btn {
+  position: absolute; top: 6px; right: 6px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(0,0,0,.55); color: #fff; border: none;
+  font-size: .8rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.img-remove-btn:hover { background: var(--danger); }
+.img-upload-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.img-upload-label {
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.img-upload-label.uploading { opacity: .7; pointer-events: none; }
+.upload-spinner { display: inline-block; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.img-upload-sep { color: var(--muted); font-size: .8rem; flex-shrink: 0; }
+.img-url-input {
+  flex: 1; min-width: 0;
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--text); font-size: .85rem;
+}
+.img-url-input:focus { outline: none; border-color: var(--primary); }
 </style>
