@@ -63,9 +63,11 @@
 
       <div class="content-wrap">
         <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
+          <keep-alive>
+            <transition name="fade" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </keep-alive>
         </router-view>
       </div>
     </div>
