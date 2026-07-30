@@ -3316,28 +3316,37 @@
     (function() {
         function applyContent(c) {
             if (!c) return;
+            // Support both nested format (from admin: {hero:{amharic,title,...}})
+            // and legacy flat format ({heroAmharic, heroTitle, ...})
+            var h = c.hero || {};
+            var s = c.story || {};
+            var cer = c.ceremony || {};
+            var foot = c.footer || {};
+            var statsArr = Array.isArray(c.stats) ? c.stats : [];
             // Hero
             var hTitle = document.querySelector('.hero-content h1');
             var hSub = document.querySelector('.hero-sub');
             var hAmh = document.querySelector('.hero-amharic');
             var hBtns = document.querySelectorAll('.hero-btns button');
-            if (hTitle && c.heroTitle) hTitle.innerHTML = c.heroTitle;
-            if (hSub && c.heroSub) hSub.textContent = c.heroSub;
-            if (hAmh && c.heroAmharic) hAmh.textContent = c.heroAmharic;
-            if (hBtns[0] && c.heroBtn1) hBtns[0].textContent = c.heroBtn1;
-            if (hBtns[1] && c.heroBtn2) hBtns[1].textContent = c.heroBtn2;
+            if (hTitle && (h.title || c.heroTitle)) hTitle.innerHTML = h.title || c.heroTitle;
+            if (hSub && (h.subtitle || c.heroSub)) hSub.textContent = h.subtitle || c.heroSub;
+            if (hAmh && (h.amharic || c.heroAmharic)) hAmh.textContent = h.amharic || c.heroAmharic;
+            if (hBtns[0] && (h.btn1 || c.heroBtn1)) hBtns[0].textContent = h.btn1 || c.heroBtn1;
+            if (hBtns[1] && (h.btn2 || c.heroBtn2)) hBtns[1].textContent = h.btn2 || c.heroBtn2;
             // Story
             var sEye = document.querySelector('#story .sec-eyebrow');
             var sTitle = document.querySelector('#story .story-text h3');
             var sP = document.querySelectorAll('#story .story-text p');
             var sBadge = document.querySelectorAll('.story-badge-float');
             var sFeat = document.querySelectorAll('.story-feat span');
-            if (sEye && c.storyEyebrow) sEye.textContent = c.storyEyebrow;
-            if (sTitle && c.storyTitle) sTitle.innerHTML = c.storyTitle;
-            if (sP[0] && c.storyP1) sP[0].textContent = c.storyP1;
-            if (sP[1] && c.storyP2) sP[1].textContent = c.storyP2;
-            if (sBadge[0]) { if (c.badge1Num) sBadge[0].querySelector('.story-badge-num').textContent = c.badge1Num; if (c.badge1Label) sBadge[0].querySelector('.story-badge-label').textContent = c.badge1Label; }
-            if (sBadge[1]) { if (c.badge2Num) sBadge[1].querySelector('.story-badge-num').textContent = c.badge2Num; if (c.badge2Label) sBadge[1].querySelector('.story-badge-label').textContent = c.badge2Label; }
+            if (sEye && (s.eyebrow || c.storyEyebrow)) sEye.textContent = s.eyebrow || c.storyEyebrow;
+            if (sTitle && (s.title || c.storyTitle)) sTitle.innerHTML = s.title || c.storyTitle;
+            if (sP[0] && (s.p1 || c.storyP1)) sP[0].textContent = s.p1 || c.storyP1;
+            if (sP[1] && (s.p2 || c.storyP2)) sP[1].textContent = s.p2 || c.storyP2;
+            var b1n = s.badge1Num || c.badge1Num, b1l = s.badge1Label || c.badge1Label;
+            var b2n = s.badge2Num || c.badge2Num, b2l = s.badge2Label || c.badge2Label;
+            if (sBadge[0]) { if (b1n) sBadge[0].querySelector('.story-badge-num').textContent = b1n; if (b1l) sBadge[0].querySelector('.story-badge-label').textContent = b1l; }
+            if (sBadge[1]) { if (b2n) sBadge[1].querySelector('.story-badge-num').textContent = b2n; if (b2l) sBadge[1].querySelector('.story-badge-label').textContent = b2l; }
             if (sFeat[0] && c.feat1) sFeat[0].textContent = c.feat1;
             if (sFeat[1] && c.feat2) sFeat[1].textContent = c.feat2;
             if (sFeat[2] && c.feat3) sFeat[2].textContent = c.feat3;
@@ -3345,34 +3354,42 @@
             // Stats
             var stats = document.querySelectorAll('.stat-value');
             var sLabels = document.querySelectorAll('.stat-label');
-            if (stats[0] && c.stat1Val !== undefined) stats[0].dataset.target = c.stat1Val;
-            if (stats[1] && c.stat2Val !== undefined) stats[1].dataset.target = c.stat2Val;
-            if (stats[2] && c.stat3Val !== undefined) stats[2].dataset.target = c.stat3Val;
-            if (stats[3] && c.stat4Val !== undefined) stats[3].dataset.target = c.stat4Val;
-            if (sLabels[0] && c.stat1Label) sLabels[0].textContent = c.stat1Label;
-            if (sLabels[1] && c.stat2Label) sLabels[1].textContent = c.stat2Label;
-            if (sLabels[2] && c.stat3Label) sLabels[2].textContent = c.stat3Label;
-            if (sLabels[3] && c.stat4Label) sLabels[3].textContent = c.stat4Label;
+            statsArr.forEach(function(st, i) {
+                if (stats[i] && st.value !== undefined) stats[i].dataset.target = st.value;
+                if (sLabels[i] && st.label) sLabels[i].textContent = st.label;
+            });
+            // legacy flat stats
+            if (!statsArr.length) {
+                if (stats[0] && c.stat1Val !== undefined) stats[0].dataset.target = c.stat1Val;
+                if (stats[1] && c.stat2Val !== undefined) stats[1].dataset.target = c.stat2Val;
+                if (stats[2] && c.stat3Val !== undefined) stats[2].dataset.target = c.stat3Val;
+                if (stats[3] && c.stat4Val !== undefined) stats[3].dataset.target = c.stat4Val;
+                if (sLabels[0] && c.stat1Label) sLabels[0].textContent = c.stat1Label;
+                if (sLabels[1] && c.stat2Label) sLabels[1].textContent = c.stat2Label;
+                if (sLabels[2] && c.stat3Label) sLabels[2].textContent = c.stat3Label;
+                if (sLabels[3] && c.stat4Label) sLabels[3].textContent = c.stat4Label;
+            }
             // Ceremony
             var cEye = document.querySelector('#ceremony .sec-eyebrow');
             var cTitle = document.querySelector('#ceremony .sec-title');
             var cDesc = document.querySelector('#ceremony .sec-desc');
             var cSteps = document.querySelectorAll('.ceremony-step-text');
             var cCta = document.querySelector('#ceremony .btn-gold');
-            if (cEye && c.cerEyebrow) cEye.textContent = c.cerEyebrow;
-            if (cTitle && c.cerTitle) cTitle.textContent = c.cerTitle;
-            if (cDesc && c.cerDesc) cDesc.textContent = c.cerDesc;
-            if (cSteps[0]) { if (c.cerS1Title) cSteps[0].querySelector('h4').textContent = c.cerS1Title; if (c.cerS1Text) cSteps[0].querySelector('p').textContent = c.cerS1Text; }
-            if (cSteps[1]) { if (c.cerS2Title) cSteps[1].querySelector('h4').textContent = c.cerS2Title; if (c.cerS2Text) cSteps[1].querySelector('p').textContent = c.cerS2Text; }
-            if (cSteps[2]) { if (c.cerS3Title) cSteps[2].querySelector('h4').textContent = c.cerS3Title; if (c.cerS3Text) cSteps[2].querySelector('p').textContent = c.cerS3Text; }
-            if (cCta && c.cerCta) cCta.textContent = c.cerCta;
+            if (cEye && (cer.eyebrow || c.cerEyebrow)) cEye.textContent = cer.eyebrow || c.cerEyebrow;
+            if (cTitle && (cer.title || c.cerTitle)) cTitle.textContent = cer.title || c.cerTitle;
+            if (cDesc && (cer.desc || c.cerDesc)) cDesc.textContent = cer.desc || c.cerDesc;
+            var steps = cer.steps || [];
+            if (cSteps[0]) { var s1t=steps[0]&&steps[0].title||c.cerS1Title, s1x=steps[0]&&steps[0].text||c.cerS1Text; if(s1t) cSteps[0].querySelector('h4').textContent=s1t; if(s1x) cSteps[0].querySelector('p').textContent=s1x; }
+            if (cSteps[1]) { var s2t=steps[1]&&steps[1].title||c.cerS2Title, s2x=steps[1]&&steps[1].text||c.cerS2Text; if(s2t) cSteps[1].querySelector('h4').textContent=s2t; if(s2x) cSteps[1].querySelector('p').textContent=s2x; }
+            if (cSteps[2]) { var s3t=steps[2]&&steps[2].title||c.cerS3Title, s3x=steps[2]&&steps[2].text||c.cerS3Text; if(s3t) cSteps[2].querySelector('h4').textContent=s3t; if(s3x) cSteps[2].querySelector('p').textContent=s3x; }
+            if (cCta && (cer.cta || c.cerCta)) cCta.textContent = cer.cta || c.cerCta;
             // Footer
             var fDesc = document.querySelector('.footer-brand p');
             var fYear = document.querySelector('.footer-bottom span:first-child');
             var fCraft = document.querySelector('.footer-bottom span:last-child');
-            if (fDesc && c.footDesc) fDesc.textContent = c.footDesc;
-            if (fYear && c.footYear) fYear.innerHTML = '&copy; ' + c.footYear + ' Fu Fut Coffee. All rights reserved.';
-            if (fCraft && c.footCraft) fCraft.textContent = c.footCraft;
+            if (fDesc && (foot.desc || c.footDesc)) fDesc.textContent = foot.desc || c.footDesc;
+            if (fYear && (foot.year || c.footYear)) fYear.innerHTML = '&copy; ' + (foot.year || c.footYear) + ' Fu Fut Coffee. All rights reserved.';
+            if (fCraft && (foot.craft || c.footCraft)) fCraft.textContent = foot.craft || c.footCraft;
         }
         // 1st: try localStorage (admin edits — instant)
         try {
