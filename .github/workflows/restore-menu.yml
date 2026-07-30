@@ -1,0 +1,66 @@
+name: Restore Menu from Backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type RESTORE to confirm you want to overwrite the live menu with the backup"
+        required: true
+        default: ""
+      admin_email:
+        description: "Admin email (or leave blank to use ADMIN_EMAIL secret)"
+        required: false
+        default: ""
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'RESTORE'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate backup file
+        run: |
+          if [ ! -f menu_backup.json ]; then
+            echo "ERROR: menu_backup.json not found in repo"
+            exit 1
+          fi
+          CATS=$(node -e 'const m=require("./menu_backup.json"); console.log(m.categories.length)')
+          ITEMS=$(node -e 'const m=require("./menu_backup.json"); console.log(m.categories.reduce((s,c)=>s+(c.items||[]).length,0))')
+          echo "Backup contains $CATS categories and $ITEMS items"
+          if [ "$ITEMS" -eq 0 ]; then
+            echo "ERROR: backup file has 0 items — refusing to restore empty menu"
+            exit 1
+          fi
+
+      - name: Login to admin API
+        id: login
+        env:
+          ADMIN_EMAIL: ${{ github.event.inputs.admin_email || secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          LOGIN=$(curl -sc /tmp/cookies.txt -X POST \
+            https://fufut-api.fufutcoffee.workers.dev/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" \
+            -s)
+          echo "Login: $LOGIN"
+          if ! echo "$LOGIN" | grep -q '"ok":true'; then
+            echo "ERROR: Login failed"
+            exit 1
+          fi
+
+      - name: Restore menu from backup
+        run: |
+          RESULT=$(curl -sb /tmp/cookies.txt -X POST \
+            https://fufut-api.fufutcoffee.workers.dev/api/menus/save \
+            -H "Content-Type: application/json" \
+            --data-binary @menu_backup.json \
+            -s)
+          echo "Restore result: $RESULT"
+          if ! echo "$RESULT" | grep -q '"ok":true'; then
+            echo "ERROR: Restore failed"
+            exit 1
+          fi
+          echo "✅ Menu restored successfully!"
+
