@@ -17,15 +17,30 @@ jobs:
         run: |
           curl -sf https://fufut-api.fufutcoffee.workers.dev/api/menus \
             --retry 3 --retry-delay 5 \
-            -o menu_backup.json
-          echo "Fetched at $(date -u)" > menu_backup_log.txt
-          echo "Items: $(node -e 'const m=require("./menu_backup.json"); console.log(m.categories.reduce((s,c)=>s+(c.items||[]).length,0))') across $(node -e 'const m=require("./menu_backup.json"); console.log(m.categories.length)') categories" >> menu_backup_log.txt
-          cat menu_backup_log.txt
+            -o /tmp/menu_fetched.json
+          ITEMS=$(node -e 'const m=require("/tmp/menu_fetched.json"); console.log(m.categories.reduce((s,c)=>s+(c.items||[]).length,0))')
+          CATS=$(node -e 'const m=require("/tmp/menu_fetched.json"); console.log(m.categories.length)')
+          echo "Fetched: $CATS categories, $ITEMS items"
+          echo "ITEM_COUNT=$ITEMS" >> $GITHUB_ENV
+          echo "CAT_COUNT=$CATS" >> $GITHUB_ENV
+
+      - name: Update backup only if API has data
+        if: env.ITEM_COUNT != '0'
+        run: |
+          cp /tmp/menu_fetched.json menu_backup.json
+          echo "Updated backup with ${{ env.CAT_COUNT }} categories / ${{ env.ITEM_COUNT }} items at $(date -u)" > menu_backup_log.txt
+
+      - name: Skip backup — API returned empty menu
+        if: env.ITEM_COUNT == '0'
+        run: |
+          echo "⚠️  API returned 0 items — keeping existing backup unchanged"
+          echo "Skipped at $(date -u): API returned empty menu" >> menu_backup_log.txt
 
       - name: Commit backup to repo
         run: |
           git config user.name "menu-backup-bot"
           git config user.email "bot@fufutcoffee.com"
+          git pull --rebase origin master
           git add menu_backup.json menu_backup_log.txt
-          git diff --cached --quiet && echo "No changes to backup" || (git commit -m "auto: menu backup $(date -u +%Y-%m-%d\ %H:%M\ UTC) [skip ci]" && git push)
+          git diff --cached --quiet && echo "No changes" || (git commit -m "auto: menu backup $(date -u +%Y-%m-%d\ %H:%M\ UTC) [skip ci]" && git push)
 
