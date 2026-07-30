@@ -101,12 +101,19 @@
         </div>
 
         <div class="form-group">
-          <label>Image URL</label>
-          <input v-model="editItemData.image" placeholder="https://... or leave blank" />
+          <label>Image</label>
+          <div class="image-upload-row">
+            <input v-model="editItemData.image" placeholder="https://... or upload a file" class="image-url-input" />
+            <label class="btn btn-outline btn-sm upload-btn" :class="{ uploading: imageUploading }">
+              <input type="file" accept="image/*" style="display:none" @change="handleImageUpload" :disabled="imageUploading" />
+              <span v-if="imageUploading">Uploading…</span>
+              <span v-else>📁 Upload</span>
+            </label>
+          </div>
           <div v-if="editItemData.image" style="margin-top:8px;border-radius:8px;overflow:hidden;height:120px;background:var(--bg)">
             <img :src="editItemData.image" style="width:100%;height:100%;object-fit:cover" @error="e=>e.target.style.display='none'" />
           </div>
-          <small style="color:var(--muted)">Direct image URL (Cloudflare R2, Imgur, etc.)</small>
+          <small style="color:var(--muted)">Upload a photo or paste a direct image URL</small>
         </div>
 
         <div class="form-group">
@@ -155,7 +162,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { apiGet, apiPost } from '../api'
+import { apiGet, apiPost, apiUpload } from '../api'
 import { useToast } from '../composables/useToast'
 
 const { toast } = useToast()
@@ -181,6 +188,7 @@ const itemsCount = computed(() => {
 
 // Edit item modal state
 const editModal = ref(false)
+const imageUploading = ref(false)
 const editItemData = reactive({
   name: '', price: '', description: '',
   image: '', available: true,
@@ -189,6 +197,22 @@ const editItemData = reactive({
 let editItemCi = -1
 let editItemIi = -1
 let _newItemIdx = -999
+
+async function handleImageUpload(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  imageUploading.value = true
+  try {
+    const result = await apiUpload(file)
+    editItemData.image = result.url
+    toast('Image uploaded')
+  } catch (err) {
+    toast('Upload failed: ' + err.message, 'error')
+  } finally {
+    imageUploading.value = false
+    e.target.value = ''
+  }
+}
 
 // Edit category modal state
 const catEditModal = ref(false)
@@ -430,6 +454,12 @@ onMounted(loadData)
 .tag-btn { padding: 4px 10px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--bg); color: var(--text-muted); font-size: .75rem; font-weight: 500; cursor: pointer; transition: all .15s; }
 .tag-btn:hover { border-color: var(--primary); color: var(--primary); }
 .tag-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* Image upload row */
+.image-upload-row { display: flex; gap: 8px; align-items: center; }
+.image-url-input { flex: 1; min-width: 0; }
+.upload-btn { flex-shrink: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.upload-btn.uploading { opacity: .6; pointer-events: none; }
 
 .unsaved-badge {
   font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;

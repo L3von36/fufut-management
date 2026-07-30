@@ -22,6 +22,16 @@ export async function apiDelete(endpoint) {
   if (!r.ok) throw new Error(`DELETE ${endpoint} ${r.status}`)
   return r.json()
 }
+export async function apiUpload(file) {
+  const form = new FormData()
+  form.append('file', file)
+  const r = await fetch(`${API}/api/upload`, { method:'POST', credentials:'include', body: form })
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: r.statusText }))
+    throw new Error(err.error || `Upload failed ${r.status}`)
+  }
+  return r.json() // { ok, url, key }
+}
 
 export const NAV_ITEMS = [
   { view: 'orders', label: 'Orders', icon: 'clipboard', section: 'Sales' },
