@@ -256,6 +256,18 @@ async function loadData() {
 }
 
 async function saveAll() {
+  // Safety guard — prevent accidental full wipe of all menu data
+  const totalItems = data.categories.reduce((s, c) => s + (c.items || []).length, 0)
+  if (data.categories.length === 0 || totalItems === 0) {
+    const ok = window.confirm(
+      '⚠️ DANGER: You are about to save an EMPTY menu.\n\n' +
+      'This will permanently DELETE all categories and items from the database.\n\n' +
+      'Click Cancel to go back. Click OK only if you truly mean to clear the entire menu.'
+    )
+    if (!ok) return
+    const ok2 = window.confirm('Final check: Are you absolutely sure you want to DELETE all menu data? This cannot be undone.')
+    if (!ok2) return
+  }
   try {
     const payload = { restaurant: data.restaurant || 'FU FUT COFFEE', categories: [] }
     for (const cat of data.categories) {
