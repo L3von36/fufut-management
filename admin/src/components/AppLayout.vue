@@ -12,7 +12,9 @@
           <div v-for="item in section.items" :key="item.view" class="nav-item"
             :class="{ active: currentView === item.view }"
             @click="navigate(item.view)" tabindex="0" role="button">
-            <span v-html="icons[item.icon]"></span>{{ item.label }}
+            <span v-html="icons[item.icon]"></span>
+            {{ item.label }}
+            <span v-if="item.view === 'orders' && ordersBadge > 0" class="nav-badge">{{ ordersBadge }}</span>
           </div>
         </template>
       </nav>
@@ -28,6 +30,7 @@
         <div class="topbar-left">
           <button class="menu-toggle" @click="sidebarOpen = !sidebarOpen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
           <h2>{{ pageTitle }}</h2>
+          <span v-if="currentView === 'orders' && ordersBadge > 0" class="topbar-badge">{{ ordersBadge }} new</span>
         </div>
         <div class="topbar-right">
           <button class="theme-toggle" @click="toggleTheme" :title="isDark ? 'Light mode' : 'Dark mode'">
@@ -45,7 +48,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NAV_ITEMS } from '../api'
 
@@ -54,11 +57,19 @@ const route = useRoute()
 const sidebarOpen = ref(false)
 const currentView = ref('landing')
 const isDark = ref(document.documentElement.getAttribute('data-theme') === 'dark')
+const ordersBadge = ref(0)
 
 function toggleTheme() {
   isDark.value = !isDark.value
   document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
 }
+
+// Listen for badge updates from OrdersView
+function onOrdersBadge(e) {
+  ordersBadge.value = e.detail || 0
+}
+onMounted(() => window.addEventListener('orders-badge', onOrdersBadge))
+onUnmounted(() => window.removeEventListener('orders-badge', onOrdersBadge))
 
 const icons = {
   'book': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
@@ -98,3 +109,37 @@ onMounted(() => {
   if (!sessionStorage.getItem('admin_auth')) router.push('/login')
 })
 </script>
+
+<style scoped>
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: #fff;
+  font-size: .6rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.topbar-badge {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  background: #ef4444;
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 10px;
+  margin-left: 10px;
+  animation: pulse-topbar 1.5s ease-in-out infinite;
+}
+@keyframes pulse-topbar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .7; }
+}
+</style>

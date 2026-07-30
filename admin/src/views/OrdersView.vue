@@ -1,13 +1,16 @@
 <template>
   <div>
     <div class="table-toolbar">
-      <h3>Orders</h3>
+      <h3>Orders <span v-if="newCount > 0" class="new-badge">{{ newCount }} new</span></h3>
       <div style="display:flex;gap:8px;align-items:center">
         <select v-model="filter" class="select select-sm">
           <option value="">All Statuses</option>
           <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
         </select>
         <span class="badge badge-muted">{{ filtered.length }} order(s)</span>
+        <button class="btn btn-outline btn-sm" :class="{ 'btn-muted': soundMuted }" @click="toggleSound" :title="soundMuted ? 'Sound alerts off' : 'Sound alerts on'">
+          {{ soundMuted ? '🔇' : '🔔' }} Sound
+        </button>
         <button class="btn btn-outline btn-sm" @click="loadData">⟳ Refresh</button>
       </div>
     </div>
@@ -26,12 +29,13 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="o in filtered" :key="o.id">
+            <tr v-for="o in filtered" :key="o.id" :class="{ 'row-new': o.status === 'new' && !seenIds.has(o.id) }">
               <td><code class="order-id">{{ o.id }}</code></td>
               <td>
-                <span v-if="o.name || o.phone" class="cust-cell">
+                <span v-if="o.name || o.phone || o.email" class="cust-cell">
                   <strong v-if="o.name">{{ o.name }}</strong>
                   <span v-if="o.phone" class="text-muted">{{ o.phone }}</span>
+                  <span v-if="o.email" class="text-muted">{{ o.email }}</span>
                 </span>
                 <span v-else class="text-muted">Walk-in / Web</span>
               </td>
@@ -58,13 +62,14 @@
       </div>
       <div class="pagination">
         <span>{{ filtered.length }} order(s)</span>
+        <span v-if="lastChecked" class="text-muted" style="font-size:.75rem">Last updated: {{ lastChecked }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { apiGet, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
 const { toast } = useToast()
@@ -72,45 +77,147 @@ const { toast } = useToast()
 const items = ref([])
 const filter = ref('')
 const statuses = ['new', 'pending', 'confirmed', 'ready', 'completed', 'cancelled']
+const seenIds = ref(new Set())
+const soundMuted = ref(localStorage.getItem('orders_sound_muted') === 'true')
+const lastChecked = ref('')
+const newCount = computed(() => items.value.filter(o => o.status === 'new' && !seenIds.value.has(o.id)).length)
+
+// Emit badge count to parent via a custom event on the window
+function emitBadge(count) {
+  window.dispatchEvent(new CustomEvent('orders-badge', { detail: count }))
+}
 
 const filtered = computed(() => {
   const list = !filter.value ? items.value : items.value.filter(o => o.status === filter.value)
-  // Newest first so fresh web orders are always at the top.
   return [...list].sort((a, b) => new Date(b.created || 0) - new Date(a.created || 0))
 })
 
-onMounted(loadData)
+// Web Audio API sound alert
+function playAlert() {
+  if (soundMuted.value) return
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const chime = (freq, start, duration) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0, ctx.currentTime + start)
+      gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + start + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration)
+      osc.start(ctx.currentTime + start)
+      osc.stop(ctx.currentTime + start + duration)
+    }
+    chime(880, 0, 0.3)
+    chime(1100, 0.18, 0.3)
+    chime(1320, 0.36, 0.4)
+  } catch (e) {
+    // Audio not available
+  }
+}
+
+function toggleSound() {
+  soundMuted.value = !soundMuted.value
+  localStorage.setItem('orders_sound_muted', soundMuted.value)
+  if (!soundMuted.value) playAlert() // preview sound when enabling
+}
+
+let pollTimer = null
+
+onMounted(() => {
+  loadData()
+  // Restore previously seen IDs from session
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('orders_seen') || '[]')
+    seenIds.value = new Set(saved)
+  } catch {}
+  // Poll every 15 seconds
+  pollTimer = setInterval(pollOrders, 15000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
 
 async function loadData() {
   try {
     const data = await apiGet('orders')
-    items.value = Array.isArray(data) ? data : []
+    const list = Array.isArray(data) ? data : []
+    // On first load, mark all existing 'new' orders as seen so we don't alert for old ones
+    if (items.value.length === 0) {
+      list.forEach(o => seenIds.value.add(o.id))
+      saveSeen()
+    }
+    items.value = list
+    updateBadge()
+    const now = new Date()
+    lastChecked.value = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   } catch {
     toast('Failed to load orders', 'error')
   }
 }
 
-// Orders can arrive as a plain string ("Latte, Croissant") from older records
-// or as an array of line items from the website cart.
-function formatItems(items) {
-  if (!items) return '\u2014'
-  if (typeof items === 'string') return items
-  if (Array.isArray(items)) {
-    return items
-      .map(i => (typeof i === 'string' ? i : `${i.name || 'Item'}${i.qty > 1 ? ' \u00d7' + i.qty : ''}`))
-      .join(', ')
+async function pollOrders() {
+  try {
+    const data = await apiGet('orders')
+    const list = Array.isArray(data) ? data : []
+    const currentIds = new Set(items.value.map(o => o.id))
+    const incoming = list.filter(o => !currentIds.has(o.id) && o.status === 'new')
+    if (incoming.length > 0) {
+      playAlert()
+      const label = incoming.length === 1
+        ? `New order from ${incoming[0].name || 'a customer'}!`
+        : `${incoming.length} new orders arrived!`
+      toast(label)
+      // Browser notification
+      if (Notification.permission === 'granted') {
+        new Notification('FU FUT COFFEE — New Order', { body: label, icon: '/assets/logo.webp' })
+      } else if (Notification.permission === 'default') {
+        Notification.requestPermission()
+      }
+    }
+    items.value = list
+    updateBadge()
+    const now = new Date()
+    lastChecked.value = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  } catch {
+    // Silent poll failures
   }
-  return String(items)
+}
+
+function updateBadge() {
+  const count = items.value.filter(o => o.status === 'new' && !seenIds.value.has(o.id)).length
+  emitBadge(count)
+}
+
+function saveSeen() {
+  try { sessionStorage.setItem('orders_seen', JSON.stringify([...seenIds.value])) } catch {}
+}
+
+function formatItems(its) {
+  if (!its) return '—'
+  if (typeof its === 'string') return its
+  if (Array.isArray(its)) {
+    return its.map(i => (typeof i === 'string' ? i : `${i.name || 'Item'}${i.qty > 1 ? ' ×' + i.qty : ''}`)).join(', ')
+  }
+  return String(its)
 }
 
 function formatDate(d) {
   if (!d) return '—'
-  const date = new Date(d)
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 async function updateStatus(o) {
   try {
+    // Mark as seen when staff changes status away from 'new'
+    if (o.status !== 'new') {
+      seenIds.value.add(o.id)
+      saveSeen()
+      updateBadge()
+    }
     await apiPut('orders/' + o.id, { status: o.status })
     toast('Status updated to ' + o.status)
   } catch {
@@ -122,6 +229,8 @@ async function handleDelete(o) {
   if (!confirm('Delete order ' + o.id + '?')) return
   try {
     await apiDelete('orders/' + o.id)
+    seenIds.value.add(o.id)
+    saveSeen()
     toast('Order deleted')
     await loadData()
   } catch {
@@ -162,4 +271,37 @@ async function handleDelete(o) {
 .status-completed { color: #16a34a; border-color: #86efac; background: #f0fdf4; }
 .status-cancelled { color: #dc2626; border-color: #fca5a5; background: #fef2f2; }
 .text-muted { color: var(--text-muted); font-size: .82rem; }
+.new-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+  animation: pulse-badge 1.5s ease-in-out infinite;
+}
+@keyframes pulse-badge {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: .85; }
+}
+.row-new {
+  background: rgba(37, 99, 235, 0.04);
+  border-left: 3px solid #2563eb;
+}
+.btn-muted { opacity: .55; }
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: .82rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-light, #eee);
+}
 </style>
