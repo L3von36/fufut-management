@@ -273,7 +273,9 @@ async function saveAll() {
     for (const cat of data.categories) {
       const cleanCat = {
         name: cat.name,
+        ...(cat.id ? { id: cat.id } : {}),  // Preserve existing ID to prevent duplication
         items: (cat.items || []).map(item => ({
+          ...(item.id ? { id: item.id } : {}),  // Preserve existing item ID
           name: item.name || '',
           description: item.description || '',
           price: item.price || '',
