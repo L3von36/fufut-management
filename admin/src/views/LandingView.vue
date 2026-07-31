@@ -147,10 +147,36 @@
 
     <!-- Testimonials -->
     <section class="card" style="margin-bottom:14px">
-      <div class="card-header"><h3>Testimonials Section</h3></div>
+      <div class="card-header">
+        <h3>Testimonials Section</h3>
+        <button class="btn btn-sm btn-outline" @click="addTestimonial">+ Add Testimonial</button>
+      </div>
       <div class="form-row">
         <div class="form-group"><label>Eyebrow</label><input v-model="data.testimonials.eyebrow" /></div>
         <div class="form-group"><label>Title</label><input v-model="data.testimonials.title" /></div>
+      </div>
+      <div v-if="data.testimonialCards.length === 0" style="padding:16px;color:var(--text-muted);font-size:13px">No testimonials yet. Click "+ Add Testimonial".</div>
+      <div v-for="(card, i) in data.testimonialCards" :key="i" style="margin-top:16px;padding:14px;background:var(--bg-subtle,#f7f7f7);border-radius:8px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+          <span>Testimonial {{ i + 1 }}</span>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-sm btn-outline" @click="moveTestimonial(i,-1)" :disabled="i===0">↑</button>
+            <button class="btn btn-sm btn-outline" @click="moveTestimonial(i,1)" :disabled="i===data.testimonialCards.length-1">↓</button>
+            <button class="btn btn-sm" style="color:var(--danger,#c0392b)" @click="removeTestimonial(i)">✕</button>
+          </div>
+        </div>
+        <div class="form-group"><label>Quote</label><textarea v-model="card.quote" rows="2" placeholder="\"The ceremony felt like home...\"" /></div>
+        <div class="form-row">
+          <div class="form-group"><label>Name</label><input v-model="card.name" placeholder="Selam T." /></div>
+          <div class="form-group"><label>Role / Location</label><input v-model="card.role" placeholder="Regular · Addis Ababa" /></div>
+        </div>
+        <div class="form-group">
+          <label>Avatar Image URL</label>
+          <input v-model="card.avatar" placeholder="assets/avatar-1494790108377.jpg" />
+          <div v-if="card.avatar" style="margin-top:6px">
+            <img :src="card.avatar" alt="preview" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border)" @error="$event.target.style.display='none'" />
+          </div>
+        </div>
       </div>
     </section>
 
@@ -242,6 +268,7 @@ const data = reactive({
   gallerySection: { eyebrow:'', title:'', desc:'' },
   gallery:  [],
   testimonials: { eyebrow:'', title:'' },
+  testimonialCards: [],
   reservation: { eyebrow:'', title:'', desc:'', hoursVal:'', locationVal:'', contactVal:'' },
   footer:   { desc:'', year:'2026', craft:'', monFri:'', sat:'', sun:'', holidays:'', phone:'', email:'', address1:'', address2:'', instagram:'', facebook:'', twitter:'' }
 })
@@ -266,6 +293,7 @@ async function loadContent() {
     if (json.gallerySection) Object.assign(data.gallerySection, json.gallerySection)
     if (Array.isArray(json.gallery)) data.gallery.splice(0, data.gallery.length, ...json.gallery)
     if (json.testimonials)  Object.assign(data.testimonials, json.testimonials)
+    if (Array.isArray(json.testimonialCards)) data.testimonialCards.splice(0, data.testimonialCards.length, ...json.testimonialCards)
     if (json.reservation)   Object.assign(data.reservation, json.reservation)
     if (json.footer)        Object.assign(data.footer, json.footer)
   } catch {}
@@ -294,5 +322,13 @@ function moveGalleryItem(i, d) {
   const j = i + d
   if (j < 0 || j >= data.gallery.length) return
   ;[data.gallery[i], data.gallery[j]] = [data.gallery[j], data.gallery[i]]
+}
+
+function addTestimonial()      { data.testimonialCards.push({ quote: '', name: '', role: '', avatar: '' }) }
+function removeTestimonial(i)  { data.testimonialCards.splice(i, 1) }
+function moveTestimonial(i, d) {
+  const j = i + d
+  if (j < 0 || j >= data.testimonialCards.length) return
+  ;[data.testimonialCards[i], data.testimonialCards[j]] = [data.testimonialCards[j], data.testimonialCards[i]]
 }
 </script>

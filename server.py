@@ -26,6 +26,8 @@ FILES = {
     'tables':       os.path.join(ROOT, 'tables.json'),
 }
 
+CONTENT_FILE = os.path.join(ROOT, 'content.json')
+
 def load_json(path):
     try:
         with open(path, 'r', encoding='utf-8') as f:
@@ -65,11 +67,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return None
 
     def do_GET(self):
+        # GET /api/content -> content.json
+        if self.path == '/api/content':
+            content = load_json(CONTENT_FILE)
+            if not content:
+                content = {}
+            send_json(self, 200, content)
+            return
         name = self._api_route()
         if name:
             send_json(self, 200, load_json(FILES[name]))
             return
         super().do_GET()
+
+    def load_content_json(self):
+        try:
+            with open(CONTENT_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
 
     def _read_json_body(self):
         body = read_body(self)
@@ -82,8 +98,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError("Expected JSON object")
 
-            if self.path == '/save-content':
-                out_path = os.path.join(ROOT, 'content.json')
+            if self.path == '/api/save-content' or self.path == '/save-content':
+                out_path = CONTENT_FILE
                 with open(out_path, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
                 send_json(self, 200, {"ok": True, "path": out_path})
@@ -181,7 +197,8 @@ if __name__ == '__main__':
     print("Endpoints:")
     for name in FILES:
         print(f"  GET/POST /api/{name} -> {name}.json")
-    print("  POST /save-content -> content.json")
+    print("  GET  /api/content -> content.json")
+    print("  POST /api/save-content -> content.json")
     print("Press Ctrl+C to stop\n")
     with http.server.HTTPServer(('0.0.0.0', PORT), Handler) as httpd:
         try:
