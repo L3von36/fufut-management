@@ -26,8 +26,8 @@ test.describe('Login Page Rendering', () => {
   test('email and password fields should be required', async ({ page }) => {
     await page.goto('/pos/login')
     await page.waitForLoadState('networkidle')
-    const isRequired = await page.locator('#email').getAttribute('required')
-    const pwdRequired = await page.locator('#password').getAttribute('required')
+    const isRequired = await page.locator('#email').evaluate(el => el.required)
+    const pwdRequired = await page.locator('#password').evaluate(el => el.required)
     expect(isRequired).toBeTruthy()
     expect(pwdRequired).toBeTruthy()
   })

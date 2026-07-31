@@ -43,13 +43,18 @@ test.describe('Authentication Flow', () => {
   })
 
   test('should show loading state on submit', async ({ page }) => {
+    // Intercept the login API call to delay the response
+    await page.route('**/api/auth/**', async route => {
+      await new Promise(r => setTimeout(r, 500))
+      await route.continue()
+    })
+
     await page.fill('#email', 'test@test.com')
     await page.fill('#password', 'password')
     await page.click('button[type="submit"]')
-    await page.waitForTimeout(500)
-    const isDisabled = await page.locator('button[type="submit"]').isDisabled().catch(() => false)
-    const hasSpinner = await page.locator('.spinner').isVisible().catch(() => false)
-    const redirected = !page.url().includes('login')
-    expect(isDisabled || hasSpinner || redirected).toBe(true)
+
+    // Button should be disabled while loading
+    const isDisabled = await page.locator('button[type="submit"]').isDisabled()
+    expect(isDisabled).toBe(true)
   })
 })
