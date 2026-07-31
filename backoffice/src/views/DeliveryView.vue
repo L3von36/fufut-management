@@ -43,7 +43,12 @@
           <div class="form-group"><label>Driver ID</label><input v-model="form.driverId" /></div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="showForm=false">Cancel</button>
-            <button type="submit" class="btn btn-primary">Update</button>
+            <button type="submit" class="btn btn-primary" :class="{'btn-loading': btnState.isBusy(), 'btn-success-state': btnState.isSuccess(), 'btn-error-state': btnState.isError()}" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
+              <span v-if="btnState.isBusy()" class="btn-spinner" aria-hidden="true"></span>
+              <span v-else-if="btnState.isSuccess()" class="btn-check" aria-hidden="true">✓</span>
+              <span v-else-if="btnState.isError()" class="btn-error-icon" aria-hidden="true">!</span>
+              {{ btnState.isBusy() ? 'Updating...' : btnState.isSuccess() ? 'Updated ✓' : btnState.isError() ? 'Try Again' : 'Update' }}
+            </button>
           </div>
         </form>
       </div>
@@ -54,8 +59,10 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
+import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const btnState = useButtonState({ successDuration: 2000 })
 const deliveries = ref([])
 const statusFilter = ref('')
 const showForm = ref(false)
@@ -70,7 +77,8 @@ async function loadDelivery() { try { deliveries.value = await apiGet('delivery'
 function editDelivery(d) { editing.value = d; form.value = { status: d.status, driverId: d.driverId || '' }; showForm.value = true }
 
 async function saveDelivery() {
-  try { await apiPut('delivery', { ...form.value, id: editing.value.id }); toast('Delivery updated'); showForm.value = false; await loadDelivery() }
-  catch (e) { toast(e.message, 'error') }
+  btnState.setLoading()
+  try { await apiPut('delivery', { ...form.value, id: editing.value.id }); toast('Delivery updated'); showForm.value = false; await loadDelivery(); btnState.setSuccess() }
+  catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
 }
 </script>

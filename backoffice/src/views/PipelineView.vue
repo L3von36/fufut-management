@@ -6,7 +6,7 @@
         <span class="sse-badge" :class="{ online: sse.connected.value }">
           {{ sse.connected.value ? '● Live' : '○ Connecting' }}
         </span>
-        <button class="btn btn-sm btn-secondary" @click="loadOrders">Refresh</button>
+        <base-button text="Refresh" variant="btn-secondary" extra-class="btn-sm" :on-click="loadOrders" />
       </div>
     </div>
 
@@ -73,10 +73,10 @@
         </div>
 
         <div class="timeline-actions">
-          <button v-if="selectedOrder.status === 'new'" class="btn btn-warning" @click="updateStatus('preparing')">Send to Kitchen</button>
-          <button v-if="selectedOrder.status === 'preparing'" class="btn btn-primary" @click="updateStatus('ready')">Mark Ready</button>
-          <button v-if="selectedOrder.status === 'ready'" class="btn btn-success" @click="updateStatus('fulfilled')">Mark Served</button>
-          <button v-if="selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'fulfilled'" class="btn btn-danger btn-sm" @click="updateStatus('cancelled')">Cancel</button>
+          <base-button v-if="selectedOrder.status === 'new'" text="Send to Kitchen" variant="btn-warning" :on-click="() => updateStatus('preparing')" />
+          <base-button v-if="selectedOrder.status === 'preparing'" text="Mark Ready" variant="btn-primary" :on-click="() => updateStatus('ready')" />
+          <base-button v-if="selectedOrder.status === 'ready'" text="Mark Served" variant="btn-success" :on-click="() => updateStatus('fulfilled')" />
+          <base-button v-if="selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'fulfilled'" text="Cancel" variant="btn-danger" extra-class="btn-sm" :on-click="() => updateStatus('cancelled')" />
           <button class="btn btn-secondary" @click="selectedOrder=null">Close</button>
         </div>
       </div>
@@ -88,12 +88,14 @@
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { useSSE } from '../composables/useSSE'
+import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
 const sse = useSSE()
 const orders = ref([])
 const selectedOrder = ref(null)
 const dragOrder = ref(null)
+const btnState = useButtonState({ successDuration: 1500 })
 
 const stages = [
   { key: 'new', label: 'New Orders', color: 'linear-gradient(135deg,#2563EB,#60A5FA)', emptyIcon: '📋', emptyText: 'No new orders' },
@@ -110,7 +112,6 @@ const grouped = computed(() => {
     const k = o.status || 'new'
     if (g[k]) g[k].push(o)
   })
-  // Sort each lane by time
   Object.values(g).forEach(arr => arr.sort((a, b) => (a.created || '').localeCompare(b.created || '')))
   return g
 })
@@ -133,20 +134,15 @@ let timerInterval = null
 
 onMounted(() => {
   loadOrders()
-  // Connect SSE to backend directly (bypass Vite proxy for long-lived connections)
   sse.connect('http://localhost:3000/api/events/kitchen')
   sse.on('new_order', (data) => {
-    // Add to orders list
     orders.value.push({ ...data, timer: 0 })
     toast(`New order #${data.id}`, 'success')
   })
   sse.on('order_update', (data) => {
     const idx = orders.value.findIndex(o => o.id === data.id)
-    if (idx !== -1) {
-      orders.value[idx] = { ...orders.value[idx], ...data }
-    }
+    if (idx !== -1) { orders.value[idx] = { ...orders.value[idx], ...data } }
   })
-  // Timer for orders in progress
   timerInterval = setInterval(() => {
     const now = Date.now()
     orders.value.forEach(o => {
@@ -198,64 +194,9 @@ async function updateStatus(status) {
   if (!selectedOrder.value) return
   try {
     await apiPut('orders', { id: selectedOrder.value.id, status })
+    toast(`Order ${status}`)
     selectedOrder.value.status = status
-    toast(`Order #${selectedOrder.value.id} → ${status}`)
-  } catch (err) {
-    toast('Failed to update', 'error')
-  }
+    loadOrders()
+  } catch (e) { toast('Failed to update', 'error'); throw e }
 }
 </script>
-
-<style scoped>
-.pipeline-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
-.pipeline-header h3{font-size:1.05rem;color:var(--text-heading);font-weight:600}
-.pipeline-controls{display:flex;gap:10px;align-items:center}
-.sse-badge{font-size:.72rem;padding:4px 10px;border-radius:99px;background:var(--red-50);color:var(--danger);font-weight:600}
-.sse-badge.online{background:var(--green-50);color:var(--success)}
-
-.pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;min-height:60vh}
-
-.pipeline-lane{background:var(--surface);border-radius:var(--radius-md);border:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-sm)}
-.lane-header{padding:10px 14px;color:#fff;font-weight:600;font-size:.82rem;display:flex;justify-content:space-between;align-items:center}
-.lane-count{background:rgba(255,255,255,.25);padding:1px 8px;border-radius:99px;font-size:.7rem}
-.lane-body{flex:1;padding:8px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;min-height:200px;max-height:calc(100vh - 240px)}
-.lane-empty{padding:32px 16px;text-align:center;color:var(--text-muted);font-size:.78rem;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.lane-empty-icon{font-size:1.8rem;margin-bottom:6px}
-
-.order-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;cursor:grab;transition:all var(--duration-fast) var(--ease);box-shadow:var(--shadow-xs)}
-.order-card:hover{border-color:var(--primary);box-shadow:var(--shadow-md);transform:translateY(-2px)}
-.order-card:active{cursor:grabbing}
-.order-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.order-id{font-weight:700;font-size:.85rem;color:var(--text-heading);font-family:var(--font-mono)}
-.order-time{font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono)}
-.order-table{font-size:.72rem;color:var(--primary);font-weight:500;margin-bottom:2px}
-.order-items{font-size:.78rem;color:var(--text-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
-.order-timer{font-size:.7rem;font-weight:600;color:var(--warning);font-family:var(--font-mono);margin-bottom:2px}
-.order-timer.urgent{color:var(--danger);animation:pulse 1s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-.order-card-footer{display:flex;justify-content:space-between;align-items:center;padding-top:4px;border-top:1px solid var(--border)}
-.order-total{font-size:.78rem;font-weight:600;font-family:var(--font-mono);color:var(--text-heading)}
-
-/* Transition group animations */
-.order-card-move{transition:transform .3s var(--ease)}
-.order-card-enter-active{transition:all .3s var(--ease-out)}
-.order-card-leave-active{transition:all .2s var(--ease);position:absolute}
-.order-card-enter-from{opacity:0;transform:translateY(-12px) scale(.95)}
-.order-card-leave-to{opacity:0;transform:scale(.9)}
-
-/* Timeline modal */
-.timeline-modal{width:420px}
-.timeline{padding:20px 0;position:relative}
-.timeline::before{content:'';position:absolute;left:19px;top:20px;bottom:20px;width:2px;background:var(--border)}
-.timeline-step{display:flex;gap:14px;padding:8px 0;position:relative;align-items:flex-start}
-.tl-dot{width:40px;height:40px;border-radius:50%;background:var(--neutral-100);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;color:var(--text-muted);border:2px solid var(--border);flex-shrink:0;z-index:1;transition:all var(--duration-base) var(--ease)}
-.timeline-step.active .tl-dot{background:var(--primary);border-color:var(--primary);color:#fff}
-.timeline-step.future .tl-dot{background:var(--surface);border-color:var(--border-strong);color:var(--text-muted)}
-.tl-content{padding-top:8px}
-.tl-title{font-size:.88rem;font-weight:600;color:var(--text-heading)}
-.tl-time{font-size:.72rem;color:var(--text-muted);margin-top:2px}
-.timeline-actions{display:flex;gap:8px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--border);margin-top:8px}
-
-@media(max-width:900px){.pipeline{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:600px){.pipeline{grid-template-columns:1fr 1fr}}
-</style>

@@ -13,7 +13,7 @@
           <option value="Drinks">Drinks</option>
         </select>
         <button class="btn btn-primary" @click="openAdd">+ Add Item</button>
-        <button class="btn btn-outline" @click="loadData">Refresh</button>
+        <base-button text="Refresh" variant="btn-outline" :on-click="loadData" />
       </div>
     </div>
 
@@ -21,46 +21,26 @@
       <div class="table-scroll">
         <table>
           <thead>
-            <tr>
-              <th></th>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Price</th>
-              <th>Cost</th>
-              <th>Margin</th>
-              <th>Modifiers</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
+            <tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Cost</th><th>Margin</th><th>Modifiers</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
             <tr v-for="i in filteredItems" :key="i.id">
-              <td style="width:48px;padding:4px 8px">
-                <img :src="i.image || getPlaceholder(i)" :alt="i.name" style="width:36px;height:36px;border-radius:6px;object-fit:cover" loading="lazy" />
-              </td>
+              <td style="width:48px;padding:4px 8px"><img :src="i.image || getPlaceholder(i)" :alt="i.name" style="width:36px;height:36px;border-radius:6px;object-fit:cover" loading="lazy" /></td>
               <td data-label="Name"><strong>{{ i.name }}</strong></td>
               <td data-label="Category">{{ i.category }}</td>
               <td data-label="Price">ETB {{ parseFloat(i.price||0).toFixed(0) }}</td>
               <td data-label="Cost">ETB {{ parseFloat(i.cost||0).toFixed(0) }}</td>
-              <td data-label="Margin">
-                <span class="badge" :class="marginClass(i)">{{ marginPercent(i) }}%</span>
-              </td>
+              <td data-label="Margin"><span class="badge" :class="marginClass(i)">{{ marginPercent(i) }}%</span></td>
               <td data-label="Modifiers">{{ i.modifiers || '—' }}</td>
-              <td data-label="Status">
-                <span class="badge" :class="i.available !== false ? 'badge-ok' : 'badge-danger'">
-                  {{ i.available !== false ? 'Available' : 'Unavailable' }}
-                </span>
-              </td>
+              <td data-label="Status"><span class="badge" :class="i.available !== false ? 'badge-ok' : 'badge-danger'">{{ i.available !== false ? 'Available' : 'Unavailable' }}</span></td>
               <td data-label="Actions">
                 <div style="display:flex;gap:4px">
                   <button class="btn btn-sm btn-ghost" @click="openEdit(i)">Edit</button>
-                  <button class="btn btn-sm btn-ghost danger" @click="handleDelete(i)">Delete</button>
+                  <base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => handleDelete(i)" />
                 </div>
               </td>
             </tr>
-            <tr v-if="!filteredItems.length">
-              <td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">No menu items</td>
-            </tr>
+            <tr v-if="!filteredItems.length"><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">No menu items</td></tr>
           </tbody>
         </table>
       </div>
@@ -78,48 +58,24 @@
             <button type="button" class="btn btn-sm btn-secondary" style="width:100%;margin-top:6px" @click="pickImage">Change Image</button>
           </div>
           <div style="flex:1">
-            <div class="form-group">
-              <label>Item Name</label>
-              <input v-model="form.name" placeholder="e.g. Cappuccino" />
-            </div>
-            <div class="form-group">
-              <label>Category</label>
-              <select v-model="form.category" class="select">
-                <option value="">Select...</option>
-                <option value="Espresso">Espresso</option>
-                <option value="Filter">Filter</option>
-                <option value="Cold">Cold</option>
-                <option value="Blended">Blended</option>
-                <option value="Food">Food</option>
-                <option value="Drinks">Drinks</option>
-              </select>
-            </div>
+            <div class="form-group"><label>Item Name</label><input v-model="form.name" placeholder="e.g. Cappuccino" /></div>
+            <div class="form-group"><label>Category</label><select v-model="form.category" class="select"><option value="">Select...</option><option value="Espresso">Espresso</option><option value="Filter">Filter</option><option value="Cold">Cold</option><option value="Blended">Blended</option><option value="Food">Food</option><option value="Drinks">Drinks</option></select></div>
             <div class="form-row">
-              <div class="form-group">
-                <label>Selling Price (ETB)</label>
-                <input v-model.number="form.price" type="number" step="0.01" placeholder="0" />
-              </div>
-              <div class="form-group">
-                <label>Cost (ETB)</label>
-                <input v-model.number="form.cost" type="number" step="0.01" placeholder="0" />
-              </div>
+              <div class="form-group"><label>Selling Price (ETB)</label><input v-model.number="form.price" type="number" step="0.01" placeholder="0" /></div>
+              <div class="form-group"><label>Cost (ETB)</label><input v-model.number="form.cost" type="number" step="0.01" placeholder="0" /></div>
             </div>
-            <div class="form-group">
-              <label>Modifiers (comma-separated)</label>
-              <input v-model="form.modifiers" placeholder="e.g. hot, iced, oat-milk" />
-            </div>
-            <div class="form-group">
-              <label>Available</label>
-              <select v-model="form.available" class="select">
-                <option :value="true">Yes</option>
-                <option :value="false">No</option>
-              </select>
-            </div>
+            <div class="form-group"><label>Modifiers (comma-separated)</label><input v-model="form.modifiers" placeholder="e.g. hot, iced, oat-milk" /></div>
+            <div class="form-group"><label>Available</label><select v-model="form.available" class="select"><option :value="true">Yes</option><option :value="false">No</option></select></div>
           </div>
         </div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="showModal=false">Cancel</button>
-          <button class="btn btn-primary" @click="saveItem">{{ editing ? 'Update' : 'Add Item' }}</button>
+          <button type="button" class="btn btn-primary" :class="{'btn-loading': btnState.isBusy(), 'btn-success-state': btnState.isSuccess(), 'btn-error-state': btnState.isError()}" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined" @click="saveItem">
+            <span v-if="btnState.isBusy()" class="btn-spinner" aria-hidden="true"></span>
+            <span v-else-if="btnState.isSuccess()" class="btn-check" aria-hidden="true">✓</span>
+            <span v-else-if="btnState.isError()" class="btn-error-icon" aria-hidden="true">!</span>
+            {{ btnState.isBusy() ? 'Saving...' : btnState.isSuccess() ? 'Saved ✓' : btnState.isError() ? 'Try Again' : (editing ? 'Update' : 'Add Item') }}
+          </button>
         </div>
       </div>
     </div>
@@ -130,8 +86,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
+import { useButtonState } from '../composables/useButtonState'
 
 const { toast } = useToast()
+const btnState = useButtonState({ successDuration: 2000 })
 const items = ref([])
 const filter = ref('')
 const showModal = ref(false)
@@ -162,22 +120,17 @@ function hashCode(s) {
   return h
 }
 
-function pickImage() {
-  form.value.image = foodImages[Math.floor(Math.random() * foodImages.length)]
-}
+function pickImage() { form.value.image = foodImages[Math.floor(Math.random() * foodImages.length)] }
 
 function marginPercent(item) {
-  const p = parseFloat(item.price||0)
-  const c = parseFloat(item.cost||0)
+  const p = parseFloat(item.price||0); const c = parseFloat(item.cost||0)
   if (!p || !c) return 0
   return ((p - c) / p * 100).toFixed(0)
 }
 
 function marginClass(item) {
   const m = parseFloat(marginPercent(item))
-  if (m >= 50) return 'badge-ok'
-  if (m >= 20) return 'badge-new'
-  return 'badge-low'
+  if (m >= 50) return 'badge-ok'; if (m >= 20) return 'badge-new'; return 'badge-low'
 }
 
 onMounted(loadData)
@@ -187,45 +140,28 @@ async function loadData() {
 }
 
 function openAdd() {
-  editing.value = null
-  form.value = { name: '', category: '', price: 0, cost: 0, modifiers: '', available: true, image: '' }
-  showModal.value = true
+  editing.value = null; form.value = { name: '', category: '', price: 0, cost: 0, modifiers: '', available: true, image: '' }; showModal.value = true
 }
 
 function openEdit(item) {
-  editing.value = item
-  form.value = { ...item, image: item.image || '' }
-  showModal.value = true
+  editing.value = item; form.value = { ...item, image: item.image || '' }; showModal.value = true
 }
 
 async function saveItem() {
+  btnState.setLoading()
   try {
-    if (editing.value) {
-      await apiPut('menu/' + editing.value.id, form.value)
-      toast('Item updated')
-    } else {
-      await apiPost('menu', form.value)
-      toast('Item added')
-    }
-    showModal.value = false
+    const data = { ...form.value, modifiers: form.value.modifiers ? form.value.modifiers.split(',').map(s => s.trim()).filter(Boolean) : [] }
+    if (editing.value) { await apiPut('menu/' + editing.value.id, data); toast('Item updated') }
+    else { await apiPost('menu', data); toast('Item added') }
+    showModal.value = false; editing.value = null
+    form.value = { name: '', category: '', price: 0, cost: 0, modifiers: '', available: true, image: '' }
     await loadData()
-  } catch { toast('Failed to save', 'error') }
+    btnState.setSuccess()
+  } catch (e) { toast(e.message || 'Failed', 'error'); btnState.setError(e.message) }
 }
 
 async function handleDelete(item) {
-  if (!confirm(`Delete ${item.name}?`)) return
-  try {
-    await apiDelete('menu/' + item.id)
-    toast('Item deleted')
-    await loadData()
-  } catch { toast('Delete failed', 'error') }
+  if (!confirm(`Delete "${item.name}"?`)) return
+  try { await apiDelete('menu/' + item.id); toast('Deleted'); await loadData() } catch (e) { toast(e.message, 'error') }
 }
 </script>
-
-<style scoped>
-.menu-modal{width:620px;max-width:95vw}
-.menu-form-layout{display:flex;gap:16px}
-.menu-form-img{width:130px;flex-shrink:0}
-.menu-form-img img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border)}
-@media(max-width:600px){.menu-form-layout{flex-direction:column}.menu-form-img{width:100%}}
-</style>

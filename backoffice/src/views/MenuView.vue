@@ -57,7 +57,7 @@
               <td style="font-family:var(--font-mono)">{{ parseFloat(item.cost||0).toFixed(0) }}</td>
               <td>{{ (item.modifiers||[]).join(', ') || '-' }}</td>
               <td><span class="badge" :class="item.available !== false ? 'badge-success' : 'badge-cancelled'">{{ item.available !== false ? 'Yes' : 'No' }}</span></td>
-              <td><button class="btn btn-sm btn-ghost" @click.stop="editItem(item)">Edit</button><button class="btn btn-sm btn-ghost" @click.stop="toggleAvailable(item)">{{ item.available !== false ? 'Hide' : 'Show' }}</button></td>
+              <td><button class="btn btn-sm btn-ghost" @click.stop="editItem(item)">Edit</button><base-button :text="item.available !== false ? 'Hide' : 'Show'" variant="btn-ghost" extra-class="btn-sm" :on-click="() => toggleAvailable(item)" /></td>
             </tr>
             <tr v-if="!filtered.length"><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">No items found</td></tr>
           </tbody>
@@ -91,7 +91,12 @@
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="showForm=false">Cancel</button>
-            <button type="submit" class="btn btn-primary">{{ editing ? 'Update' : 'Save' }}</button>
+            <button type="submit" class="btn btn-primary" :class="{'btn-loading': btnState.isBusy(), 'btn-success-state': btnState.isSuccess(), 'btn-error-state': btnState.isError()}" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
+              <span v-if="btnState.isBusy()" class="btn-spinner" aria-hidden="true"></span>
+              <span v-else-if="btnState.isSuccess()" class="btn-check" aria-hidden="true">✓</span>
+              <span v-else-if="btnState.isError()" class="btn-error-icon" aria-hidden="true">!</span>
+              {{ btnState.isBusy() ? 'Saving...' : btnState.isSuccess() ? 'Saved ✓' : btnState.isError() ? 'Try Again' : (editing ? 'Update' : 'Save') }}
+            </button>
           </div>
         </form>
       </div>
@@ -102,8 +107,10 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut } from '../api'
+import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const btnState = useButtonState({ successDuration: 2000 })
 const menu = ref([])
 const search = ref('')
 const categoryFilter = ref('')
@@ -132,7 +139,6 @@ const filtered = computed(() => menu.value.filter(m => {
 
 onMounted(loadMenu)
 
-// Assign a deterministic image based on item index or name
 function getPlaceholder(item) {
   const idx = menu.value.findIndex(i => i.id === item.id)
   return foodImages[((idx >= 0 ? idx : Math.abs(hashCode(item.name || ''))) % foodImages.length)]
@@ -156,6 +162,7 @@ function editItem(item) {
 }
 
 async function saveItem() {
+  btnState.setLoading()
   try {
     const data = {
       ...form.value,
@@ -166,7 +173,8 @@ async function saveItem() {
     showForm.value = false; editing.value = null
     form.value = { name: '', category: 'Coffee', price: 0, cost: 0, image: '' }; modifiersStr.value = ''
     await loadMenu()
-  } catch (e) { toast(e.message, 'error') }
+    btnState.setSuccess()
+  } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
 }
 
 async function toggleAvailable(item) {

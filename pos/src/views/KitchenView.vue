@@ -8,7 +8,7 @@
           <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46A4.5 4.5 0 0 1 18 12c0 1.21-.47 2.31-1.24 3.13l1.44 1.44A6.95 6.95 0 0 0 20 12c0-1.87-.73-3.58-1.93-4.84l-.03.03z"/></svg>
           <span v-if="muted" style="margin-left:4px">Muted</span>
         </button>
-        <button class="btn btn-sm btn-outline" @click="refresh">Refresh</button>
+        <base-button text="Refresh" variant="btn-outline" extra-class="btn-sm" :on-click="refresh" />
       </div>
     </div>
     <div class="kitchen-grid">
@@ -21,7 +21,7 @@
           </div>
           <div class="ko-items"><strong>{{ o.items }}</strong></div>
           <div class="ko-actions">
-            <button class="btn btn-sm btn-primary" @click="updateStatus(o.id, 'preparing')">Start Preparing</button>
+            <base-button text="Start Preparing" variant="btn-primary" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'preparing')" />
           </div>
         </div>
         <div v-if="!newOrders.length" class="kitchen-empty">No new orders</div>
@@ -35,7 +35,7 @@
           </div>
           <div class="ko-items"><strong>{{ o.items }}</strong></div>
           <div class="ko-actions">
-            <button class="btn btn-sm btn-success" @click="updateStatus(o.id, 'ready')">Mark Ready</button>
+            <base-button text="Mark Ready" variant="btn-success" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'ready')" />
           </div>
         </div>
         <div v-if="!preparing.length" class="kitchen-empty">Nothing in progress</div>
@@ -49,7 +49,7 @@
           </div>
           <div class="ko-items"><strong>{{ o.items }}</strong></div>
           <div class="ko-actions">
-            <button class="btn btn-sm btn-outline" @click="updateStatus(o.id, 'fulfilled')">Fulfilled</button>
+            <base-button text="Fulfilled" variant="btn-outline" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'fulfilled')" />
           </div>
         </div>
         <div v-if="!ready.length" class="kitchen-empty">Nothing ready yet</div>
@@ -63,6 +63,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { useToast } from '../composables/useToast'
 import { useAudioAlerts } from '../composables/useAudioAlerts'
+import { useButtonState } from '../composables/useButtonState'
 
 const { toast } = useToast()
 const { muted, enabled, playNewOrder, playOrderReady, playOrderUpdate, toggleMute } = useAudioAlerts()
@@ -92,36 +93,17 @@ async function loadOrders() {
 function connectSSE() {
   const proto = window.location.protocol === 'https:' ? 'https' : 'http'
   sse = new EventSource(`${proto}://${window.location.host}/api/events/kitchen`)
-  
-  // Listen for specific event types for audio alerts
   sse.addEventListener('new_order', (e) => {
-    try {
-      const data = JSON.parse(e.data)
-      loadOrders()
-      playNewOrder()
-      toast(`New order #${data.id?.slice(-4) || 'received'}`, 'info')
-    } catch {}
+    try { const data = JSON.parse(e.data); loadOrders(); playNewOrder(); toast(`New order #${data.id?.slice(-4) || 'received'}`, 'info') } catch {}
   })
-
   sse.addEventListener('order_update', (e) => {
     try {
-      const data = JSON.parse(e.data)
-      loadOrders()
-      if (data.status === 'ready') {
-        playOrderReady()
-        toast(`Order ${data.id?.slice(-4) || ''} is ready!`, 'success')
-      } else {
-        playOrderUpdate()
-      }
+      const data = JSON.parse(e.data); loadOrders()
+      if (data.status === 'ready') { playOrderReady(); toast(`Order ${data.id?.slice(-4) || ''} is ready!`, 'success') }
+      else { playOrderUpdate() }
     } catch {}
   })
-
-  sse.onmessage = (e) => {
-    try {
-      const data = JSON.parse(e.data)
-      loadOrders()
-    } catch {}
-  }
+  sse.onmessage = (e) => { try { JSON.parse(e.data); loadOrders() } catch {} }
   sse.onerror = () => {}
 }
 
@@ -132,11 +114,7 @@ async function updateStatus(id, status) {
   try {
     await apiPut('orders', o)
     toast(`Order ${status}`)
-    if (status === 'ready') {
-      playOrderReady()
-    } else {
-      playOrderUpdate()
-    }
+    if (status === 'ready') { playOrderReady() } else { playOrderUpdate() }
     loadOrders()
   } catch { toast('Failed to update', 'error') }
 }

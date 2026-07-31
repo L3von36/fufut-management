@@ -28,7 +28,7 @@
               <td>{{ r.guests }}</td><td>{{ r.tableId || '-' }}</td>
               <td><span class="badge" :class="'badge-'+r.status">{{ r.status }}</span></td>
               <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.notes || '-' }}</td>
-              <td><button class="btn btn-sm btn-ghost" @click="editRes(r)">Edit</button><button class="btn btn-sm btn-ghost" @click="deleteRes(r.id)">Delete</button></td>
+              <td><button class="btn btn-sm btn-ghost" @click="editRes(r)">Edit</button><base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteRes(r.id)" /></td>
             </tr>
             <tr v-if="!filtered.length"><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">No reservations</td></tr>
           </tbody>
@@ -55,7 +55,12 @@
           <div class="form-group"><label>Notes</label><input v-model="form.notes" /></div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="showForm=false">Cancel</button>
-            <button type="submit" class="btn btn-primary">{{ editing ? 'Update' : 'Save' }}</button>
+            <button type="submit" class="btn btn-primary" :class="{'btn-loading': btnState.isBusy(), 'btn-success-state': btnState.isSuccess(), 'btn-error-state': btnState.isError()}" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
+              <span v-if="btnState.isBusy()" class="btn-spinner" aria-hidden="true"></span>
+              <span v-else-if="btnState.isSuccess()" class="btn-check" aria-hidden="true">✓</span>
+              <span v-else-if="btnState.isError()" class="btn-error-icon" aria-hidden="true">!</span>
+              {{ btnState.isBusy() ? 'Saving...' : btnState.isSuccess() ? 'Saved ✓' : btnState.isError() ? 'Try Again' : (editing ? 'Update' : 'Save') }}
+            </button>
           </div>
         </form>
       </div>
@@ -66,8 +71,10 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
+import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const btnState = useButtonState({ successDuration: 2000 })
 const reservations = ref([])
 const dateFilter = ref(TODAY())
 const statusFilter = ref('')
@@ -86,12 +93,14 @@ async function loadReservations() { try { reservations.value = await apiGet('res
 function editRes(r) { editing.value = r; form.value = { ...r }; showForm.value = true }
 
 async function saveRes() {
+  btnState.setLoading()
   try {
     if (editing.value) { await apiPut('reservations', { ...form.value, id: editing.value.id }); toast('Updated') }
     else { await apiPost('reservations', form.value); toast('Reservation added') }
     showForm.value = false; editing.value = null; form.value = { name: '', guests: 2, date: TODAY(), time: '19:00', tableId: '', status: 'new', notes: '' }
     await loadReservations()
-  } catch (e) { toast(e.message, 'error') }
+    btnState.setSuccess()
+  } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
 }
 async function deleteRes(id) { if (!confirm('Delete?')) return; try { await apiDelete('reservations', id); toast('Deleted'); await loadReservations() } catch (e) { toast(e.message, 'error') } }
 </script>

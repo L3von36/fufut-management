@@ -7,7 +7,7 @@
         <input type="date" v-model="dateTo" class="input input-sm" style="width:auto" />
         <button class="btn btn-primary" @click="loadExpenses">Filter</button>
         <button class="btn btn-secondary" @click="showForm=true;editing=null;form={}">+ Add</button>
-        <button class="btn btn-secondary" @click="exportCSV">Export</button>
+        <base-button text="Export" variant="btn-secondary" :on-click="exportCSV" />
       </div>
     </div>
 
@@ -26,7 +26,7 @@
               <td>{{ e.date }}</td><td><span class="badge badge-pending">{{ e.category }}</span></td>
               <td>{{ e.description }}</td><td style="font-weight:600;font-family:var(--font-mono)">{{ parseFloat(e.amount||0).toFixed(0) }}</td>
               <td>{{ e.paidBy || '-' }}</td>
-              <td><button class="btn btn-sm btn-ghost" @click="editExpense(e)">Edit</button><button class="btn btn-sm btn-ghost" @click="deleteExpense(e.id)">Delete</button></td>
+              <td><button class="btn btn-sm btn-ghost" @click="editExpense(e)">Edit</button><base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteExpense(e.id)" /></td>
             </tr>
             <tr v-if="!expenses.length"><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">No expenses found</td></tr>
           </tbody>
@@ -52,7 +52,12 @@
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="showForm=false">Cancel</button>
-            <button type="submit" class="btn btn-primary">{{ editing ? 'Update' : 'Save' }}</button>
+            <button type="submit" class="btn btn-primary" :class="{'btn-loading': btnState.isBusy(), 'btn-success-state': btnState.isSuccess(), 'btn-error-state': btnState.isError()}" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
+              <span v-if="btnState.isBusy()" class="btn-spinner" aria-hidden="true"></span>
+              <span v-else-if="btnState.isSuccess()" class="btn-check" aria-hidden="true">✓</span>
+              <span v-else-if="btnState.isError()" class="btn-error-icon" aria-hidden="true">!</span>
+              {{ btnState.isBusy() ? 'Saving...' : btnState.isSuccess() ? 'Saved ✓' : btnState.isError() ? 'Try Again' : (editing ? 'Update' : 'Save') }}
+            </button>
           </div>
         </form>
       </div>
@@ -63,8 +68,10 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
+import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const btnState = useButtonState({ successDuration: 2000 })
 const expenses = ref([])
 const dateFrom = ref(TODAY())
 const dateTo = ref(TODAY())
@@ -88,6 +95,7 @@ async function loadExpenses() {
 function editExpense(e) { editing.value = e; form.value = { ...e }; showForm.value = true }
 
 async function saveExpense() {
+  btnState.setLoading()
   try {
     if (editing.value) {
       await apiPut('expenses', { ...form.value, id: editing.value.id })
@@ -98,7 +106,8 @@ async function saveExpense() {
     }
     showForm.value = false; editing.value = null; form.value = { date: TODAY(), category: 'Other', description: '', amount: 0, paidBy: '' }
     await loadExpenses()
-  } catch (e) { toast(e.message, 'error') }
+    btnState.setSuccess()
+  } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
 }
 
 async function deleteExpense(id) {
@@ -110,6 +119,6 @@ async function exportCSV() {
   try {
     const res = await apiPost('export/csv', { table: 'expenses' })
     if (res.csv) { const b = new Blob([res.csv], {type:'text/csv'}); const a = document.createElement('a'); a.href=URL.createObjectURL(b); a.download='expenses.csv'; a.click() }
-  } catch (e) { toast('Export failed', 'error') }
+  } catch (e) { toast('Export failed', 'error'); throw e }
 }
 </script>

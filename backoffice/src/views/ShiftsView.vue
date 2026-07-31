@@ -19,7 +19,7 @@
               <td>{{ s.date }}</td><td><strong>{{ s.staffName || s.staffId }}</strong></td>
               <td>{{ s.start }}</td><td>{{ s.end || '-' }}</td>
               <td><span class="badge badge-pending">{{ s.role || '-' }}</span></td>
-              <td><button class="btn btn-sm btn-ghost" @click="editShift(s)">Edit</button><button class="btn btn-sm btn-ghost" @click="handleDelete(s.id)">Delete</button></td>
+              <td><button class="btn btn-sm btn-ghost" @click="editShift(s)">Edit</button><base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => handleDelete(s.id)" /></td>
             </tr>
             <tr v-if="!shifts.length"><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">No shifts found</td></tr>
           </tbody>
@@ -41,7 +41,12 @@
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="showForm=false">Cancel</button>
-            <button type="submit" class="btn btn-primary">{{ editing ? 'Update' : 'Save' }}</button>
+            <button type="submit" class="btn btn-primary" :class="{'btn-loading': btnState.isBusy(), 'btn-success-state': btnState.isSuccess(), 'btn-error-state': btnState.isError()}" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
+              <span v-if="btnState.isBusy()" class="btn-spinner" aria-hidden="true"></span>
+              <span v-else-if="btnState.isSuccess()" class="btn-check" aria-hidden="true">✓</span>
+              <span v-else-if="btnState.isError()" class="btn-error-icon" aria-hidden="true">!</span>
+              {{ btnState.isBusy() ? 'Saving...' : btnState.isSuccess() ? 'Saved ✓' : btnState.isError() ? 'Try Again' : (editing ? 'Update' : 'Save') }}
+            </button>
           </div>
         </form>
       </div>
@@ -52,8 +57,10 @@
 <script setup>
 import { ref, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
+import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const btnState = useButtonState({ successDuration: 2000 })
 const shifts = ref([])
 const dateFrom = ref(TODAY())
 const dateTo = ref(TODAY())
@@ -68,12 +75,14 @@ async function loadShifts() { try { shifts.value = await apiGet('shifts') } catc
 function editShift(s) { editing.value = s; form.value = { date: s.date, staffId: s.staffId, start: s.start, end: s.end || '' }; showForm.value = true }
 
 async function saveShift() {
+  btnState.setLoading()
   try {
     if (editing.value) { await apiPut('shifts', { ...form.value, id: editing.value.id }); toast('Shift updated') }
     else { await apiPost('shifts', form.value); toast('Shift added') }
     showForm.value = false; editing.value = null; form.value = { date: TODAY(), staffId: '', start: '09:00', end: '' }
     await loadShifts()
-  } catch (e) { toast(e.message, 'error') }
+    btnState.setSuccess()
+  } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
 }
 
 async function handleDelete(id) { if (!confirm('Delete shift?')) return; try { await apiDelete('shifts', id); toast('Deleted'); await loadShifts() } catch (e) { toast(e.message, 'error') } }

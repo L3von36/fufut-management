@@ -17,7 +17,12 @@
         <form @submit.prevent="changePassword">
           <div class="form-group"><label>Current Password</label><input v-model="pwForm.current" type="password" required /></div>
           <div class="form-group"><label>New Password</label><input v-model="pwForm.newPass" type="password" required minlength="6" /></div>
-          <button type="submit" class="btn btn-primary">Update Password</button>
+          <button type="submit" class="btn btn-primary" :class="{'btn-loading': btnState.isBusy(), 'btn-success-state': btnState.isSuccess(), 'btn-error-state': btnState.isError()}" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
+            <span v-if="btnState.isBusy()" class="btn-spinner" aria-hidden="true"></span>
+            <span v-else-if="btnState.isSuccess()" class="btn-check" aria-hidden="true">✓</span>
+            <span v-else-if="btnState.isError()" class="btn-error-icon" aria-hidden="true">!</span>
+            {{ btnState.isBusy() ? 'Updating...' : btnState.isSuccess() ? 'Updated ✓' : btnState.isError() ? 'Try Again' : 'Update Password' }}
+          </button>
         </form>
       </div>
 
@@ -34,10 +39,10 @@
         <h3 style="font-size:.9rem;color:var(--text-heading);margin-bottom:16px;font-weight:600">Export / Backup</h3>
         <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">Download system data for backup or analysis.</p>
         <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="btn btn-secondary btn-sm" @click="exportTable('orders')">Export Orders</button>
-          <button class="btn btn-secondary btn-sm" @click="exportTable('menu')">Export Menu</button>
-          <button class="btn btn-secondary btn-sm" @click="exportTable('inventory')">Export Inventory</button>
-          <button class="btn btn-secondary btn-sm" @click="exportTable('staff')">Export Staff</button>
+          <base-button text="Export Orders" variant="btn-secondary" extra-class="btn-sm" :on-click="() => exportTable('orders')" />
+          <base-button text="Export Menu" variant="btn-secondary" extra-class="btn-sm" :on-click="() => exportTable('menu')" />
+          <base-button text="Export Inventory" variant="btn-secondary" extra-class="btn-sm" :on-click="() => exportTable('inventory')" />
+          <base-button text="Export Staff" variant="btn-secondary" extra-class="btn-sm" :on-click="() => exportTable('staff')" />
         </div>
       </div>
     </div>
@@ -48,8 +53,10 @@
 import { ref, computed, onMounted, inject } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { API, apiPost, isOnline, onOnlineChange } from '../api'
+import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const btnState = useButtonState({ successDuration: 2000 })
 const auth = useAuthStore()
 const serverStatus = ref('Connecting...')
 const online = ref(isOnline())
@@ -74,17 +81,19 @@ async function checkServer() {
 }
 
 async function changePassword() {
+  btnState.setLoading()
   try {
     await apiPost('auth/change-password', { currentPassword: pwForm.value.current, newPassword: pwForm.value.newPass })
     toast('Password changed')
     pwForm.value = { current: '', newPass: '' }
-  } catch (e) { toast(e.message || 'Failed', 'error') }
+    btnState.setSuccess()
+  } catch (e) { toast(e.message || 'Failed', 'error'); btnState.setError(e.message) }
 }
 
 async function exportTable(table) {
   try {
     const res = await apiPost('export/csv', { table })
     if (res.csv) { const b = new Blob([res.csv], {type:'text/csv'}); const a = document.createElement('a'); a.href=URL.createObjectURL(b); a.download=table+'.csv'; a.click(); toast(table+' exported') }
-  } catch (e) { toast('Export failed', 'error') }
+  } catch (e) { toast('Export failed', 'error'); throw e }
 }
 </script>

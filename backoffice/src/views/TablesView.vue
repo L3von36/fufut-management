@@ -6,7 +6,7 @@
         <span class="sse-badge" :class="{ online: sse.connected.value }">
           {{ sse.connected.value ? '● Live' : '○ Connecting' }}
         </span>
-        <button class="btn btn-sm btn-secondary" @click="loadAll">Refresh</button>
+        <base-button text="Refresh" variant="btn-secondary" extra-class="btn-sm" :on-click="loadAll" />
       </div>
     </div>
 
@@ -115,7 +115,7 @@
 
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="selectedTable=null">Close</button>
-          <button class="btn btn-primary" @click="updateTableStatus">Update Status</button>
+          <base-button text="Update Status" variant="btn-primary" :on-click="updateTableStatus" />
         </div>
       </div>
     </div>
@@ -126,9 +126,11 @@
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { useSSE } from '../composables/useSSE'
+import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
 const sse = useSSE()
+const btnState = useButtonState({ successDuration: 1500 })
 const tables = ref([])
 const orders = ref([])
 const reservations = ref([])
@@ -196,7 +198,6 @@ onMounted(() => {
     else loadAll()
   })
   sse.on('order_update', () => loadOrders())
-  // Update duration every 30s
   durationInterval = setInterval(() => {}, 30000)
 })
 
@@ -206,74 +207,23 @@ onUnmounted(() => {
 })
 
 async function loadAll() {
-  await Promise.all([loadTables(), loadOrders(), loadReservations()])
+  try { const [t, o, r] = await Promise.all([apiGet('tables'), apiGet('orders'), apiGet('reservations')]); tables.value = t; orders.value = o; reservations.value = r } catch {}
 }
 
-async function loadTables() { try { tables.value = await apiGet('tables') } catch (e) { console.error(e) } }
-async function loadOrders() { try { orders.value = await apiGet('orders') } catch (e) { console.error(e) } }
-async function loadReservations() { try { reservations.value = await apiGet('reservations') } catch (e) { console.error(e) } }
+async function loadOrders() { try { orders.value = await apiGet('orders') } catch {} }
 
-function selectTable(t) {
-  selectedTable.value = t
-  statusForm.value = { status: t.status || 'available' }
+function selectTable(table) {
+  selectedTable.value = table
+  statusForm.value = { status: table.status || 'available' }
 }
 
 async function updateTableStatus() {
   if (!selectedTable.value) return
   try {
     await apiPut('tables', { id: selectedTable.value.id, status: statusForm.value.status })
+    toast('Table status updated')
     selectedTable.value.status = statusForm.value.status
-    toast('Table updated')
-    selectedTable.value = null
-  } catch (e) { toast(e.message, 'error') }
+    loadAll()
+  } catch (e) { toast('Failed to update', 'error'); throw e }
 }
 </script>
-
-<style scoped>
-.sse-badge{font-size:.72rem;padding:4px 10px;border-radius:99px;background:var(--red-50);color:var(--danger);font-weight:600}
-.sse-badge.online{background:var(--green-50);color:var(--success)}
-
-.heatmap-container{background:var(--surface);border-radius:var(--radius-md);box-shadow:var(--shadow-card);border:1px solid var(--border);padding:24px}
-.heatmap-legend{display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap}
-.legend-item{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text-muted)}
-.legend-item .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
-
-.table-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
-.table-cell{background:var(--surface);border:2px solid var(--border);border-radius:var(--radius-md);padding:14px;text-align:center;cursor:pointer;transition:all var(--duration-base) var(--ease)}
-.table-cell:hover{transform:translateY(-4px);box-shadow:var(--shadow-md)}
-.table-cell.status-available{border-color:var(--success);background:var(--green-50)}
-.table-cell.status-occupied{border-color:var(--danger);background:var(--red-50)}
-.table-cell.status-reserved{border-color:var(--warning);background:var(--gold-50)}
-.table-cell.status-cleaning{border-color:var(--info);background:var(--blue-50)}
-.table-number{font-size:1.3rem;font-weight:700;color:var(--text-heading);margin-bottom:2px}
-.table-status{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px}
-.table-cell.status-available .table-status{color:var(--success)}
-.table-cell.status-occupied .table-status{color:var(--danger)}
-.table-cell.status-reserved .table-status{color:var(--warning)}
-.table-cell.status-cleaning .table-status{color:var(--info)}
-.table-seats{font-size:.68rem;color:var(--text-muted)}
-.table-guest-count{font-size:.65rem;color:var(--text-heading);font-weight:500;margin-top:2px}
-
-/* Modal */
-.table-modal{width:480px}
-.table-modal-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
-.table-status-badge{font-size:.72rem;padding:6px 14px}
-
-.table-occupied-info{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;padding:16px;background:var(--red-50);border-radius:var(--radius-md);border:1px solid #FECACA}
-.occupied-stat{display:flex;align-items:center;gap:10px}
-.occupied-stat .stat-icon{font-size:1.3rem}
-.stat-label{font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
-.stat-value{font-size:1rem;font-weight:600;color:var(--text-heading)}
-
-.table-reserved-info{padding:16px;background:var(--gold-50);border-radius:var(--radius-md);border:1px solid #FDE68A;margin-bottom:16px}
-.reservation-detail{font-size:.85rem}
-.reservation-detail div{margin-bottom:4px}
-
-.table-orders-section{margin-bottom:16px}
-.table-orders-section h4{font-size:.82rem;color:var(--text-heading);margin-bottom:8px;font-weight:600}
-.table-order-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px}
-.table-order-card .order-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.table-order-card .order-id{font-weight:700;font-size:.82rem;font-family:var(--font-mono);color:var(--text-heading)}
-.table-order-card .order-items{font-size:.78rem;color:var(--text-body);margin-bottom:4px}
-.table-order-card .order-card-footer{display:flex;justify-content:space-between;font-weight:600;font-family:var(--font-mono);font-size:.78rem;padding-top:4px;border-top:1px solid var(--border)}
-</style>

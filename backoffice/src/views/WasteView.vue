@@ -28,7 +28,7 @@
             <tr v-for="item in items" :key="item.id">
               <td>{{ item.date }}</td><td>{{ item.itemName }}</td><td><span class="badge badge-pending">{{ item.category }}</span></td>
               <td style="font-weight:600;font-family:var(--font-mono)">{{ item.quantity }}</td><td>{{ item.unit }}</td><td>{{ item.reason || '-' }}</td>
-              <td><button class="btn btn-sm btn-ghost" @click="editItem(item)">Edit</button><button class="btn btn-sm btn-ghost" @click="deleteItem(item.id)">Delete</button></td>
+              <td><button class="btn btn-sm btn-ghost" @click="editItem(item)">Edit</button><base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteItem(item.id)" /></td>
             </tr>
             <tr v-if="!items.length"><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted)">No waste logged</td></tr>
           </tbody>
@@ -52,7 +52,12 @@
           <div class="form-group"><label>Reason</label><input v-model="form.reason" placeholder="e.g. Spoiled, overproduction, expired" /></div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="showForm=false">Cancel</button>
-            <button type="submit" class="btn btn-primary">{{ editing ? 'Update' : 'Save' }}</button>
+            <button type="submit" class="btn btn-primary" :class="{'btn-loading': btnState.isBusy(), 'btn-success-state': btnState.isSuccess(), 'btn-error-state': btnState.isError()}" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
+              <span v-if="btnState.isBusy()" class="btn-spinner" aria-hidden="true"></span>
+              <span v-else-if="btnState.isSuccess()" class="btn-check" aria-hidden="true">✓</span>
+              <span v-else-if="btnState.isError()" class="btn-error-icon" aria-hidden="true">!</span>
+              {{ btnState.isBusy() ? 'Saving...' : btnState.isSuccess() ? 'Saved ✓' : btnState.isError() ? 'Try Again' : (editing ? 'Update' : 'Save') }}
+            </button>
           </div>
         </form>
       </div>
@@ -63,6 +68,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
+import { useButtonState } from '../composables/useButtonState'
 let _Chart = null
 async function _loadChart() {
   if (!_Chart) {
@@ -74,6 +80,7 @@ async function _loadChart() {
 }
 
 const toast = inject('toast')
+const btnState = useButtonState({ successDuration: 2000 })
 const wasteChart = ref(null)
 const items = ref([])
 const dateFrom = ref(TODAY())
@@ -84,7 +91,7 @@ const form = ref({ date: TODAY(), category: 'Produce', itemName: '', quantity: 0
 let chart = null
 
 const totalWaste = computed(() => items.value.reduce((s, i) => s + parseFloat(i.quantity||0), 0))
-const totalCost = computed(() => items.value.reduce((s, i) => s + (parseFloat(i.quantity||0) * 20), 0)) // estimated
+const totalCost = computed(() => items.value.reduce((s, i) => s + (parseFloat(i.quantity||0) * 20), 0))
 const unit = computed(() => items.value.length ? items.value[0]?.unit || 'kg' : 'kg')
 
 onMounted(() => { const d = new Date(); d.setDate(d.getDate()-30); dateFrom.value = d.toISOString().slice(0,10); loadWaste() })
@@ -105,12 +112,14 @@ async function buildChart() {
 
 function editItem(item) { editing.value = item; form.value = { ...item }; showForm.value = true }
 async function saveItem() {
+  btnState.setLoading()
   try {
     if (editing.value) { await apiPut('waste', { ...form.value, id: editing.value.id }); toast('Updated') }
     else { await apiPost('waste', form.value); toast('Waste logged') }
     showForm.value = false; editing.value = null; form.value = { date: TODAY(), category: 'Produce', itemName: '', quantity: 0, unit: 'kg', reason: '' }
     await loadWaste()
-  } catch (e) { toast(e.message, 'error') }
+    btnState.setSuccess()
+  } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
 }
 async function deleteItem(id) { if (!confirm('Delete?')) return; try { await apiDelete('waste', id); toast('Deleted'); await loadWaste() } catch (e) { toast(e.message, 'error') } }
 </script>

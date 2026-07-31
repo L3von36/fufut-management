@@ -34,7 +34,7 @@
         </template>
       </nav>
       <div class="sidebar-footer" v-show="!sidebarCollapsed">
-        <button @click="handleLogout">Sign Out</button>
+        <base-button text="Sign Out" variant="btn-ghost" extra-class="btn-sm" :on-click="handleLogout" />
       </div>
     </aside>
     <div class="sidebar-overlay" @click="sidebarOpen = false"></div>

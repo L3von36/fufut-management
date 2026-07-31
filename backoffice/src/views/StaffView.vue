@@ -27,7 +27,7 @@
               <td><span class="badge" :class="s.active !== false ? 'badge-success' : 'badge-cancelled'">{{ s.active !== false ? 'Active' : 'Inactive' }}</span></td>
               <td>
                 <button class="btn btn-sm btn-ghost" @click="editStaff(s)">Edit</button>
-                <button class="btn btn-sm btn-ghost" @click="resetPassword(s)">Reset PW</button>
+                <base-button text="Reset PW" variant="btn-ghost" extra-class="btn-sm" :on-click="() => resetPassword(s)" />
               </td>
             </tr>
             <tr v-if="!filtered.length"><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">No staff found</td></tr>
@@ -50,7 +50,12 @@
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="showForm=false">Cancel</button>
-            <button type="submit" class="btn btn-primary">{{ editing ? 'Update' : 'Add' }}</button>
+            <button type="submit" class="btn btn-primary" :class="{'btn-loading': btnState.isBusy(), 'btn-success-state': btnState.isSuccess(), 'btn-error-state': btnState.isError()}" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
+              <span v-if="btnState.isBusy()" class="btn-spinner" aria-hidden="true"></span>
+              <span v-else-if="btnState.isSuccess()" class="btn-check" aria-hidden="true">✓</span>
+              <span v-else-if="btnState.isError()" class="btn-error-icon" aria-hidden="true">!</span>
+              {{ btnState.isBusy() ? 'Saving...' : btnState.isSuccess() ? 'Saved ✓' : btnState.isError() ? 'Try Again' : (editing ? 'Update' : 'Add') }}
+            </button>
           </div>
         </form>
       </div>
@@ -61,8 +66,10 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut } from '../api'
+import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const btnState = useButtonState({ successDuration: 2000 })
 const staff = ref([])
 const search = ref('')
 const showForm = ref(false)
@@ -83,12 +90,14 @@ async function loadStaff() { try { staff.value = await apiGet('staff') } catch (
 function editStaff(s) { editing.value = s; form.value = { firstName: s.firstName, lastName: s.lastName, role: s.role, phone: s.phone }; showForm.value = true }
 
 async function saveStaff() {
+  btnState.setLoading()
   try {
     if (editing.value) { await apiPut('staff', { ...form.value, id: editing.value.id }); toast('Staff updated') }
     else { await apiPost('staff', form.value); toast('Staff added') }
     showForm.value = false; editing.value = null; form.value = { firstName: '', lastName: '', role: 'waiter', phone: '' }
     await loadStaff()
-  } catch (e) { toast(e.message, 'error') }
+    btnState.setSuccess()
+  } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
 }
 
 async function resetPassword(s) {

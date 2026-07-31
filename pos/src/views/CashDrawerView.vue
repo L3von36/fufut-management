@@ -3,9 +3,9 @@
     <div class="table-toolbar">
       <h3>Cash Drawer</h3>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button v-if="!activeDrawer" class="btn btn-primary" @click="openDrawerPrompt">Open Drawer</button>
-        <button v-if="activeDrawer" class="btn btn-warning" @click="closeDrawerPrompt">Close Drawer</button>
-        <button class="btn btn-outline" @click="loadData">Refresh</button>
+        <base-button v-if="!activeDrawer" text="Open Drawer" variant="btn-primary" :on-click="openDrawerPrompt" />
+        <base-button v-if="activeDrawer" text="Close Drawer" variant="btn-warning" :on-click="closeDrawerPrompt" />
+        <base-button text="Refresh" variant="btn-outline" :on-click="loadData" />
       </div>
     </div>
 
@@ -33,16 +33,7 @@
       <div class="table-scroll">
         <table>
           <thead>
-            <tr>
-              <th>Shift</th>
-              <th>Opened</th>
-              <th>Opening Bal</th>
-              <th>Cash Sales</th>
-              <th>Closing Bal</th>
-              <th>Expected</th>
-              <th>Variance</th>
-              <th>Status</th>
-            </tr>
+            <tr><th>Shift</th><th>Opened</th><th>Opening Bal</th><th>Cash Sales</th><th>Closing Bal</th><th>Expected</th><th>Variance</th><th>Status</th></tr>
           </thead>
           <tbody>
             <tr v-for="d in drawers" :key="d.id">
@@ -52,16 +43,10 @@
               <td data-label="Cash Sales">ETB {{ parseFloat(d.cashSales||0).toFixed(0) }}</td>
               <td data-label="Closing">ETB {{ parseFloat(d.closingBal||0).toFixed(0) }}</td>
               <td data-label="Expected">ETB {{ parseFloat(d.expectedClose||0).toFixed(0) }}</td>
-              <td data-label="Variance" :style="{color: parseFloat(d.variance||0) >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight:600}">
-                {{ parseFloat(d.variance||0) >= 0 ? '+' : '' }}{{ parseFloat(d.variance||0).toFixed(0) }}
-              </td>
-              <td data-label="Status">
-                <span class="badge" :class="d.status==='open' ? 'badge-new' : 'badge-fulfilled'">{{ d.status }}</span>
-              </td>
+              <td data-label="Variance" :style="{color: parseFloat(d.variance||0) >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight:600}">{{ parseFloat(d.variance||0) >= 0 ? '+' : '' }}{{ parseFloat(d.variance||0).toFixed(0) }}</td>
+              <td data-label="Status"><span class="badge" :class="d.status==='open' ? 'badge-new' : 'badge-fulfilled'">{{ d.status }}</span></td>
             </tr>
-            <tr v-if="!drawers.length">
-              <td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">No drawer records</td>
-            </tr>
+            <tr v-if="!drawers.length"><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">No drawer records</td></tr>
           </tbody>
         </table>
       </div>
@@ -79,7 +64,7 @@
         </div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="showOpenPrompt=false">Cancel</button>
-          <button class="btn btn-primary" @click="handleOpenDrawer" :disabled="!openingBal">Open Drawer</button>
+          <base-button text="Open Drawer" variant="btn-primary" :disabled="!openingBal" :on-click="handleOpenDrawer" />
         </div>
       </div>
     </div>
@@ -97,13 +82,11 @@
           <div>Opening: <strong>ETB {{ parseFloat(activeDrawer.openingBal||0).toFixed(0) }}</strong></div>
           <div>Cash Sales: <strong>ETB {{ cashSales }}</strong></div>
           <div>Expected: <strong>ETB {{ expectedClose }}</strong></div>
-          <div>Variance: <strong :style="{color: (closingBal - expectedClose) >= 0 ? 'var(--success)' : 'var(--danger)'}">
-            {{ (closingBal - Number(expectedClose)) >= 0 ? '+' : '' }}{{ (closingBal - Number(expectedClose)).toFixed(0) }}
-          </strong></div>
+          <div>Variance: <strong :style="{color: (closingBal - expectedClose) >= 0 ? 'var(--success)' : 'var(--danger)'}">{{ (closingBal - Number(expectedClose)) >= 0 ? '+' : '' }}{{ (closingBal - Number(expectedClose)).toFixed(0) }}</strong></div>
         </div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="showClosePrompt=false">Cancel</button>
-          <button class="btn btn-warning" @click="handleCloseDrawer" :disabled="!closingBal">Close Drawer</button>
+          <base-button text="Close Drawer" variant="btn-warning" :disabled="!closingBal" :on-click="handleCloseDrawer" />
         </div>
       </div>
     </div>
@@ -114,8 +97,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPost } from '../api'
 import { useToast } from '../composables/useToast'
+import { useButtonState } from '../composables/useButtonState'
 
 const { toast } = useToast()
+const btnState = useButtonState({ successDuration: 2000 })
 const drawers = ref([])
 const activeDrawer = ref(null)
 const showOpenPrompt = ref(false)
@@ -161,7 +146,7 @@ async function handleOpenDrawer() {
     showOpenPrompt.value = false
     openingBal.value = 0
     await loadData()
-  } catch { toast('Failed to open drawer', 'error') }
+  } catch { toast('Failed to open drawer', 'error'); throw new Error('Failed to open drawer') }
 }
 
 async function handleCloseDrawer() {
@@ -173,16 +158,9 @@ async function handleCloseDrawer() {
     closingBal.value = 0
     activeDrawer.value = null
     await loadData()
-  } catch { toast('Failed to close drawer', 'error') }
+  } catch { toast('Failed to close drawer', 'error'); throw new Error('Failed to close drawer') }
 }
 
-function openDrawerPrompt() {
-  openingBal.value = 0
-  showOpenPrompt.value = true
-}
-
-function closeDrawerPrompt() {
-  closingBal.value = 0
-  showClosePrompt.value = true
-}
+function openDrawerPrompt() { openingBal.value = 0; showOpenPrompt.value = true }
+function closeDrawerPrompt() { closingBal.value = 0; showClosePrompt.value = true }
 </script>

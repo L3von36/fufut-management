@@ -37,10 +37,11 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             {{ error }}
           </p>
-          <button type="submit" class="login-submit" :disabled="loading">
-            <span v-if="loading" class="spinner"></span>
+          <button type="submit" class="login-submit" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
+            <span v-if="btnState.isBusy()" class="spinner"></span>
+            <svg v-else-if="btnState.isSuccess()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><polyline points="20 6 9 17 4 12"/></svg>
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-            {{ loading ? 'Signing in...' : 'Sign In' }}
+            {{ btnState.isBusy() ? 'Signing in...' : btnState.isSuccess() ? 'Signed In ✓' : 'Sign In' }}
           </button>
         </form>
         <div class="form-footer">
@@ -56,6 +57,7 @@
 import { ref, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useButtonState } from '../composables/useButtonState'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -63,19 +65,19 @@ const toast = inject('toast')
 const email = ref('')
 const password = ref('')
 const error = ref('')
-const loading = ref(false)
+const btnState = useButtonState({ successDuration: 2000 })
 
 async function handleLogin() {
   error.value = ''
-  loading.value = true
+  btnState.setLoading()
   try {
     const res = await auth.loginWithEmail(email.value, password.value)
     toast('Welcome, ' + (auth.user?.firstName || ''))
-    router.push('/app/dashboard')
+    btnState.setSuccess()
+    setTimeout(() => router.push('/app/dashboard'), 800)
   } catch (e) {
     error.value = e.message || 'Login failed'
-  } finally {
-    loading.value = false
+    btnState.setError(e.message || 'Login failed')
   }
 }
 </script>

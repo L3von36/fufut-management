@@ -69,6 +69,15 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .btn-sm{padding:6px 12px;font-size:.75rem;min-height:30px}
 .btn-ghost{background:transparent;color:var(--text-body);padding:6px 10px}
 .btn-ghost:hover{background:var(--neutral-50);color:var(--text-heading)}
+/* Button states */
+.btn-loading{opacity:.85;cursor:wait;pointer-events:none}
+.btn-success-state{background:var(--success)!important;border-color:var(--success)!important;color:#fff!important;cursor:default}
+.btn-error-state{background:var(--danger)!important;border-color:var(--danger)!important;color:#fff!important}
+.btn-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:btnSpin .6s linear infinite;flex-shrink:0}
+@keyframes btnSpin{to{transform:rotate(360deg)}}
+.btn-check{font-weight:700;font-size:1.1em;flex-shrink:0}
+.btn-error-icon{font-weight:700;font-size:1.1em;flex-shrink:0}
+.btn-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .btn-icon{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);border:none;background:transparent;color:var(--text-muted);transition:all var(--duration-fast) var(--ease)}
 .btn-icon:hover{background:var(--neutral-50);color:var(--text-heading)}
 .btn-icon.danger:hover{background:var(--red-50);color:var(--danger)}
