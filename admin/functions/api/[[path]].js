@@ -144,6 +144,9 @@ export async function onRequest(context) {
 
   const responseHeaders = buildResponseHeaders(response);
 
+  // Diagnostic marker — remove once we confirm the function is live.
+  responseHeaders.set('X-Fufut-Proxy', 'active');
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
