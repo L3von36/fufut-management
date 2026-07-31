@@ -21,6 +21,15 @@ jobs:
         env:
           VITE_API_URL: ${{ vars.API_BASE_URL }}
         run: cd admin && npx vite build --base /
+      - name: Bundle Pages Functions
+        # Cloudflare Pages picks up `functions/` from the project root
+        # (the directory passed to `pages deploy`). The Vite build output
+        # lives in admin/dist, so copy admin/functions into admin/dist
+        # before deploying so the same-origin API proxy is live.
+        run: |
+          if [ -d admin/functions ]; then
+            cp -r admin/functions admin/dist/functions
+          fi
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -45,6 +54,11 @@ jobs:
         env:
           VITE_API_URL: ${{ vars.API_BASE_URL }}
         run: cd pos && npx vite build --base /
+      - name: Bundle Pages Functions
+        run: |
+          if [ -d pos/functions ]; then
+            cp -r pos/functions pos/dist/functions
+          fi
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -79,6 +93,11 @@ jobs:
         env:
           VITE_API_URL: ${{ vars.API_BASE_URL }}
         run: cd backoffice && npx vite build --base /
+      - name: Bundle Pages Functions
+        run: |
+          if [ -d backoffice/functions ]; then
+            cp -r backoffice/functions backoffice/dist/functions
+          fi
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
