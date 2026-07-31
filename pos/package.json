@@ -6,7 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:all": "vitest run && playwright test"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
@@ -17,7 +22,13 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@pinia/testing": "^2.0.1",
+    "@playwright/test": "^1.62.1",
     "@vitejs/plugin-vue": "^6.0.7",
-    "vite": "^8.1.1"
+    "@vue/test-utils": "^2.4.11",
+    "happy-dom": "^20.11.1",
+    "jsdom": "^30.0.1",
+    "vite": "^8.1.1",
+    "vitest": "^4.1.10"
   }
 }
