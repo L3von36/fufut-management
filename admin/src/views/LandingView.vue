@@ -238,7 +238,7 @@
             <button class="btn btn-sm" style="color:var(--danger,#c0392b)" @click="removeTestimonial(i)">✕</button>
           </div>
         </div>
-        <div class="form-group"><label>Quote</label><textarea v-model="card.quote" rows="2" placeholder="\"The ceremony felt like home...\"" /></div>
+        <div class="form-group"><label>Quote</label><textarea v-model="card.quote" rows="2" placeholder="'The ceremony felt like home...'" /></div>
         <div class="form-row">
           <div class="form-group"><label>Name</label><input v-model="card.name" placeholder="Selam T." /></div>
           <div class="form-group"><label>Role / Location</label><input v-model="card.role" placeholder="Regular · Addis Ababa" /></div>

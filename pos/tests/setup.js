@@ -1,11 +1,15 @@
 import { vi } from 'vitest'
 import { config } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import BaseButton from '../src/components/BaseButton.vue'
 
 // Global Pinia setup
 const pinia = createPinia()
 setActivePinia(pinia)
 config.global.plugins = [pinia]
+
+// Register BaseButton globally so views using <base-button> render fully in tests
+config.global.components = { BaseButton }
 
 // Mock IndexedDB
 class MockIDBRequest {
