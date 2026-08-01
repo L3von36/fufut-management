@@ -53,9 +53,27 @@ export function useButtonState(options = {}) {
   }
 
   function getLabel(idleText, labels = {}) {
+    const verbMap = {
+      save: { loading: 'Saving...', success: 'Saved ✓' },
+      delete: { loading: 'Deleting...', success: 'Deleted ✓' },
+      create: { loading: 'Creating...', success: 'Created ✓' },
+      update: { loading: 'Updating...', success: 'Updated ✓' },
+      upload: { loading: 'Uploading...', success: 'Uploaded ✓' },
+      submit: { loading: 'Submitting...', success: 'Submitted ✓' },
+      publish: { loading: 'Publishing...', success: 'Published ✓' },
+      login: { loading: 'Signing in...', success: 'Signed In ✓' },
+      register: { loading: 'Registering...', success: 'Registered ✓' },
+      send: { loading: 'Sending...', success: 'Sent ✓' },
+      pay: { loading: 'Processing...', success: 'Paid ✓' },
+      checkout: { loading: 'Processing...', success: 'Checked Out ✓' }
+    }
+    
+    const lowerId = idleText.toLowerCase().trim()
+    const mapped = verbMap[lowerId]
+    
     switch (state.value) {
-      case 'loading': return labels.loading || `${idleText.replace(/e?$/, '')}ing...`
-      case 'success': return labels.success || `${idleText}ed ✓`
+      case 'loading': return labels.loading || (mapped ? mapped.loading : `${idleText.replace(/e?$/, '')}ing...`)
+      case 'success': return labels.success || (mapped ? mapped.success : `${idleText}ed ✓`)
       case 'error': return labels.error || 'Try Again'
       default: return idleText
     }
