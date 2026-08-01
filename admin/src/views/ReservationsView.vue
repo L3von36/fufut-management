@@ -8,7 +8,7 @@
           <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
         </select>
         <span class="badge badge-muted">{{ filtered.length }} reservation(s)</span>
-        <button class="btn btn-outline btn-sm" @click="loadData">⟳ Refresh</button>
+        <base-button text="⟳ Refresh" variant="btn-outline btn-sm" :on-click="loadData" loading-label="Refreshing..." success-label="Updated ✓" error-label="Refresh Failed"></base-button>
       </div>
     </div>
     <div class="table-wrap">
@@ -44,7 +44,7 @@
               </td>
               <td class="notes-cell">{{ r.notes || '—' }}</td>
               <td>
-                <button class="btn btn-sm btn-ghost" style="color:var(--danger)" @click="handleDelete(r)">Delete</button>
+                <base-button text="Delete" variant="btn-sm btn-ghost" extra-class="btn-danger-text" :on-click="() => handleDelete(r)" loading-label="Deleting..." success-label="Deleted ✓"></base-button>
               </td>
             </tr>
             <tr v-if="!filtered.length">
@@ -85,8 +85,9 @@ async function loadData() {
   try {
     const data = await apiGet('reservations')
     items.value = Array.isArray(data) ? data : []
-  } catch {
+  } catch (e) {
     toast('Failed to load reservations', 'error')
+    throw e
   }
 }
 
@@ -111,8 +112,9 @@ async function handleDelete(r) {
     await apiDelete('reservations/' + r.id)
     toast('Reservation deleted')
     await loadData()
-  } catch {
+  } catch (e) {
     toast('Failed to delete', 'error')
+    throw e
   }
 }
 </script>

@@ -22,15 +22,9 @@
         <button class="btn btn-sm btn-outline" @click="showSchedule = true" :disabled="!status.hasDraft" title="Schedule for later">
           Schedule
         </button>
-        <button class="btn btn-sm btn-outline" @click="discardDraft" :disabled="!status.hasDraft" style="color:var(--danger,#c0392b)">
-          Discard
-        </button>
-        <button class="btn btn-sm btn-primary" @click="saveDraft">
-          Save Draft
-        </button>
-        <button class="btn btn-sm" style="background:#28a745;color:#fff;border:none" @click="publishNow">
-          Publish
-        </button>
+        <base-button text="Discard" variant="btn-sm btn-outline" extra-class="btn-danger-text" :disabled="!status.hasDraft" :on-click="discardDraft" loading-label="Discarding..." success-label="Discarded ✓" error-label="Discard Failed"></base-button>
+        <base-button text="Save Draft" variant="btn-sm btn-primary" :on-click="saveDraft" loading-label="Saving..." success-label="Draft Saved ✓" error-label="Save Failed"></base-button>
+        <base-button text="Publish" variant="btn-sm" extra-class="btn-publish" :on-click="publishNow" loading-label="Publishing..." success-label="Published ✓" error-label="Publish Failed"></base-button>
       </div>
     </div>
 
@@ -44,8 +38,8 @@
           <div style="color:var(--text-muted);font-size:11px;margin-top:2px">{{ formatTime(v.timestamp) }}</div>
         </div>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-sm btn-outline" @click="loadVersion(v.id)" title="Load this version into editor">Load</button>
-          <button class="btn btn-sm btn-outline" @click="rollbackTo(v.id)" title="Restore this version to live">Rollback</button>
+          <base-button text="Load" variant="btn-sm btn-outline" :on-click="() => loadVersion(v.id)" loading-label="Loading..." success-label="Loaded ✓" error-label="Load Failed" title="Load this version into editor"></base-button>
+          <base-button text="Rollback" variant="btn-sm btn-outline" :on-click="() => rollbackTo(v.id)" loading-label="Rolling back..." success-label="Rolled Back ✓" error-label="Rollback Failed" title="Restore this version to live"></base-button>
         </div>
       </div>
     </div>
@@ -61,7 +55,7 @@
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
           <button class="btn btn-sm btn-outline" @click="showSchedule = false">Cancel</button>
-          <button class="btn btn-sm btn-primary" @click="schedulePublish">Schedule</button>
+          <base-button text="Schedule" variant="btn-sm btn-primary" :on-click="schedulePublish" loading-label="Scheduling..." success-label="Scheduled ✓" error-label="Schedule Failed"></base-button>
         </div>
       </div>
     </div>
@@ -464,26 +458,22 @@ async function loadVersions() {
 }
 
 async function saveDraft() {
-  try {
-    const payload = buildPayload()
-    await apiPost('content/draft', payload)
-    status.hasDraft = true
-    toast('Draft saved')
-  } catch (e) { toast('Save failed: ' + e.message, 'error') }
+  const payload = buildPayload()
+  await apiPost('content/draft', payload)
+  status.hasDraft = true
+  toast('Draft saved')
 }
 
 async function publishNow() {
-  try {
-    // Save draft first, then publish
-    const payload = buildPayload()
-    await apiPost('content/draft', payload)
-    const res = await apiPost('content/publish', {})
-    status.hasDraft = false
-    status.scheduledAt = null
-    showSchedule.value = false
-    await loadVersions()
-    toast('Published! Version: ' + (res.version || ''))
-  } catch (e) { toast('Publish failed: ' + e.message, 'error') }
+  // Save draft first, then publish
+  const payload = buildPayload()
+  await apiPost('content/draft', payload)
+  const res = await apiPost('content/publish', {})
+  status.hasDraft = false
+  status.scheduledAt = null
+  showSchedule.value = false
+  await loadVersions()
+  toast('Published! Version: ' + (res.version || ''))
 }
 
 async function openPreview() {
@@ -498,51 +488,43 @@ async function openPreview() {
 }
 
 async function schedulePublish() {
-  if (!scheduleDate.value) { toast('Pick a date/time', 'error'); return }
-  try {
-    // Save draft first
-    const payload = buildPayload()
-    await apiPost('content/draft', payload)
-    // Then schedule
-    const dt = new Date(scheduleDate.value).toISOString()
-    await apiPost('content/schedule', { scheduled_at: dt })
-    status.scheduledAt = dt
-    showSchedule.value = false
-    toast('Scheduled for ' + scheduleDate.value)
-  } catch (e) { toast('Schedule failed: ' + e.message, 'error') }
+  if (!scheduleDate.value) { toast('Pick a date/time', 'error'); throw new Error('Pick a date/time') }
+  // Save draft first
+  const payload = buildPayload()
+  await apiPost('content/draft', payload)
+  // Then schedule
+  const dt = new Date(scheduleDate.value).toISOString()
+  await apiPost('content/schedule', { scheduled_at: dt })
+  status.scheduledAt = dt
+  showSchedule.value = false
+  toast('Scheduled for ' + scheduleDate.value)
 }
 
 async function discardDraft() {
   if (!confirm('Discard unsaved draft? This cannot be undone.')) return
-  try {
-    await apiPost('content/discard', {})
-    status.hasDraft = false
-    status.scheduledAt = null
-    // Reload published content
-    const json = await apiGet('content')
-    applyContent(json)
-    toast('Draft discarded')
-  } catch (e) { toast('Discard failed', 'error') }
+  await apiPost('content/discard', {})
+  status.hasDraft = false
+  status.scheduledAt = null
+  // Reload published content
+  const json = await apiGet('content')
+  applyContent(json)
+  toast('Draft discarded')
 }
 
 async function loadVersion(vid) {
-  try {
-    const res = await apiGet('content/versions/' + vid)
-    if (res.content) applyContent(res.content)
-    toast('Version ' + vid + ' loaded into editor')
-  } catch (e) { toast('Load failed', 'error') }
+  const res = await apiGet('content/versions/' + vid)
+  if (res.content) applyContent(res.content)
+  toast('Version ' + vid + ' loaded into editor')
 }
 
 async function rollbackTo(vid) {
   if (!confirm('Rollback to this version? This will immediately update the live site.')) return
-  try {
-    const res = await apiPost('content/rollback/' + vid, {})
-    status.hasDraft = false
-    await loadVersions()
-    const json = await apiGet('content')
-    applyContent(json)
-    toast('Rolled back! New version: ' + (res.version || ''))
-  } catch (e) { toast('Rollback failed: ' + e.message, 'error') }
+  const res = await apiPost('content/rollback/' + vid, {})
+  status.hasDraft = false
+  await loadVersions()
+  const json = await apiGet('content')
+  applyContent(json)
+  toast('Rolled back! New version: ' + (res.version || ''))
 }
 
 function exportContent() {

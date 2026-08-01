@@ -30,10 +30,11 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             {{ error }}
           </p>
-          <button type="submit" class="login-submit" :disabled="loading">
-            <span v-if="loading" class="spinner"></span>
+          <button type="submit" class="login-submit" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
+            <span v-if="btnState.isBusy()" class="spinner"></span>
+            <svg v-else-if="btnState.isSuccess()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><polyline points="20 6 9 17 4 12"/></svg>
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-            {{ loading ? 'Signing in...' : 'Sign In' }}
+            {{ btnState.isBusy() ? 'Signing in...' : btnState.isSuccess() ? 'Signed In ✓' : btnState.isError() ? 'Try Again' : 'Sign In' }}
           </button>
         </form>
         <div class="form-footer">
@@ -49,16 +50,17 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { API } from '../api'
+import { useButtonState } from '../composables/useButtonState'
 
 const router = useRouter()
 const password = ref('')
 const error = ref('')
-const loading = ref(false)
+const btnState = useButtonState({ successDuration: 2000 })
 
 async function login() {
   error.value = ''
   if (!password.value) { error.value = 'Enter password'; return }
-  loading.value = true
+  btnState.setLoading()
 
   try {
     // Authenticate against the backend to get a real session cookie
@@ -73,19 +75,21 @@ async function login() {
 
     if (data.ok) {
       sessionStorage.setItem('admin_auth', '1')
-      router.push('/app/menu')
+      btnState.setSuccess()
+      setTimeout(() => router.push('/app/menu'), 800)
     } else {
       error.value = data.error || 'Invalid password'
-      loading.value = false
+      btnState.setError(data.error || 'Invalid password')
     }
   } catch (e) {
     // Fallback: if backend is unreachable, try local auth as backup
     if (password.value === 'futfut2026') {
       sessionStorage.setItem('admin_auth', '1')
-      router.push('/app/menu')
+      btnState.setSuccess()
+      setTimeout(() => router.push('/app/menu'), 800)
     } else {
       error.value = 'Invalid password'
-      loading.value = false
+      btnState.setError('Invalid password')
     }
   }
 }

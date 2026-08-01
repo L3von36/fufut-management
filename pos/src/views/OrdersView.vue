@@ -12,7 +12,7 @@
           <option value="cancelled">Cancelled</option>
         </select>
         <button class="btn btn-primary" @click="openNewOrder">+ New Order</button>
-        <button class="btn btn-outline" @click="loadOrders">Refresh</button>
+        <base-button text="Refresh" variant="btn-outline" :on-click="loadOrders" loading-label="Refreshing..." success-label="Refreshed ✓" />
       </div>
     </div>
 
@@ -46,9 +46,9 @@
               <td data-label="Date">{{ o.created ? new Date(o.created).toLocaleString() : '—' }}</td>
               <td data-label="Actions">
                 <div style="display:flex;gap:4px;flex-wrap:wrap">
-                  <button v-if="o.status==='new'" class="btn btn-sm btn-primary" @click="updateStatus(o,'preparing')">Start Prep</button>
-                  <button v-if="o.status==='preparing'" class="btn btn-sm btn-success" @click="updateStatus(o,'ready')">Ready</button>
-                  <button v-if="o.status==='ready'" class="btn btn-sm btn-primary" @click="updateStatus(o,'fulfilled')">Complete</button>
+                  <base-button v-if="o.status==='new'" text="Start Prep" variant="btn-sm btn-primary" :on-click="() => updateStatus(o,'preparing')" loading-label="Starting..." success-label="Started ✓" />
+                  <base-button v-if="o.status==='preparing'" text="Ready" variant="btn-sm btn-success" :on-click="() => updateStatus(o,'ready')" loading-label="Updating..." success-label="Ready ✓" />
+                  <base-button v-if="o.status==='ready'" text="Complete" variant="btn-sm btn-primary" :on-click="() => updateStatus(o,'fulfilled')" loading-label="Completing..." success-label="Completed ✓" />
                   <button v-if="o.status==='fulfilled'" class="btn btn-sm btn-outline" @click="printReceipt(o)">Receipt</button>
                 </div>
               </td>
@@ -143,8 +143,8 @@
 
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="showModal=false">Cancel</button>
-          <button class="btn btn-primary" @click="processPayment" :disabled="!cart.length || loading">
-            {{ loading ? 'Processing...' : 'Process Payment' }}
+          <button class="btn btn-primary" @click="processPayment" :disabled="!cart.length || payBtnState.isBusy()" :aria-busy="payBtnState.isBusy() ? 'true' : undefined">
+            {{ payBtnState.isBusy() ? 'Processing Payment...' : payBtnState.isSuccess() ? 'Payment Successful ✓' : payBtnState.isError() ? 'Payment Failed' : 'Process Payment' }}
           </button>
         </div>
       </div>
@@ -156,13 +156,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPut, apiPost } from '../api'
 import { useToast } from '../composables/useToast'
+import BaseButton from '../components/BaseButton.vue'
+import { useButtonState } from '../composables/useButtonState'
 
 const { toast } = useToast()
 const orders = ref([])
 const menuItems = ref([])
 const filter = ref('')
 const showModal = ref(false)
-const loading = ref(false)
+const payBtnState = useButtonState()
 const tendered = ref(0)
 const cart = ref([])
 
@@ -220,8 +222,8 @@ function addToCart(item) {
 }
 
 async function processPayment() {
-  if (!cart.value.length || loading.value) return
-  loading.value = true
+  if (!cart.value.length || payBtnState.isBusy()) return
+  payBtnState.setLoading()
   try {
     const itemsStr = cart.value.map(i => `${i.qty}×${i.name}`).join(', ')
     const body = {
@@ -235,14 +237,14 @@ async function processPayment() {
     }
     const res = await apiPost('orders', body)
     if (res.ok || res.id) {
+      payBtnState.setSuccess()
       toast(`Order #${res.id || ''} created`)
       showModal.value = false
       await loadOrders()
     }
   } catch (e) {
+    payBtnState.setError('Payment failed')
     toast('Payment failed', 'error')
-  } finally {
-    loading.value = false
   }
 }
 

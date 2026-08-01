@@ -2,7 +2,7 @@
   <div>
     <div class="table-toolbar">
       <h3>Gallery</h3>
-      <button class="btn btn-primary btn-sm" @click="openAdd">+ Add Image</button>
+      <base-button text="+ Add Image" variant="btn-primary btn-sm" :on-click="openAdd"></base-button>
     </div>
 
     <!-- Sync status -->
@@ -22,9 +22,7 @@
         <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.6));padding:8px 10px;color:#fff;font-size:.72rem">
           {{ img.caption || '' }}
         </div>
-        <button class="btn btn-sm"
-                style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.5);color:#fff;border:none;padding:4px 8px;border-radius:4px"
-                @click="handleDelete(img)">✕</button>
+        <base-button text="✕" variant="btn-sm" extra-class="gallery-delete-btn" :on-click="() => handleDelete(img)" loading-label="..." success-label="✓"></base-button>
       </div>
       <div v-if="!images.length" class="empty-state" style="grid-column:1/-1;padding:60px">
         <div class="empty-state-icon">🖼️</div>
@@ -50,7 +48,7 @@
         </div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="showModal=false">Cancel</button>
-          <button class="btn btn-primary" @click="saveItem">Add</button>
+          <base-button text="Add" variant="btn-primary" :on-click="saveItem" loading-label="Adding..." success-label="Added ✓" error-label="Failed"></base-button>
         </div>
       </div>
     </div>
@@ -85,27 +83,19 @@ function openAdd() {
 }
 
 async function saveItem() {
-  try {
-    await apiPost('gallery', form.value)
-    toast('Added')
-    showModal.value = false
-    await loadData()
-    await syncToContent()
-  } catch {
-    toast('Failed', 'error')
-  }
+  await apiPost('gallery', form.value)
+  toast('Added')
+  showModal.value = false
+  await loadData()
+  await syncToContent()
 }
 
 async function handleDelete(img) {
   if (!confirm('Delete this image?')) return
-  try {
-    await apiDelete('gallery/' + img.id)
-    toast('Deleted')
-    await loadData()
-    await syncToContent()
-  } catch {
-    toast('Failed', 'error')
-  }
+  await apiDelete('gallery/' + img.id)
+  toast('Deleted')
+  await loadData()
+  await syncToContent()
 }
 
 /**

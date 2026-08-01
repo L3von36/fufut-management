@@ -11,7 +11,7 @@
         <button class="btn btn-outline btn-sm" :class="{ 'btn-muted': soundMuted }" @click="toggleSound" :title="soundMuted ? 'Sound alerts off' : 'Sound alerts on'">
           {{ soundMuted ? '🔇' : '🔔' }} Sound
         </button>
-        <button class="btn btn-outline btn-sm" @click="loadData">⟳ Refresh</button>
+        <base-button text="⟳ Refresh" variant="btn-outline btn-sm" :on-click="loadData" loading-label="Refreshing..." success-label="Updated ✓" error-label="Refresh Failed"></base-button>
       </div>
     </div>
     <div class="table-wrap">
@@ -48,7 +48,7 @@
                 </select>
               </td>
               <td>
-                <button class="btn btn-sm btn-ghost" style="color:var(--danger)" @click="handleDelete(o)">Delete</button>
+                <base-button text="Delete" variant="btn-sm btn-ghost" extra-class="btn-danger-text" :on-click="() => handleDelete(o)" loading-label="Deleting..." success-label="Deleted ✓"></base-button>
               </td>
             </tr>
             <tr v-if="!filtered.length">
@@ -154,8 +154,9 @@ async function loadData() {
     updateBadge()
     const now = new Date()
     lastChecked.value = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  } catch {
+  } catch (e) {
     toast('Failed to load orders', 'error')
+    throw e
   }
 }
 
@@ -233,8 +234,9 @@ async function handleDelete(o) {
     saveSeen()
     toast('Order deleted')
     await loadData()
-  } catch {
+  } catch (e) {
     toast('Failed to delete', 'error')
+    throw e
   }
 }
 </script>

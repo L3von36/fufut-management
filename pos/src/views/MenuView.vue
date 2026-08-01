@@ -111,9 +111,11 @@
               <span>Total</span>
               <span>ETB {{ cartTotal.toFixed(0) }}</span>
             </div>
-            <button class="btn btn-primary cart-checkout" @click="placeOrder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-              Send to Kitchen
+            <button class="btn btn-primary cart-checkout" @click="placeOrder" :disabled="orderBtnState.isBusy()" :aria-busy="orderBtnState.isBusy() ? 'true' : undefined">
+              <span v-if="orderBtnState.isBusy()" class="btn-spinner" aria-hidden="true"></span>
+              <span v-else-if="orderBtnState.isSuccess()" class="btn-check" aria-hidden="true">✓</span>
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+              {{ orderBtnState.isBusy() ? 'Sending...' : orderBtnState.isSuccess() ? 'Sent ✓' : orderBtnState.isError() ? 'Failed' : 'Send to Kitchen' }}
             </button>
           </div>
         </div>
@@ -125,6 +127,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost } from '../api'
+import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
 const items = ref([])
@@ -133,6 +136,7 @@ const search = ref('')
 const cart = ref([])
 const showCart = ref(false)
 const orderSent = ref(false)
+const orderBtnState = useButtonState()
 
 const categories = ref([])
 
@@ -217,7 +221,8 @@ function removeItem(idx) { cart.value.splice(idx, 1); if (!cart.value.length) sh
 function clearCart() { cart.value = []; showCart.value = false }
 
 async function placeOrder() {
-  if (!cart.value.length) return
+  if (!cart.value.length || orderBtnState.isBusy()) return
+  orderBtnState.setLoading()
   const orderItems = cart.value.map(i => `${i.name} x${i.quantity}`).join(', ')
   const total = cartTotal.value
 
@@ -229,10 +234,12 @@ async function placeOrder() {
       payment: 'unpaid',
       created: new Date().toISOString()
     })
+    orderBtnState.setSuccess()
     toast('Order sent to kitchen!')
     cart.value = []
     showCart.value = false
   } catch (e) {
+    orderBtnState.setError('Failed to place order')
     toast('Failed to place order', 'error')
   }
 }

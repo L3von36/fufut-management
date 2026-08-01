@@ -3,9 +3,9 @@
     <div class="table-toolbar">
       <h3>Reports</h3>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-secondary" @click="exportCSV">Export CSV</button>
-        <button class="btn btn-secondary" @click="exportReceipt">Generate Receipt</button>
-        <button class="btn btn-primary" @click="loadData">Refresh</button>
+        <base-button text="Export CSV" variant="btn-secondary" :on-click="exportCSV" loading-label="Exporting..." success-label="Exported ✓" />
+        <base-button text="Generate Receipt" variant="btn-secondary" :on-click="exportReceipt" loading-label="Generating..." success-label="Generated ✓" />
+        <base-button text="Refresh" variant="btn-primary" :on-click="loadData" loading-label="Refreshing..." success-label="Refreshed ✓" />
       </div>
     </div>
 
@@ -23,10 +23,10 @@
           <option value="orders">Orders</option><option value="expenses">Expenses</option><option value="inventory">Inventory</option>
           <option value="staff">Staff</option><option value="menu">Menu</option><option value="reservations">Reservations</option>
         </select>
-        <button class="btn btn-primary" @click="exportCSV">Download CSV</button>
+        <base-button text="Download CSV" variant="btn-primary" :on-click="exportCSV" loading-label="Downloading..." success-label="Downloaded ✓" />
         <label style="font-size:.78rem;color:var(--text-muted)">or</label>
         <input v-model="receiptId" placeholder="Order ID for receipt" class="input input-sm" style="width:160px" />
-        <button class="btn btn-secondary" @click="exportReceipt">Get Receipt</button>
+        <base-button text="Get Receipt" variant="btn-secondary" :on-click="exportReceipt" loading-label="Generating..." success-label="Generated ✓" />
       </div>
     </div>
 
@@ -40,6 +40,7 @@
 <script setup>
 import { ref, onMounted, nextTick, inject } from 'vue'
 import { apiGet, apiPost } from '../api'
+import BaseButton from '../components/BaseButton.vue'
 let _Chart = null
 async function _loadChart() {
   if (!_Chart) {

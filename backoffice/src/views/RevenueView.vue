@@ -5,7 +5,7 @@
       <div style="display:flex;gap:10px">
         <input type="date" v-model="dateFrom" class="input input-sm" style="width:auto" />
         <input type="date" v-model="dateTo" class="input input-sm" style="width:auto" />
-        <button class="btn btn-primary" @click="loadRevenue">Apply</button>
+        <base-button text="Apply" variant="btn-primary" :on-click="loadRevenue" loading-label="Applying..." success-label="Applied ✓" />
       </div>
     </div>
 
@@ -41,6 +41,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { apiGet, TODAY } from '../api'
+import BaseButton from '../components/BaseButton.vue'
 let _Chart = null
 async function _loadChart() {
   if (!_Chart) {

@@ -207,6 +207,19 @@ tr:hover td{background:var(--teal-50)}
   .kpi-value{font-size:1.2rem}
 }
 
+/* Button async states */
+.btn-loading{opacity:.85;cursor:wait;pointer-events:none}
+.btn-success-state{background:var(--success)!important;border-color:var(--success)!important;color:#fff!important;cursor:default}
+.btn-error-state{background:var(--danger)!important;border-color:var(--danger)!important;color:#fff!important}
+.btn-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:btnSpin .6s linear infinite;flex-shrink:0}
+@keyframes btnSpin{to{transform:rotate(360deg)}}
+.btn-check{font-weight:700;font-size:1.1em;flex-shrink:0}
+.btn-error-icon{font-weight:700;font-size:1.1em;flex-shrink:0}
+.btn-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-danger-text{color:var(--danger)!important}
+.gallery-delete-btn{position:absolute!important;top:6px!important;right:6px!important;background:rgba(0,0,0,.5)!important;color:#fff!important;border:none!important;padding:4px 8px!important;border-radius:4px!important}
+.btn-publish{background:#28a745!important;color:#fff!important;border:none!important}
+
 /* DARK MODE */
 [data-theme="dark"]{
   --teal-50:#0A2E2C;--teal-100:#0C3F3C;--teal-200:#0F504C;--teal-600:#0F7B78;--teal-700:#0C5F5B;--teal-800:#0A4A47;--teal-900:#073735;

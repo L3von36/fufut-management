@@ -23,8 +23,8 @@
               <td><span class="badge" :class="'badge-'+r.status">{{ r.status }}</span></td>
               <td>{{ r.date||'—' }}</td>
               <td>
-                <button v-if="r.status==='pending'" class="btn btn-sm btn-success" @click="update(r,'approved')">Approve</button>
-                <button v-if="r.status==='pending'" class="btn btn-sm btn-danger" @click="update(r,'rejected')">Reject</button>
+                <base-button v-if="r.status==='pending'" text="Approve" variant="btn-sm btn-success" :on-click="() => update(r,'approved')" loading-label="Approving..." success-label="Approved ✓"></base-button>
+                <base-button v-if="r.status==='pending'" text="Reject" variant="btn-sm btn-danger" :on-click="() => update(r,'rejected')" loading-label="Rejecting..." success-label="Rejected ✓"></base-button>
               </td>
             </tr>
             <tr v-if="!filtered.length"><td colspan="6" class="empty-state" style="padding:40px">No reviews</td></tr>
@@ -43,5 +43,5 @@ const items = ref([]); const filter = ref('')
 const filtered = computed(() => !filter.value ? items.value : items.value.filter(r => r.status === filter.value))
 onMounted(loadData)
 async function loadData() { try { items.value = await apiGet('reviews') || [] } catch { items.value = [] } }
-async function update(r,s) { r.status=s; try { await apiPut('reviews/'+r.id,r); toast(s); await loadData() } catch { toast('Failed','error') } }
+async function update(r,s) { r.status=s; try { await apiPut('reviews/'+r.id,r); toast(s); await loadData() } catch (e) { toast('Failed','error'); throw e } }
 </script>

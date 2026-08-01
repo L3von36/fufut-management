@@ -4,7 +4,7 @@
       <h3>Audit Log</h3>
       <div style="display:flex;gap:10px">
         <input type="date" v-model="dateFilter" class="input input-sm" style="width:auto" />
-        <button class="btn btn-primary" @click="loadAudit">Filter</button>
+        <base-button text="Filter" variant="btn-primary" :on-click="loadAudit" loading-label="Filtering..." success-label="Filtered ✓" />
       </div>
     </div>
 
@@ -33,6 +33,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, TODAY } from '../api'
+import BaseButton from '../components/BaseButton.vue'
 
 const entries = ref([])
 const dateFilter = ref(TODAY())

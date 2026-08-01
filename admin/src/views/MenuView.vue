@@ -5,8 +5,8 @@
       <div style="display:flex;gap:8px;align-items:center">
         <span v-if="dirty" class="unsaved-badge">Unsaved changes</span>
         <button class="btn btn-outline btn-sm" @click="addCategory">+ Category</button>
-        <button class="btn btn-primary btn-sm" :disabled="!dirty" @click="saveAll">💾 Save</button>
-        <button class="btn btn-outline btn-sm" @click="loadData">↻ Refresh</button>
+        <base-button text="💾 Save" variant="btn-primary btn-sm" :disabled="!dirty" :on-click="saveAll" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed"></base-button>
+        <base-button text="↻ Refresh" variant="btn-outline btn-sm" :on-click="loadData" loading-label="Refreshing..." success-label="Updated ✓" error-label="Refresh Failed"></base-button>
       </div>
     </div>
 
@@ -106,7 +106,7 @@
             <input v-model="editItemData.image" placeholder="https://... or upload a file" class="image-url-input" />
             <label class="btn btn-outline btn-sm upload-btn" :class="{ uploading: imageUploading }">
               <input type="file" accept="image/*" style="display:none" @change="handleImageUpload" :disabled="imageUploading" />
-              <span v-if="imageUploading">Uploading…</span>
+              <span v-if="imageUploading" class="btn-spinner" style="width:12px;height:12px;border-width:1.5px"></span>
               <span v-else>📁 Upload</span>
             </label>
           </div>
@@ -164,8 +164,10 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { apiGet, apiPost, apiUpload } from '../api'
 import { useToast } from '../composables/useToast'
+import { useButtonState } from '../composables/useButtonState'
 
 const { toast } = useToast()
+const uploadBtnState = useButtonState()
 
 const AVAILABLE_TAGS = [
   'Vegan', 'Vegetarian', 'Traditional', 'Spicy', 'Popular',
@@ -237,22 +239,18 @@ function toggleTag(t) {
 }
 
 async function loadData() {
-  try {
-    const json = await apiGet('menus')
-    const openMap = {}
-    for (const oldCat of data.categories) {
-      openMap[oldCat.name] = oldCat._open
-    }
-    data.restaurant = json.restaurant || 'FU FUT COFFEE'
-    data.categories = (json.categories || []).map(c => ({
-      ...c,
-      _open: openMap[c.name] !== undefined ? openMap[c.name] : false
-    }))
-    loaded.value = true
-    dirty.value = false
-  } catch (e) {
-    toast('Failed to load menu data: ' + e.message, 'error')
+  const json = await apiGet('menus')
+  const openMap = {}
+  for (const oldCat of data.categories) {
+    openMap[oldCat.name] = oldCat._open
   }
+  data.restaurant = json.restaurant || 'FU FUT COFFEE'
+  data.categories = (json.categories || []).map(c => ({
+    ...c,
+    _open: openMap[c.name] !== undefined ? openMap[c.name] : false
+  }))
+  loaded.value = true
+  dirty.value = false
 }
 
 async function saveAll() {
@@ -268,32 +266,28 @@ async function saveAll() {
     const ok2 = window.confirm('Final check: Are you absolutely sure you want to DELETE all menu data? This cannot be undone.')
     if (!ok2) return
   }
-  try {
-    const payload = { restaurant: data.restaurant || 'FU FUT COFFEE', categories: [] }
-    for (const cat of data.categories) {
-      const cleanCat = {
-        name: cat.name,
-        ...(cat.id ? { id: cat.id } : {}),  // Preserve existing ID to prevent duplication
-        items: (cat.items || []).map(item => ({
-          ...(item.id ? { id: item.id } : {}),  // Preserve existing item ID
-          name: item.name || '',
-          description: item.description || '',
-          price: item.price || '',
-          image: item.image || '',
-          available: item.available !== false && item.available !== 0,
-          tags: Array.isArray(item.tags) ? item.tags : parseTags(item.tags),
-          modifiers: Array.isArray(item.modifiers) ? item.modifiers
-            : (item.modifiers || '').split(',').map(m => m.trim()).filter(Boolean)
-        }))
-      }
-      payload.categories.push(cleanCat)
+  const payload = { restaurant: data.restaurant || 'FU FUT COFFEE', categories: [] }
+  for (const cat of data.categories) {
+    const cleanCat = {
+      name: cat.name,
+      ...(cat.id ? { id: cat.id } : {}),  // Preserve existing ID to prevent duplication
+      items: (cat.items || []).map(item => ({
+        ...(item.id ? { id: item.id } : {}),  // Preserve existing item ID
+        name: item.name || '',
+        description: item.description || '',
+        price: item.price || '',
+        image: item.image || '',
+        available: item.available !== false && item.available !== 0,
+        tags: Array.isArray(item.tags) ? item.tags : parseTags(item.tags),
+        modifiers: Array.isArray(item.modifiers) ? item.modifiers
+          : (item.modifiers || '').split(',').map(m => m.trim()).filter(Boolean)
+      }))
     }
-    const result = await apiPost('menus/save', payload)
-    dirty.value = false
-    toast(`Saved! ${result.count || '?'} items updated`)
-  } catch (e) {
-    toast('Failed to save: ' + e.message, 'error')
+    payload.categories.push(cleanCat)
   }
+  const result = await apiPost('menus/save', payload)
+  dirty.value = false
+  toast(`Saved! ${result.count || '?'} items updated`)
 }
 
 function addCategory() {
