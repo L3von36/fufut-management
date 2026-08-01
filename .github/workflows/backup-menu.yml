@@ -40,7 +40,7 @@ jobs:
         run: |
           git config user.name "menu-backup-bot"
           git config user.email "bot@fufutcoffee.com"
-          git pull --rebase origin master
+          git pull --rebase --autostash origin master
           git add menu_backup.json menu_backup_log.txt
           git diff --cached --quiet && echo "No changes" || (git commit -m "auto: menu backup $(date -u +%Y-%m-%d\ %H:%M\ UTC) [skip ci]" && git push)
 
