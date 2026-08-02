@@ -78,9 +78,17 @@ describe('useAnimatedNumber', () => {
 })
 
 describe('useToast', () => {
+  // Cleanup any toast container / injected styles between tests so each test
+  // starts from a clean DOM.
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    document.head.querySelectorAll('style[data-toast-styles]').forEach(s => s.remove())
+  })
+
   it('should not throw when no toast container exists', () => {
     const { toast } = useToast()
-    expect(() => toast('Hello')).not.toThrow()
+    // Calling toast() without a container should auto-create one and not throw.
+    expect(() => toast('info', 'Hello')).not.toThrow()
   })
 
   it('should create a toast element when container exists', () => {
@@ -89,54 +97,120 @@ describe('useToast', () => {
     document.body.appendChild(container)
 
     const { toast } = useToast()
-    toast('Order created', 'success')
+    toast('success', 'Order created')
 
-    const toastEl = container.querySelector('.toast')
+    const toastEl = container.querySelector('.toast-notification')
     expect(toastEl).not.toBeNull()
-    expect(toastEl.textContent).toBe('Order created')
-    expect(toastEl.className).toContain('success')
-
-    document.body.removeChild(container)
+    expect(toastEl.className).toContain('toast-success')
+    expect(toastEl.textContent).toContain('Order created')
   })
 
-  it('should auto-remove toast after 3 seconds', async () => {
+  it('should render an auto-detected title for known types', () => {
+    const container = document.createElement('div')
+    container.id = 'toastContainer'
+    document.body.appendChild(container)
+
+    const { toast } = useToast()
+    toast('error', 'Something broke')
+
+    const toastEl = container.querySelector('.toast-notification')
+    expect(toastEl).not.toBeNull()
+    expect(toastEl.className).toContain('toast-error')
+    expect(toastEl.textContent).toContain('Error')
+    expect(toastEl.textContent).toContain('Something broke')
+  })
+
+  it('should add the .show class via requestAnimationFrame', async () => {
     vi.useFakeTimers()
     const container = document.createElement('div')
     container.id = 'toastContainer'
     document.body.appendChild(container)
 
     const { toast } = useToast()
-    toast('Test message')
+    toast('info', 'Hello')
 
-    // Trigger animation frame
+    const toastEl = container.querySelector('.toast-notification')
+    expect(toastEl).not.toBeNull()
+    // rAF is mocked as setTimeout(cb, 16) in tests/setup.js — before the
+    // timer fires, .show is NOT present.
+    expect(toastEl.classList.contains('show')).toBe(false)
+
+    // Flush the rAF callback.
     await vi.advanceTimersByTimeAsync(16)
-    expect(container.querySelector('.toast')).not.toBeNull()
+    expect(toastEl.classList.contains('show')).toBe(true)
 
-    // Wait for timeout + fade (3000ms + 350ms)
-    await vi.advanceTimersByTimeAsync(3500)
-    expect(container.querySelector('.toast')).toBeNull()
-
-    document.body.removeChild(container)
     vi.useRealTimers()
   })
 
-  it('should apply show class via requestAnimationFrame', async () => {
+  it('should auto-dismiss after the duration by adding .hidden', async () => {
+    vi.useFakeTimers()
     const container = document.createElement('div')
     container.id = 'toastContainer'
     document.body.appendChild(container)
 
     const { toast } = useToast()
-    toast('Hello')
+    toast('info', 'Test message', { duration: 4000 })
 
-    // Before rAF, no show class
-    const toastEl = container.querySelector('.toast')
-    expect(toastEl.classList.contains('show')).toBe(false)
+    let toastEl = container.querySelector('.toast-notification')
+    expect(toastEl).not.toBeNull()
 
-    // After rAF
-    await new Promise(r => requestAnimationFrame(r))
-    expect(toastEl.classList.contains('show')).toBe(true)
+    // Just before the auto-dismiss timer fires, the toast is still visible.
+    await vi.advanceTimersByTimeAsync(3999)
+    expect(container.querySelector('.toast-notification')).not.toBeNull()
+    expect(toastEl.classList.contains('hidden')).toBe(false)
 
-    document.body.removeChild(container)
+    // At 4000ms the dismiss handler runs and adds .hidden to trigger the
+    // CSS slide-out animation.
+    await vi.advanceTimersByTimeAsync(1)
+    expect(toastEl.classList.contains('hidden')).toBe(true)
+
+    vi.useRealTimers()
+  })
+
+  it('should remove the element from the DOM after the slide-out animation ends', async () => {
+    vi.useFakeTimers()
+    const container = document.createElement('div')
+    container.id = 'toastContainer'
+    document.body.appendChild(container)
+
+    const { toast } = useToast()
+    toast('info', 'Bye', { duration: 4000 })
+
+    // Trigger the auto-dismiss.
+    await vi.advanceTimersByTimeAsync(4000)
+
+    let toastEl = container.querySelector('.toast-notification')
+    expect(toastEl).not.toBeNull()
+    expect(toastEl.classList.contains('hidden')).toBe(true)
+
+    // jsdom doesn't run CSS animations, so simulate the animationend event
+    // that the production code listens for to remove the element.
+    const evt = new Event('animationend', { bubbles: true })
+    evt.animationName = 'toastSlideOut'
+    toastEl.dispatchEvent(evt)
+
+    expect(container.querySelector('.toast-notification')).toBeNull()
+
+    vi.useRealTimers()
+  })
+
+  it('should expose type-aliased helpers (success, error, info, warning)', () => {
+    const container = document.createElement('div')
+    container.id = 'toastContainer'
+    document.body.appendChild(container)
+
+    const { success, error, info, warning } = useToast()
+    success('ok')
+    error('bad')
+    info('hi')
+    warning('careful')
+
+    const toasts = container.querySelectorAll('.toast-notification')
+    expect(toasts.length).toBe(4)
+    expect(toasts[0].className).toContain('toast-success')
+    expect(toasts[1].className).toContain('toast-error')
+    expect(toasts[2].className).toContain('toast-info')
+    expect(toasts[3].className).toContain('toast-warning')
   })
 })
 

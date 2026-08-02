@@ -5,6 +5,12 @@ on:
     branches: [master]
   workflow_dispatch:
 
+# Required so the build-pos job can commit the freshly built assets back to
+# the repo (the "Commit built assets back" step). Without this, the default
+# GITHUB_TOKEN is read-only and `git push` fails with HTTP 403.
+permissions:
+  contents: write
+
 jobs:
   test-pos:
     runs-on: ubuntu-latest
