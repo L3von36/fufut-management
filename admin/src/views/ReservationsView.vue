@@ -67,7 +67,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
-const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
+const { toast, success: toastOk, error: toastErr, info: toastInfo } = useToast()
 
 const items = ref([])
 const filter = ref('')
@@ -100,7 +100,7 @@ function formatDate(d) {
 async function updateStatus(r) {
   try {
     await apiPut('reservations/' + r.id, { status: r.status })
-    toast('Status updated to ' + r.status)
+    toastOk('Status updated to ' + r.status)
   } catch {
     toastErr('Failed to update status')
   }
@@ -110,7 +110,7 @@ async function handleDelete(r) {
   if (!confirm('Delete reservation for ' + r.name + '?')) return
   try {
     await apiDelete('reservations/' + r.id)
-    toast('Reservation deleted')
+    toastOk('Reservation deleted')
     await loadData()
   } catch (e) {
     toastErr('Failed to delete')
