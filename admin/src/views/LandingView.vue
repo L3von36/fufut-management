@@ -182,7 +182,7 @@
         <label>Ceremony Photo URL</label>
         <input v-model="data.ceremony.image" placeholder="https://example.com/photo.jpg" />
         <div v-if="data.ceremony.image" style="margin-top:8px">
-          <img :src="data.ceremony.image" alt="preview" style="max-width:220px;border-radius:8px;border:1px solid var(--border)" @error="$event.target.style.display='none'" />
+          <img :src="resolveUrl(data.ceremony.image)" alt="preview" style="max-width:220px;border-radius:8px;border:1px solid var(--border)" @error="$event.target.style.display='none'" />
         </div>
       </div>
     </section>
@@ -205,7 +205,7 @@
       </div>
       <div v-if="data.gallery.length === 0" style="padding:16px;color:var(--text-muted);font-size:13px">No photos yet. Click "+ Add Photo".</div>
       <div v-for="(item, i) in data.gallery" :key="i" style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border)">
-        <img v-if="item.url" :src="item.url" style="width:64px;height:64px;object-fit:cover;border-radius:6px;flex-shrink:0" @error="$event.target.style.display='none'" />
+        <img v-if="item.url" :src="resolveUrl(item.url)" style="width:64px;height:64px;object-fit:cover;border-radius:6px;flex-shrink:0" @error="$event.target.style.display='none'" />
         <div style="flex:1;display:flex;flex-direction:column;gap:6px">
           <input v-model="item.url"   placeholder="Image URL" style="width:100%" />
           <input v-model="item.title" placeholder="Caption (optional)" />
@@ -247,7 +247,7 @@
           <label>Avatar Image URL</label>
           <input v-model="card.avatar" placeholder="assets/avatar-1494790108377.jpg" />
           <div v-if="card.avatar" style="margin-top:6px">
-            <img :src="card.avatar" alt="preview" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border)" @error="$event.target.style.display='none'" />
+            <img :src="resolveUrl(card.avatar)" alt="preview" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border)" @error="$event.target.style.display='none'" />
           </div>
         </div>
       </div>
@@ -318,6 +318,15 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
 import { apiGet, apiPost } from '../api/index.js'
+
+const SITE_ORIGIN = 'https://www.fufutcoffee.com'
+
+/** Resolve relative asset paths to absolute landing-page URLs */
+function resolveUrl(url) {
+  if (!url) return ''
+  if (/^https?:\/\//.test(url) || url.startsWith('data:')) return url
+  return SITE_ORIGIN + '/' + url.replace(/^\//, '')
+}
 
 function toast(msg, type = 'success') {
   const el = document.createElement('div')

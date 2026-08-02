@@ -18,7 +18,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
       <div v-for="img in images" :key="img.id"
            style="position:relative;border-radius:var(--radius-md);overflow:hidden;aspect-ratio:4/3;background:var(--neutral-100)">
-        <img :src="img.url" :alt="img.caption||''" style="width:100%;height:100%;object-fit:cover" />
+        <img :src="resolveUrl(img.url)" :alt="img.caption||''" style="width:100%;height:100%;object-fit:cover" />
         <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.6));padding:8px 10px;color:#fff;font-size:.72rem">
           {{ img.caption || '' }}
         </div>
@@ -61,11 +61,19 @@ import { apiGet, apiPost, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
 
 const { toast } = useToast()
+const SITE_ORIGIN = 'https://www.fufutcoffee.com'
 const images   = ref([])
 const showModal = ref(false)
 const form      = ref({ url: '', caption: '', category: '' })
 const syncing   = ref(false)
 const syncMsg   = ref(null)
+
+/** Resolve relative asset paths (e.g. assets/foo.jpg) to absolute landing-page URLs */
+function resolveUrl(url) {
+  if (!url) return ''
+  if (/^https?:\/\//.test(url) || url.startsWith('data:')) return url
+  return SITE_ORIGIN + '/' + url.replace(/^\//, '')
+}
 
 onMounted(loadData)
 
