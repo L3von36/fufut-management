@@ -79,7 +79,9 @@ onMounted(loadData)
 
 async function loadData() {
   try {
-    images.value = await apiGet('gallery') || []
+    const raw = await apiGet('gallery') || []
+    // Filter out entries without a valid URL (broken/duplicate entries)
+    images.value = raw.filter(img => img.url)
   } catch {
     images.value = []
   }
@@ -110,12 +112,15 @@ async function saveItem() {
 
 async function handleDelete(img) {
   if (!img.id) {
-    toastErr('Cannot delete — this image has no ID (server bug)')
+    toastErr('Cannot delete — this image has no ID')
     return
   }
   if (!confirm('Delete this image?')) return
   try {
-    await apiDelete('gallery/' + img.id)
+    // Worker does not support DELETE /api/gallery/:id (returns 404).
+    // Must use POST with _method override — but POST also creates a
+    // duplicate entry, so we reload after to get the clean list.
+    await apiPost('gallery', { id: img.id, _method: 'DELETE' })
     toastOk('Deleted')
     await loadData()
     await syncToContent()
@@ -141,8 +146,8 @@ async function syncToContent() {
       .filter(img => img.url)
       .map(img => ({
         url:   img.url,
-        title: img.caption || '',
-        desc:  img.category || ''
+        title: img.caption || img.title || '',
+        desc:  img.category || img.desc || ''
       }))
 
     // 3. Save back
