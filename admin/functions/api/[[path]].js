@@ -16,10 +16,18 @@
  *      party) instead of the Worker origin (third-party). Without this
  *      rewrite, the session would still never persist in the browser.
  *   3. Strips CORS headers — not needed for same-origin responses.
+ *
+ * Settings endpoint
+ * -----------------
+ * `/api/settings` is intercepted here and stored in Cloudflare KV
+ * (binding: SETTINGS_KV). This keeps settings persistent across devices
+ * without needing to modify the external Worker.
+ *
+ * Setup: Create a KV namespace in the Cloudflare dashboard and bind it
+ * as SETTINGS_KV to this Pages project under Settings → Functions.
  */
 const WORKER_BASE = 'https://fufut-api.fufutcoffee.workers.dev';
 
-// Headers that should never be forwarded to the upstream Worker.
 const STRIP_REQUEST_HEADERS = new Set([
   'host',
   'cf-connecting-ip',
@@ -31,7 +39,6 @@ const STRIP_REQUEST_HEADERS = new Set([
   'x-real-ip',
 ]);
 
-// Headers that should never be returned to the browser.
 const STRIP_RESPONSE_HEADERS = new Set([
   'set-cookie',
   'access-control-allow-origin',
@@ -45,7 +52,6 @@ const STRIP_RESPONSE_HEADERS = new Set([
   'content-encoding',
 ]);
 
-// Headers that should be preserved when stripping content-encoding.
 const HOP_BY_HOP = new Set([
   'connection',
   'keep-alive',
@@ -58,14 +64,8 @@ const HOP_BY_HOP = new Set([
 ]);
 
 function rewriteSetCookie(cookie) {
-  // Strip Domain so the browser attaches the cookie to the current origin
-  // (admin.fufutcoffee.com) instead of the Worker origin.
   let next = cookie.replace(/;\s*[Dd]omain=[^;]+/g, '');
-  // Same-origin requests don't need SameSite=None; Lax is enough and is
-  // friendlier to older browsers.
   next = next.replace(/;\s*SameSite=None/gi, '; SameSite=Lax');
-  // Constrain path to /api to avoid leaking the session cookie to other
-  // paths on the admin origin.
   if (!/;\s*[Pp]ath=/i.test(next)) {
     next += '; Path=/api';
   }
@@ -78,8 +78,6 @@ function buildOutgoingHeaders(request) {
     if (STRIP_REQUEST_HEADERS.has(name.toLowerCase())) continue;
     headers.set(name, value);
   }
-  // Help the Worker recognise the original admin origin even when the
-  // function itself sends a server-to-server fetch (no browser Origin).
   if (!headers.has('origin')) {
     headers.set('origin', 'https://admin.fufutcoffee.com');
   }
@@ -96,9 +94,6 @@ function buildResponseHeaders(response) {
     if (HOP_BY_HOP.has(name.toLowerCase())) continue;
     headers.set(name, value);
   }
-  // Use getSetCookie() when available; otherwise fall back to the raw
-  // header value. Either way, rewrite the cookie so it sticks to the
-  // admin origin.
   let setCookieValues = [];
   if (typeof response.headers.getSetCookie === 'function') {
     setCookieValues = response.headers.getSetCookie();
@@ -113,11 +108,65 @@ function buildResponseHeaders(response) {
   return headers;
 }
 
-export async function onRequest(context) {
-  const { request } = context;
-  const url = new URL(request.url);
-  const target = WORKER_BASE + url.pathname + url.search;
+// ─── Settings handler (KV-backed) ─────────────────────────────────
+const SETTINGS_KEY = 'admin_settings';
 
+async function handleSettings(request, env) {
+  // If KV binding is not configured, return a clear error so the
+  // frontend can fall back to localStorage.
+  if (!env.SETTINGS_KV) {
+    return new Response(
+      JSON.stringify({ ok: false, error: 'KV not configured — add SETTINGS_KV binding in Cloudflare Pages settings' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  try {
+    // GET — return the full settings object
+    if (request.method === 'GET') {
+      const data = await env.SETTINGS_KV.get(SETTINGS_KEY, 'json') || {};
+      return new Response(
+        JSON.stringify({ ok: true, data }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // PUT / POST — merge the incoming partial update into the stored object
+    if (request.method === 'PUT' || request.method === 'POST') {
+      const patch = await request.json();
+      const existing = await env.SETTINGS_KV.get(SETTINGS_KEY, 'json') || {};
+      const updated = { ...existing, ...patch };
+      await env.SETTINGS_KV.put(SETTINGS_KEY, JSON.stringify(updated));
+      return new Response(
+        JSON.stringify({ ok: true, data: updated }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    return new Response(JSON.stringify({ ok: false, error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: String(err.message || err) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+// ─── Main request router ───────────────────────────────────────────
+export async function onRequest(context) {
+  const { request, env } = context;
+  const url = new URL(request.url);
+
+  // Intercept settings requests — handle locally via KV
+  if (url.pathname === '/api/settings' || url.pathname.startsWith('/api/settings/')) {
+    return handleSettings(request, env);
+  }
+
+  // Everything else → proxy to the upstream Worker
+  const target = WORKER_BASE + url.pathname + url.search;
   const isBodyMethod = !['GET', 'HEAD'].includes(request.method.toUpperCase());
 
   const upstreamHeaders = buildOutgoingHeaders(request);
@@ -143,8 +192,6 @@ export async function onRequest(context) {
   }
 
   const responseHeaders = buildResponseHeaders(response);
-
-  // Diagnostic marker — remove once we confirm the function is live.
   responseHeaders.set('X-Fufut-Proxy', 'active');
 
   return new Response(response.body, {
