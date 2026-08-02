@@ -37,6 +37,10 @@ export function useButtonState(options = {}) {
   function setError(msg) {
     state.value = 'error'
     errorMessage.value = msg || 'Action failed'
+    // Auto-reset error state after 3s so the button doesn't stay stuck red
+    resetTimer = setTimeout(() => {
+      state.value = 'idle'
+    }, 3000)
   }
 
   function reset() {

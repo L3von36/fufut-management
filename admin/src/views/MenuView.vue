@@ -373,11 +373,11 @@ function editItem(ci, ii) {
   editItemCi = ci
   editItemIi = ii
   _newItemIdx = -999
-  editItemData.name = item.name || ''
-  editItemData.name_am = item.name_am || ''
-  editItemData.price = item.price || ''
-  editItemData.description = item.description || ''
-  editItemData.description_am = item.description_am || ''
+  editItemData.name = String(item.name || '')
+  editItemData.name_am = String(item.name_am || '')
+  editItemData.price = String(item.price ?? '')
+  editItemData.description = String(item.description || '')
+  editItemData.description_am = String(item.description_am || '')
   editItemData.image = item.image || ''
   editItemData.available = item.available !== false && item.available !== 0
   editItemData.tags = Array.isArray(item.tags) ? [...item.tags] : parseTags(item.tags)
@@ -388,7 +388,7 @@ function editItem(ci, ii) {
 
 function closeEditModal() {
   const item = data.categories[editItemCi]?.items[editItemIi]
-  if (item && !item.name.trim() && !item.price.trim() && !item.description.trim() && !item.image) {
+  if (item && !String(item.name).trim() && !String(item.price).trim() && !String(item.description).trim() && !item.image) {
     data.categories[editItemCi].items.splice(editItemIi, 1)
   }
   editModal.value = false
@@ -402,7 +402,7 @@ async function saveEditModalAsync() {
   if (!item) throw new Error('Item not found')
   item.name = editItemData.name.trim()
   item.name_am = editItemData.name_am.trim()
-  item.price = editItemData.price.trim()
+  item.price = String(editItemData.price).trim()
   item.description = editItemData.description.trim()
   item.description_am = editItemData.description_am.trim()
   item.image = editItemData.image.trim()
