@@ -143,7 +143,7 @@
 
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="closeEditModal">Cancel</button>
-          <button class="btn btn-primary" @click="saveEditModal">Save Item</button>
+          <base-button text="Save Item" variant="btn-primary" :on-click="saveEditModalAsync" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed" @error="e => toast(e?.message || 'Save failed', 'error')"></base-button>
         </div>
       </div>
     </div>
@@ -394,13 +394,12 @@ function closeEditModal() {
   editModal.value = false
 }
 
-function saveEditModal() {
+async function saveEditModalAsync() {
   if (!editItemData.name.trim()) {
-    toast('Item name is required', 'error')
-    return
+    throw new Error('Item name is required')
   }
   const item = data.categories[editItemCi].items[editItemIi]
-  if (!item) { toast('Item not found', 'error'); return }
+  if (!item) throw new Error('Item not found')
   item.name = editItemData.name.trim()
   item.name_am = editItemData.name_am.trim()
   item.price = editItemData.price.trim()
@@ -412,7 +411,6 @@ function saveEditModal() {
   item.modifiers = editItemData.modifiersRaw.split(',').map(m => m.trim()).filter(Boolean)
   dirty.value = true
   editModal.value = false
-  toast('Item updated')
 }
 
 function moveItem(ci, ii, dir) {
