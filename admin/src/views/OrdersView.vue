@@ -155,7 +155,7 @@ async function loadData() {
     const now = new Date()
     lastChecked.value = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   } catch (e) {
-    toast('Failed to load orders', 'error')
+    toast.error('Failed to load orders')
     throw e
   }
 }
@@ -222,7 +222,7 @@ async function updateStatus(o) {
     await apiPut('orders/' + o.id, { status: o.status })
     toast('Status updated to ' + o.status)
   } catch {
-    toast('Failed to update status', 'error')
+    toast.error('Failed to update status')
   }
 }
 
@@ -235,7 +235,7 @@ async function handleDelete(o) {
     toast('Order deleted')
     await loadData()
   } catch (e) {
-    toast('Failed to delete', 'error')
+    toast.error('Failed to delete')
     throw e
   }
 }

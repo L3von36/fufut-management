@@ -500,7 +500,7 @@ async function openPreview() {
 }
 
 async function schedulePublish() {
-  if (!scheduleDate.value) { toast('Pick a date/time', 'error'); throw new Error('Pick a date/time') }
+  if (!scheduleDate.value) { toast.error('Pick a date/time'); throw new Error('Pick a date/time') }
   // Save draft first
   const payload = buildPayload()
   await apiPost('content/draft', payload)

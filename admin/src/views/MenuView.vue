@@ -5,8 +5,8 @@
       <div style="display:flex;gap:8px;align-items:center">
         <span v-if="dirty" class="unsaved-badge">Unsaved changes</span>
         <button class="btn btn-outline btn-sm" @click="addCategory">+ Category</button>
-        <base-button text="💾 Save" variant="btn-primary btn-sm" :disabled="!dirty" :on-click="saveAll" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed" @error="e => toast(e?.message || 'Save failed', 'error')"></base-button>
-        <base-button text="↻ Refresh" variant="btn-outline btn-sm" :on-click="loadData" loading-label="Refreshing..." success-label="Updated ✓" error-label="Refresh Failed" @error="e => toast(e?.message || 'Refresh failed', 'error')"></base-button>
+        <base-button text="💾 Save" variant="btn-primary btn-sm" :disabled="!dirty" :on-click="saveAll" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed" @error="e => toast.error(e?.message || 'Save failed')"></base-button>
+        <base-button text="↻ Refresh" variant="btn-outline btn-sm" :on-click="loadData" loading-label="Refreshing..." success-label="Updated ✓" error-label="Refresh Failed" @error="e => toast.error(e?.message || 'Refresh failed')"></base-button>
       </div>
     </div>
 
@@ -143,7 +143,7 @@
 
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="closeEditModal">Cancel</button>
-          <base-button text="Save Item" variant="btn-primary" :on-click="saveEditModalAsync" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed" @error="e => toast(e?.message || 'Save failed', 'error')"></base-button>
+          <base-button text="Save Item" variant="btn-primary" :on-click="saveEditModalAsync" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed" @error="e => toast.error(e?.message || 'Save failed')"></base-button>
         </div>
       </div>
     </div>
@@ -216,9 +216,9 @@ async function handleImageUpload(e) {
   try {
     const result = await apiUpload(file)
     editItemData.image = result.url
-    toast('Image uploaded')
+    toast.success('Image uploaded')
   } catch (err) {
-    toast('Upload failed: ' + err.message, 'error')
+    toast.error('Upload failed: ' + err.message)
   } finally {
     imageUploading.value = false
     e.target.value = ''
@@ -299,7 +299,7 @@ async function saveAll() {
   }
   const result = await apiPost('menus/save', payload)
   dirty.value = false
-  toast(`Saved! ${result.count || '?'} items updated`)
+  toast.success(`Saved! ${result.count || '?'} items updated`)
 }
 
 function addCategory() {
@@ -318,7 +318,7 @@ function editCategory(ci) {
 
 function saveCatEdit() {
   if (!catEditName.value.trim()) {
-    toast('Category name is required', 'error')
+    toast.error('Category name is required')
     return
   }
   if (editCatCi === -1) {

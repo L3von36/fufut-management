@@ -86,7 +86,7 @@ async function loadData() {
     const data = await apiGet('reservations')
     items.value = Array.isArray(data) ? data : []
   } catch (e) {
-    toast('Failed to load reservations', 'error')
+    toast.error('Failed to load reservations')
     throw e
   }
 }
@@ -102,7 +102,7 @@ async function updateStatus(r) {
     await apiPut('reservations/' + r.id, { status: r.status })
     toast('Status updated to ' + r.status)
   } catch {
-    toast('Failed to update status', 'error')
+    toast.error('Failed to update status')
   }
 }
 
@@ -113,7 +113,7 @@ async function handleDelete(r) {
     toast('Reservation deleted')
     await loadData()
   } catch (e) {
-    toast('Failed to delete', 'error')
+    toast.error('Failed to delete')
     throw e
   }
 }
