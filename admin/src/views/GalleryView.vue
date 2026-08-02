@@ -80,8 +80,8 @@ onMounted(loadData)
 async function loadData() {
   try {
     const raw = await apiGet('gallery') || []
-    // Filter out entries without a valid URL (broken/duplicate entries)
-    images.value = raw.filter(img => img.url)
+    // Filter out entries without a valid URL, or with non-image marker URLs
+    images.value = raw.filter(img => img.url && !img.url.startsWith('__'))
   } catch {
     images.value = []
   }
