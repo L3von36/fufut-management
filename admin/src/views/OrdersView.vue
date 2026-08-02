@@ -40,7 +40,7 @@
                 <span v-else class="text-muted">Walk-in / Web</span>
               </td>
               <td>{{ formatItems(o.items) }}</td>
-              <td><strong>ETB {{ Number(o.total).toFixed(0) }}</strong></td>
+              <td><strong>ETB {{ (Number(o.total) || 0).toFixed(0) }}</strong></td>
               <td class="text-muted">{{ formatDate(o.created) }}</td>
               <td>
                 <select class="status-select" :class="'status-' + (o.status||'new')" v-model="o.status" @change="updateStatus(o)">
@@ -199,9 +199,13 @@ function saveSeen() {
 
 function formatItems(its) {
   if (!its) return '—'
-  if (typeof its === 'string') return its
-  if (Array.isArray(its)) {
-    return its.map(i => (typeof i === 'string' ? i : `${i.name || 'Item'}${i.qty > 1 ? ' ×' + i.qty : ''}`)).join(', ')
+  // API may return items as a JSON string — parse it first
+  let parsed = its
+  if (typeof its === 'string') {
+    try { parsed = JSON.parse(its) } catch { return its }
+  }
+  if (Array.isArray(parsed)) {
+    return parsed.map(i => (typeof i === 'string' ? i : `${i.name || 'Item'}${i.qty > 1 ? ' ×' + i.qty : ''}`)).join(', ')
   }
   return String(its)
 }
