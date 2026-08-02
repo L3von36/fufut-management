@@ -152,9 +152,19 @@
       }
       .toast-notification .toast-icon {
         flex-shrink: 0;
-        width: 18px;
-        height: 18px;
-        color: currentColor;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+      }
+      .toast-notification .toast-icon svg {
+        width: 16px;
+        height: 16px;
+        display: block;
       }
       .toast-notification .toast-content {
         flex: 1;
@@ -264,7 +274,7 @@
       '</svg>' +
       '</button>';
 
-    toastEl.innerHTML = iconHtml + '<div class="toast-content">' + titleHtml + messageHtml + '</div>' + dismissBtn;
+    toastEl.innerHTML = '<div class="toast-icon">' + iconHtml + '</div><div class="toast-content">' + titleHtml + messageHtml + '</div>' + dismissBtn;
 
     // Add dismiss handler
     const dismissEl = toastEl.querySelector('.toast-dismiss');

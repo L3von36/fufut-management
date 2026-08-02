@@ -57,7 +57,8 @@ export function useToast() {
         .toast-notification.hidden { animation: toastSlideOut 320ms cubic-bezier(.4,0,.2,1) both; }
         @keyframes toastSlideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         @keyframes toastSlideOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
-        .toast-notification .toast-icon { flex-shrink: 0; width: 18px; height: 18px; }
+        .toast-notification .toast-icon { flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.15); color: #fff; }
+        .toast-notification .toast-icon svg { width: 16px; height: 16px; display: block; }
         .toast-notification .toast-content { flex: 1; min-width: 0; }
         .toast-notification .toast-title { font-weight: 600; font-size: 13px; line-height: 1.3; color: #fff; margin-bottom: 2px; }
         .toast-notification .toast-message { font-size: 13px; line-height: 1.4; color: rgba(255,255,255,.9); }
@@ -103,7 +104,7 @@ export function useToast() {
       '</svg>' +
       '</button>'
     
-    toastEl.innerHTML = iconHtml + '<div class="toast-content">' + titleHtml + messageHtml + '</div>' + dismissBtn
+    toastEl.innerHTML = '<div class="toast-icon">' + iconHtml + '</div><div class="toast-content">' + titleHtml + messageHtml + '</div>' + dismissBtn
     
     const dismissEl = toastEl.querySelector('.toast-dismiss')
     dismissEl.addEventListener('click', () => dismissToast(toastId))
