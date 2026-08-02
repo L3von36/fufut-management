@@ -27,22 +27,22 @@
           </thead>
           <tbody>
             <tr v-for="r in filtered" :key="r.id">
-              <td><strong>{{ r.name }}</strong></td>
+              <td><strong>{{ r.name || 'Walk-in' }}</strong></td>
               <td class="contact-cell">
                 <span class="contact-line">{{ r.email }}</span>
                 <span class="contact-line muted">{{ r.phone }}</span>
               </td>
               <td>
                 <span class="date-badge">{{ formatDate(r.date) }}</span>
-                <span class="time-badge">{{ r.time }}</span>
+                <span class="time-badge">{{ formatTime(r.time) }}</span>
               </td>
-              <td>{{ r.guests }} <span class="muted">guest(s)</span></td>
+              <td>{{ guestCount(r.guests) }} <span class="muted">guest(s)</span></td>
               <td>
                 <select class="status-select" :class="'status-' + (r.status||'new')" v-model="r.status" @change="updateStatus(r)">
                   <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
                 </select>
               </td>
-              <td class="notes-cell">{{ r.notes || '—' }}</td>
+              <td class="notes-cell" :title="r.notes || ''">{{ r.notes || '—' }}</td>
               <td>
                 <base-button text="Delete" variant="btn-sm btn-ghost" extra-class="btn-danger-text" :on-click="() => handleDelete(r)" loading-label="Deleting..." success-label="Deleted ✓"></base-button>
               </td>
@@ -84,7 +84,13 @@ onMounted(loadData)
 async function loadData() {
   try {
     const data = await apiGet('reservations')
-    items.value = Array.isArray(data) ? data : []
+    items.value = (Array.isArray(data) ? data : []).map(r => ({
+      ...r,
+      status: r.status || 'new',
+      guests: r.guests || 0,
+      name: r.name || '',
+      time: r.time || ''
+    }))
   } catch (e) {
     toastErr('Failed to load reservations')
     throw e
@@ -95,6 +101,27 @@ function formatDate(d) {
   if (!d) return '—'
   const date = new Date(d + 'T12:00:00')
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function formatTime(t) {
+  if (!t) return ''
+  // Normalize 24h (e.g. "19:00") to 12h ("7:00 PM")
+  const m = t.match(/^(\d{1,2}):(\d{2})$/)
+  if (m) {
+    const h = parseInt(m[1]), min = m[2]
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const h12 = h % 12 || 12
+    return h12 + ':' + min + ' ' + ampm
+  }
+  return t
+}
+
+function guestCount(g) {
+  if (!g) return 0
+  if (typeof g === 'number') return g
+  // Extract number from strings like "2 People" or "2"
+  const n = parseInt(String(g))
+  return isNaN(n) ? 0 : n
 }
 
 async function updateStatus(r) {

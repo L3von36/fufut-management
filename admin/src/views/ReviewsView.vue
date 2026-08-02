@@ -38,10 +38,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { useToast } from '../composables/useToast'
-const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
+const { toast, success: toastOk, error: toastErr, info: toastInfo } = useToast()
 const items = ref([]); const filter = ref('')
 const filtered = computed(() => !filter.value ? items.value : items.value.filter(r => r.status === filter.value))
 onMounted(loadData)
 async function loadData() { try { items.value = await apiGet('reviews') || [] } catch { items.value = [] } }
-async function update(r,s) { r.status=s; try { await apiPut('reviews/'+r.id,r); toast(s); await loadData() } catch (e) { toast('Failed','error'); throw e } }
+async function update(r,s) { r.status=s; try { await apiPut('reviews/'+r.id,r); toastOk(s); await loadData() } catch (e) { toastErr('Failed'); throw e } }
 </script>

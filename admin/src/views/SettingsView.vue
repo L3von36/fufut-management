@@ -68,7 +68,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useToast } from '../composables/useToast'
-const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
+const { toast, success: toastOk, error: toastErr, info: toastInfo } = useToast()
 
 const timeSlots = Array.from({length:24}, (_,i) => `${String(i).padStart(2,'0')}:00`).concat(Array.from({length:23}, (_,i) => `${String(i).padStart(2,'0')}:30`)).sort()
 const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
@@ -95,17 +95,17 @@ function saveAll() {
     holidays: holidays.value, banner: {...banner}
   }))
 }
-function saveHours() { saveAll(); toast('Hours saved') }
-function saveContact() { saveAll(); toast('Contact saved') }
+function saveHours() { saveAll(); toastOk('Hours saved') }
+function saveContact() { saveAll(); toastOk('Contact saved') }
 function saveHolidays() { saveAll() }
-function saveBanner() { saveAll(); toast('Banner saved') }
-function addHoliday() { if (!holidayForm.value.date||!holidayForm.value.reason) return; holidays.value.push({...holidayForm.value}); holidayForm.value={date:'',reason:''}; saveAll(); toast('Holiday added') }
+function saveBanner() { saveAll(); toastOk('Banner saved') }
+function addHoliday() { if (!holidayForm.value.date||!holidayForm.value.reason) return; holidays.value.push({...holidayForm.value}); holidayForm.value={date:'',reason:''}; saveAll(); toastOk('Holiday added') }
 function savePassword() {
-  if (passForm.value.current !== 'fufut2026') { toast('Current password wrong','error'); return }
-  if (passForm.value.newPass !== passForm.value.confirm) { toast('Passwords mismatch','error'); return }
-  if (passForm.value.newPass.length < 4) { toast('Min 4 characters','error'); return }
+  if (passForm.value.current !== 'fufut2026') { toastErr('Current password wrong'); return }
+  if (passForm.value.newPass !== passForm.value.confirm) { toastErr('Passwords mismatch'); return }
+  if (passForm.value.newPass.length < 4) { toastErr('Min 4 characters'); return }
   // In production this would call /api/auth/change-password
-  toast('Password changed (session only)')
+  toastOk('Password changed (session only)')
   passForm.value = {current:'',newPass:'',confirm:''}
 }
 </script>

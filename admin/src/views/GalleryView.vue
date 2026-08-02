@@ -60,7 +60,7 @@ import { ref, onMounted } from 'vue'
 import { apiGet, apiPost, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
 
-const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
+const { toast, success: toastOk, error: toastErr, info: toastInfo } = useToast()
 const SITE_ORIGIN = 'https://www.fufutcoffee.com'
 const images   = ref([])
 const showModal = ref(false)
@@ -92,7 +92,7 @@ function openAdd() {
 
 async function saveItem() {
   await apiPost('gallery', form.value)
-  toast('Added')
+  toastOk('Added')
   showModal.value = false
   await loadData()
   await syncToContent()
@@ -101,7 +101,7 @@ async function saveItem() {
 async function handleDelete(img) {
   if (!confirm('Delete this image?')) return
   await apiDelete('gallery/' + img.id)
-  toast('Deleted')
+  toastOk('Deleted')
   await loadData()
   await syncToContent()
 }
