@@ -67,22 +67,23 @@
         .toast-container.toast-container--top-left { top: 0; left: 0; align-items: flex-start; }
         .toast-container.toast-container--bottom-right { bottom: 0; right: 0; align-items: flex-end; }
         .toast-container.toast-container--bottom-left { bottom: 0; left: 0; align-items: flex-start; }
-        .toast-notification { position: relative; pointer-events: auto; width: 100%; max-width: 400px; min-width: 280px; padding: 14px 18px; border-radius: 16px; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.08); backdrop-filter: blur(10px); animation: toastSlideIn ${CONFIG.animationDuration}ms cubic-bezier(.4,0,.2,1) both; will-change: transform, opacity; overflow: hidden; }
+        .toast-notification { position: relative; pointer-events: auto; width: 100%; max-width: 320px; min-width: 240px; padding: 10px 14px; border-radius: 12px; display: flex; align-items: flex-start; gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.08); backdrop-filter: blur(10px); animation: toastSlideIn ${CONFIG.animationDuration}ms cubic-bezier(.4,0,.2,1) both; will-change: transform, opacity; overflow: hidden; }
         .toast-notification.hidden { animation: toastSlideOut ${CONFIG.animationDuration}ms cubic-bezier(.4,0,.2,1) both; }
         @keyframes toastSlideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         @keyframes toastSlideOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
-        .toast-notification .toast-icon { flex-shrink: 0; width: 20px; height: 20px; color: currentColor; }
+        .toast-notification .toast-icon { flex-shrink: 0; width: 18px; height: 18px; color: currentColor; }
         .toast-notification .toast-content { flex: 1; min-width: 0; }
-        .toast-notification .toast-title { font-weight: 600; font-size: 14px; line-height: 1.3; color: #fff; margin-bottom: 4px; }
-        .toast-notification .toast-message { font-size: 14px; line-height: 1.4; color: rgba(255,255,255,.9); }
-        .toast-notification .toast-dismiss { flex-shrink: 0; background: none; border: none; color: rgba(255,255,255,.7); cursor: pointer; padding: 0; margin: -4px -4px -4px auto; opacity: .7; transition: opacity 180ms cubic-bezier(.2,.7,.2,1); }
+        .toast-notification .toast-title { font-weight: 600; font-size: 13px; line-height: 1.3; color: #fff; margin-bottom: 2px; }
+        .toast-notification .toast-message { font-size: 13px; line-height: 1.4; color: rgba(255,255,255,.9); }
+        .toast-notification .toast-dismiss { flex-shrink: 0; background: none; border: none; color: rgba(255,255,255,.7); cursor: pointer; padding: 8px; margin: -8px -8px -8px auto; opacity: .7; transition: opacity 180ms cubic-bezier(.2,.7,.2,1); }
         .toast-notification .toast-dismiss:hover { opacity: 1; color: #fff; }
         .toast-notification .toast-dismiss:focus { outline: none; opacity: 1; color: #fff; }
-        .toast-notification .toast-dismiss svg { width: 18px; height: 18px; display: block; }
+        .toast-notification .toast-dismiss svg { width: 16px; height: 16px; display: block; }
         .toast-notification.toast-success { background: ${TOAST_TYPES.success.bg}; border: 1px solid ${TOAST_TYPES.success.border}; color: ${TOAST_TYPES.success.color || '#fff'}; }
         .toast-notification.toast-error { background: ${TOAST_TYPES.error.bg}; border: 1px solid ${TOAST_TYPES.error.border}; color: ${TOAST_TYPES.error.color || '#fff'}; }
         .toast-notification.toast-info { background: ${TOAST_TYPES.info.bg}; border: 1px solid ${TOAST_TYPES.info.border}; color: ${TOAST_TYPES.info.color || '#fff'}; }
         .toast-notification.toast-warning { background: ${TOAST_TYPES.warning.bg}; border: 1px solid ${TOAST_TYPES.warning.border}; color: ${TOAST_TYPES.warning.color || '#fff'}; }
+        @media (prefers-reduced-motion: reduce) { .toast-notification { animation: none !important; opacity: 1 !important; transform: none !important; } .toast-notification.hidden { animation: none !important; } }
         @media (max-width: 480px) { .toast-notification { max-width: calc(100vw - 32px); min-width: auto; } }
       `;
       document.head.appendChild(style);
