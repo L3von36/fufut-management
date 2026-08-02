@@ -165,10 +165,10 @@ export async function onRequest(context) {
     return handleSettings(request, env);
   }
 
-  // DEBUG: inspect routing
-  if (url.pathname === '/api/__debug' || url.pathname === '/api/__debug/') {
-    return new Response(JSON.stringify({ pathname: url.pathname, params: context.params, env_keys: Object.keys(env || {}) }), {
-      headers: { 'Content-Type': 'application/json' }
+  // DEBUG: return pathname for __debug
+  if (url.pathname.includes('__debug')) {
+    return new Response(JSON.stringify({ pathname: url.pathname, params: context.params }), {
+      headers: { 'Content-Type': 'application/json', 'X-Debug': 'from-function' }
     });
   }
 
