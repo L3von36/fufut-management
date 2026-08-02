@@ -5,8 +5,8 @@
       <div style="display:flex;gap:8px;align-items:center">
         <span v-if="dirty" class="unsaved-badge">Unsaved changes</span>
         <button class="btn btn-outline btn-sm" @click="addCategory">+ Category</button>
-        <base-button text="💾 Save" variant="btn-primary btn-sm" :disabled="!dirty" :on-click="saveAll" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed"></base-button>
-        <base-button text="↻ Refresh" variant="btn-outline btn-sm" :on-click="loadData" loading-label="Refreshing..." success-label="Updated ✓" error-label="Refresh Failed"></base-button>
+        <base-button text="💾 Save" variant="btn-primary btn-sm" :disabled="!dirty" :on-click="saveAll" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed" @error="e => toast(e?.message || 'Save failed', 'error')"></base-button>
+        <base-button text="↻ Refresh" variant="btn-outline btn-sm" :on-click="loadData" loading-label="Refreshing..." success-label="Updated ✓" error-label="Refresh Failed" @error="e => toast(e?.message || 'Refresh failed', 'error')"></base-button>
       </div>
     </div>
 
@@ -272,9 +272,9 @@ async function saveAll() {
       'This will permanently DELETE all categories and items from the database.\n\n' +
       'Click Cancel to go back. Click OK only if you truly mean to clear the entire menu.'
     )
-    if (!ok) return
+    if (!ok) throw new Error('Save cancelled')
     const ok2 = window.confirm('Final check: Are you absolutely sure you want to DELETE all menu data? This cannot be undone.')
-    if (!ok2) return
+    if (!ok2) throw new Error('Save cancelled')
   }
   const payload = { restaurant: data.restaurant || 'FU FUT COFFEE', categories: [] }
   for (const cat of data.categories) {
