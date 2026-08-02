@@ -272,10 +272,13 @@
     <!-- Footer -->
     <section v-show="getSection('footer').visible" class="card" style="margin-bottom:14px">
       <div class="card-header"><h3>Footer</h3></div>
+      <div class="form-row">
+        <div class="form-group"><label>Brand Name (Amharic)</label><input v-model="data.footer.amharicBrand" placeholder="ፉፉቱ ኮፊ" /></div>
+        <div class="form-group"><label>Tagline (Amharic)</label><input v-model="data.footer.craft" /></div>
+      </div>
       <div class="form-group"><label>Brand Description</label><textarea v-model="data.footer.desc" rows="2"></textarea></div>
       <div class="form-row">
         <div class="form-group"><label>Copyright Year</label><input v-model="data.footer.year" /></div>
-        <div class="form-group"><label>Tagline (Amharic)</label><input v-model="data.footer.craft" /></div>
       </div>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
         <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px">Opening Hours Column</label>
@@ -370,7 +373,7 @@ const data = reactive({
   testimonials: { eyebrow:'', title:'' },
   testimonialCards: [],
   reservation: { eyebrow:'', title:'', desc:'', hoursVal:'', locationVal:'', contactVal:'' },
-  footer:   { desc:'', year:'2026', craft:'', monFri:'', sat:'', sun:'', holidays:'', phone:'', email:'', address1:'', address2:'', instagram:'', facebook:'', twitter:'' }
+  footer:   { amharicBrand:'', desc:'', year:'2026', craft:'', monFri:'', sat:'', sun:'', holidays:'', phone:'', email:'', address1:'', address2:'', instagram:'', facebook:'', twitter:'' }
 })
 
 // ===== VERSIONS & STATUS =====
