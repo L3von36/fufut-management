@@ -208,7 +208,8 @@ tr:hover td{background:var(--teal-50)}
   /* Sidebar becomes off-canvas drawer */
   .sidebar{position:fixed!important;transform:translateX(-100%);z-index:200;transition:transform .25s ease;width:280px;max-width:85vw}
   .sidebar.open{transform:translateX(0)}
-  .sidebar-overlay{display:block!important}
+  .sidebar-overlay{display:none}
+  .sidebar-open .sidebar-overlay{display:block}
   .main{margin-left:0!important}
   .menu-toggle{display:flex!important;align-items:center;justify-content:center;width:36px;height:36px;border:none;background:transparent;color:var(--text-body);border-radius:var(--radius-sm)}
   .menu-toggle:hover{background:var(--neutral-50)}
