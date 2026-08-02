@@ -62,6 +62,10 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          # DEBUG: Get current project config
+          echo "=== Project Config ==="
+          curl -sf "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/pages/projects/fufut-admin" \
+            -H "Authorization: Bearer $CF_API_TOKEN" | jq '{name,subdomain,domains,deployment_configs}'
           # 1. Create KV namespace if it doesn't exist
           KV_CREATE=$(curl -sf -X POST "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/storage/kv/namespaces" \
             -H "Authorization: Bearer $CF_API_TOKEN" \
