@@ -91,19 +91,27 @@ function openAdd() {
 }
 
 async function saveItem() {
-  await apiPost('gallery', form.value)
-  toastOk('Added')
-  showModal.value = false
-  await loadData()
-  await syncToContent()
+  try {
+    await apiPost('gallery', form.value)
+    toastOk('Added')
+    showModal.value = false
+    await loadData()
+    await syncToContent()
+  } catch (e) {
+    toastErr('Failed to add image')
+  }
 }
 
 async function handleDelete(img) {
   if (!confirm('Delete this image?')) return
-  await apiDelete('gallery/' + img.id)
-  toastOk('Deleted')
-  await loadData()
-  await syncToContent()
+  try {
+    await apiDelete('gallery/' + img.id)
+    toastOk('Deleted')
+    await loadData()
+    await syncToContent()
+  } catch (e) {
+    toastErr('Failed to delete image')
+  }
 }
 
 /**
