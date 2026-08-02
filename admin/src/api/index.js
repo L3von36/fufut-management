@@ -33,7 +33,13 @@ export async function apiUpload(file) {
     const err = await r.json().catch(() => ({ error: r.statusText }))
     throw new Error(err.error || `Upload failed ${r.status}`)
   }
-  return r.json() // { ok, url, key }
+  const data = await r.json() // { ok, url, key }
+  // Rewrite broken images.futfutcoffee.com URLs to working proxy path
+  if (data.url && data.url.includes('images.futfutcoffee.com')) {
+    const key = data.key || data.url.split('images.futfutcoffee.com/')[1]
+    data.url = `${API}/api/images/${key}`
+  }
+  return data
 }
 
 export const NAV_ITEMS = [
