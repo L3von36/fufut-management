@@ -72,7 +72,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { apiGet, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
-const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
+const { toast, success: toastOk, error: toastErr, info: toastInfo } = useToast()
 
 const items = ref([])
 const filter = ref('')
@@ -171,7 +171,7 @@ async function pollOrders() {
       const label = incoming.length === 1
         ? `New order from ${incoming[0].name || 'a customer'}!`
         : `${incoming.length} new orders arrived!`
-      toast(label)
+      toastInfo(label)
       // Browser notification
       if (Notification.permission === 'granted') {
         new Notification('FU FUT COFFEE — New Order', { body: label, icon: '/assets/logo.webp' })
@@ -220,7 +220,7 @@ async function updateStatus(o) {
       updateBadge()
     }
     await apiPut('orders/' + o.id, { status: o.status })
-    toast('Status updated to ' + o.status)
+    toastOk('Status updated to ' + o.status)
   } catch {
     toastErr('Failed to update status')
   }
@@ -232,7 +232,7 @@ async function handleDelete(o) {
     await apiDelete('orders/' + o.id)
     seenIds.value.add(o.id)
     saveSeen()
-    toast('Order deleted')
+    toastOk('Order deleted')
     await loadData()
   } catch (e) {
     toastErr('Failed to delete')
