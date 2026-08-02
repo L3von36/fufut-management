@@ -33,10 +33,10 @@
       <div v-if="cat._open" class="category-items">
         <div class="item-row item-row-header">
           <span class="col-img">Image</span>
-          <span class="col-name">Name</span>
+          <span class="col-name">Name (EN)</span>
+          <span class="col-name-am">Name (አማ)</span>
           <span class="col-price">Price</span>
           <span class="col-desc">Description</span>
-          <span class="col-tags">Tags</span>
           <span class="col-avail">Available</span>
           <span class="col-actions">Actions</span>
         </div>
@@ -46,11 +46,9 @@
             <div v-else class="thumb thumb-empty">📷</div>
           </span>
           <span class="col-name">{{ item.name }}</span>
+          <span class="col-name-am">{{ item.name_am || '—' }}</span>
           <span class="col-price">{{ item.price || '—' }}</span>
           <span class="col-desc desc-text">{{ truncate(item.description, 60) || '—' }}</span>
-          <span class="col-tags">
-            <span v-for="t in parseTags(item.tags)" :key="t" class="tag-chip">{{ t }}</span>
-          </span>
           <span class="col-avail">
             <span class="avail-dot" :class="item.available !== false && item.available !== 0 ? 'avail-on' : 'avail-off'"></span>
           </span>
@@ -78,8 +76,12 @@
         <p class="modal-sub">{{ editItemData.name || 'New Item' }}</p>
 
         <div class="form-group">
-          <label>Name</label>
-          <input v-model="editItemData.name" placeholder="Item name (English / አማርኛ)" />
+          <label>Name (English)</label>
+          <input v-model="editItemData.name" placeholder="Item name in English" />
+        </div>
+        <div class="form-group">
+          <label>Name (አማርኛ)</label>
+          <input v-model="editItemData.name_am" placeholder="የንጥረ ነገር ስም በአማርኛ" style="font-family:'Noto Sans Ethiopic',sans-serif" />
         </div>
 
         <div class="form-row">
@@ -96,8 +98,12 @@
         </div>
 
         <div class="form-group">
-          <label>Description</label>
-          <textarea v-model="editItemData.description" rows="3" placeholder="Item description in English"></textarea>
+          <label>Description (English)</label>
+          <textarea v-model="editItemData.description" rows="2" placeholder="Item description in English"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Description (አማርኛ)</label>
+          <textarea v-model="editItemData.description_am" rows="2" placeholder="የንጥረ ነገር መግለጫ በአማርኛ" style="font-family:'Noto Sans Ethiopic',sans-serif"></textarea>
         </div>
 
         <div class="form-group">
@@ -147,9 +153,12 @@
       <div class="modal" style="max-width:400px">
         <h3>Edit Category Name</h3>
         <div class="form-group">
-          <label>Category Name</label>
-          <input v-model="catEditName" placeholder="e.g. Breakfast / ቁርስ" />
-          <small style="color:var(--muted)">Use format: English / አማርኛ</small>
+          <label>Category Name (English)</label>
+          <input v-model="catEditName" placeholder="e.g. Breakfast" />
+        </div>
+        <div class="form-group">
+          <label>Category Name (አማርኛ)</label>
+          <input v-model="catEditNameAm" placeholder="እንቁዣ ቁርስ" style="font-family:'Noto Sans Ethiopic',sans-serif" />
         </div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="catEditModal=false">Cancel</button>
@@ -192,7 +201,7 @@ const itemsCount = computed(() => {
 const editModal = ref(false)
 const imageUploading = ref(false)
 const editItemData = reactive({
-  name: '', price: '', description: '',
+  name: '', name_am: '', price: '', description: '', description_am: '',
   image: '', available: true,
   tags: [], modifiersRaw: ''
 })
@@ -219,6 +228,7 @@ async function handleImageUpload(e) {
 // Edit category modal state
 const catEditModal = ref(false)
 const catEditName = ref('')
+const catEditNameAm = ref('')
 let editCatCi = -1
 
 function truncate(str, len) {
@@ -270,11 +280,13 @@ async function saveAll() {
   for (const cat of data.categories) {
     const cleanCat = {
       name: cat.name,
-      ...(cat.id ? { id: cat.id } : {}),  // Preserve existing ID to prevent duplication
+      ...(cat.name_am ? { name_am: cat.name_am } : {}),
+      ...(cat.id ? { id: cat.id } : {}),
       items: (cat.items || []).map(item => ({
-        ...(item.id ? { id: item.id } : {}),  // Preserve existing item ID
         name: item.name || '',
+        ...(item.name_am ? { name_am: item.name_am } : {}),
         description: item.description || '',
+        ...(item.description_am ? { description_am: item.description_am } : {}),
         price: item.price || '',
         image: item.image || '',
         available: item.available !== false && item.available !== 0,
@@ -292,12 +304,14 @@ async function saveAll() {
 
 function addCategory() {
   catEditName.value = ''
+  catEditNameAm.value = ''
   editCatCi = -1
   catEditModal.value = true
 }
 
 function editCategory(ci) {
   catEditName.value = data.categories[ci].name
+  catEditNameAm.value = data.categories[ci].name_am || ''
   editCatCi = ci
   catEditModal.value = true
 }
@@ -308,9 +322,10 @@ function saveCatEdit() {
     return
   }
   if (editCatCi === -1) {
-    data.categories.push({ name: catEditName.value.trim(), items: [], _open: true })
+    data.categories.push({ name: catEditName.value.trim(), name_am: catEditNameAm.value.trim(), items: [], _open: true })
   } else {
     data.categories[editCatCi].name = catEditName.value.trim()
+    data.categories[editCatCi].name_am = catEditNameAm.value.trim()
   }
   dirty.value = true
   catEditModal.value = false
@@ -341,8 +356,10 @@ function addItem(cat) {
   editItemIi = cat.items.length
   _newItemIdx = editItemIi
   editItemData.name = ''
+  editItemData.name_am = ''
   editItemData.price = ''
   editItemData.description = ''
+  editItemData.description_am = ''
   editItemData.image = ''
   editItemData.available = true
   editItemData.tags = []
@@ -357,8 +374,10 @@ function editItem(ci, ii) {
   editItemIi = ii
   _newItemIdx = -999
   editItemData.name = item.name || ''
+  editItemData.name_am = item.name_am || ''
   editItemData.price = item.price || ''
   editItemData.description = item.description || ''
+  editItemData.description_am = item.description_am || ''
   editItemData.image = item.image || ''
   editItemData.available = item.available !== false && item.available !== 0
   editItemData.tags = Array.isArray(item.tags) ? [...item.tags] : parseTags(item.tags)
@@ -383,8 +402,10 @@ function saveEditModal() {
   const item = data.categories[editItemCi].items[editItemIi]
   if (!item) { toast('Item not found', 'error'); return }
   item.name = editItemData.name.trim()
+  item.name_am = editItemData.name_am.trim()
   item.price = editItemData.price.trim()
   item.description = editItemData.description.trim()
+  item.description_am = editItemData.description_am.trim()
   item.image = editItemData.image.trim()
   item.available = editItemData.available
   item.tags = [...editItemData.tags]
@@ -425,7 +446,7 @@ onMounted(loadData)
 .category-items { overflow-x: auto; }
 .item-row {
   display: grid;
-  grid-template-columns: 48px 1.6fr 0.6fr 1.8fr 1fr 64px auto;
+  grid-template-columns: 48px 1.4fr 1.4fr 0.6fr 2fr 64px auto;
   gap: 8px;
   padding: 8px 12px;
   align-items: center;
@@ -444,6 +465,7 @@ onMounted(loadData)
 }
 .empty-row { color: var(--muted); font-style: italic; display: block; padding: 16px !important; }
 .col-name { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-name-am { font-family: 'Noto Sans Ethiopic', sans-serif; color: var(--muted); font-size: .82rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .col-price { font-family: monospace; color: var(--text); white-space: nowrap; }
 .col-desc { color: var(--muted); font-size: .8rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .col-actions { display: flex; gap: 2px; flex-shrink: 0; }
