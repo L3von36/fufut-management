@@ -16,11 +16,11 @@
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
-      <div v-for="img in images" :key="img.id"
+      <div v-for="img in images" :key="img.id || img.url || Math.random()"
            style="position:relative;border-radius:var(--radius-md);overflow:hidden;aspect-ratio:4/3;background:var(--neutral-100)">
-        <img :src="resolveUrl(img.url)" :alt="img.caption||''" style="width:100%;height:100%;object-fit:cover" />
+        <img :src="resolveUrl(img.url)" :alt="img.caption||img.title||''" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'" />
         <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.6));padding:8px 10px;color:#fff;font-size:.72rem">
-          {{ img.caption || '' }}
+          {{ img.caption || img.title || '' }}
         </div>
         <base-button text="✕" variant="btn-sm" extra-class="gallery-delete-btn" :on-click="() => handleDelete(img)" loading-label="..." success-label="✓"></base-button>
       </div>
@@ -91,9 +91,14 @@ function openAdd() {
 }
 
 async function saveItem() {
+  const url = (form.value.url || '').trim()
+  if (!url) {
+    toastErr('Please enter an image URL')
+    return
+  }
   try {
-    await apiPost('gallery', form.value)
-    toastOk('Added')
+    await apiPost('gallery', { ...form.value, url })
+    toastOk('Image added')
     showModal.value = false
     await loadData()
     await syncToContent()
@@ -103,6 +108,10 @@ async function saveItem() {
 }
 
 async function handleDelete(img) {
+  if (!img.id) {
+    toastErr('Cannot delete — this image has no ID (server bug)')
+    return
+  }
   if (!confirm('Delete this image?')) return
   try {
     await apiDelete('gallery/' + img.id)
