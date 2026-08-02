@@ -165,6 +165,13 @@ export async function onRequest(context) {
     return handleSettings(request, env);
   }
 
+  // DEBUG: inspect routing
+  if (url.pathname === '/api/__debug' || url.pathname === '/api/__debug/') {
+    return new Response(JSON.stringify({ pathname: url.pathname, params: context.params, env_keys: Object.keys(env || {}) }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   // Everything else → proxy to the upstream Worker
   const target = WORKER_BASE + url.pathname + url.search;
   const isBodyMethod = !['GET', 'HEAD'].includes(request.method.toUpperCase());
