@@ -94,7 +94,7 @@ async function saveItem() {
   const url = (form.value.url || '').trim()
   if (!url) {
     toastErr('Please enter an image URL')
-    return
+    throw new Error('empty url')
   }
   try {
     await apiPost('gallery', { ...form.value, url })
@@ -103,7 +103,8 @@ async function saveItem() {
     await loadData()
     await syncToContent()
   } catch (e) {
-    toastErr('Failed to add image')
+    if (e.message !== 'empty url') toastErr('Failed to add image')
+    throw e
   }
 }
 
