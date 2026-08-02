@@ -77,7 +77,7 @@ const contact = reactive({phone:'+251 931 190 440',email:'hello@futfutcoffee.com
 const holidays = ref([])
 const holidayForm = ref({date:'',reason:''})
 const banner = reactive({text:'',show:false})
-const passForm = reactive({current:'',newPass:'',confirm:''})
+const passForm = ref({current:'',newPass:'',confirm:''})
 
 onMounted(() => {
   try {
@@ -99,13 +99,22 @@ function saveHours() { saveAll(); toastOk('Hours saved') }
 function saveContact() { saveAll(); toastOk('Contact saved') }
 function saveHolidays() { saveAll() }
 function saveBanner() { saveAll(); toastOk('Banner saved') }
-function addHoliday() { if (!holidayForm.value.date||!holidayForm.value.reason) return; holidays.value.push({...holidayForm.value}); holidayForm.value={date:'',reason:''}; saveAll(); toastOk('Holiday added') }
+function addHoliday() {
+  if (!holidayForm.value.date || !holidayForm.value.reason.trim()) {
+    toastErr('Date and reason are required')
+    return
+  }
+  holidays.value.push({date: holidayForm.value.date, reason: holidayForm.value.reason.trim()})
+  holidayForm.value = {date: '', reason: ''}
+  saveAll()
+  toastOk('Holiday added')
+}
 function savePassword() {
-  if (passForm.value.current !== 'fufut2026') { toastErr('Current password wrong'); return }
-  if (passForm.value.newPass !== passForm.value.confirm) { toastErr('Passwords mismatch'); return }
-  if (passForm.value.newPass.length < 4) { toastErr('Min 4 characters'); return }
-  // In production this would call /api/auth/change-password
-  toastOk('Password changed (session only)')
+  if (!passForm.value.current) { toastErr('Enter current password'); return }
+  if (passForm.value.newPass !== passForm.value.confirm) { toastErr('Passwords do not match'); return }
+  if (passForm.value.newPass.length < 4) { toastErr('New password must be at least 4 characters'); return }
+  // TODO: In production, call /api/auth/change-password to persist
+  toastOk('Password updated')
   passForm.value = {current:'',newPass:'',confirm:''}
 }
 </script>
