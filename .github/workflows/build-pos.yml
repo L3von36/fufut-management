@@ -57,6 +57,8 @@ jobs:
           if [ -d admin/functions ]; then
             cp -r admin/functions admin/dist/functions
           fi
+          echo "=== Functions being deployed ==="
+          find admin/dist/functions -type f 2>/dev/null || echo 'NO functions directory'
       - name: Ensure KV namespace & binding for settings
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -65,7 +67,7 @@ jobs:
           # DEBUG: Get current project config
           echo "=== Project Config ==="
           curl -sf "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/pages/projects/fufut-admin" \
-            -H "Authorization: Bearer $CF_API_TOKEN" | jq '{name,subdomain,domains,deployment_configs}'
+            -H "Authorization: Bearer $CF_API_TOKEN" | jq '.result | {name,subdomain,domains,deployment_configs,source_settings}'
           # 1. Create KV namespace if it doesn't exist
           KV_CREATE=$(curl -sf -X POST "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/storage/kv/namespaces" \
             -H "Authorization: Bearer $CF_API_TOKEN" \
