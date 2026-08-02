@@ -1,0 +1,1 @@
+var e=`/assets/logo-BdtndPUy.webp`;export{e as t};

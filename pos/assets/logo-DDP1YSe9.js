@@ -1,1 +1,0 @@
-var e=`/pos/assets/logo-BdtndPUy.webp`;export{e as t};
