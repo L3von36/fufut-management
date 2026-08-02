@@ -5,8 +5,8 @@
       <div style="display:flex;gap:8px;align-items:center">
         <span v-if="dirty" class="unsaved-badge">Unsaved changes</span>
         <button class="btn btn-outline btn-sm" @click="addCategory">+ Category</button>
-        <base-button text="💾 Save" variant="btn-primary btn-sm" :disabled="!dirty" :on-click="saveAll" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed" @error="e => toast.error(e?.message || 'Save failed')"></base-button>
-        <base-button text="↻ Refresh" variant="btn-outline btn-sm" :on-click="loadData" loading-label="Refreshing..." success-label="Updated ✓" error-label="Refresh Failed" @error="e => toast.error(e?.message || 'Refresh failed')"></base-button>
+        <base-button text="💾 Save" variant="btn-primary btn-sm" :disabled="!dirty" :on-click="saveAll" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed" @error="e => toastErr(e?.message || 'Save failed')"></base-button>
+        <base-button text="↻ Refresh" variant="btn-outline btn-sm" :on-click="loadData" loading-label="Refreshing..." success-label="Updated ✓" error-label="Refresh Failed" @error="e => toastErr(e?.message || 'Refresh failed')"></base-button>
       </div>
     </div>
 
@@ -143,7 +143,7 @@
 
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="closeEditModal">Cancel</button>
-          <base-button text="Save Item" variant="btn-primary" :on-click="saveEditModalAsync" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed" @error="e => toast.error(e?.message || 'Save failed')"></base-button>
+          <base-button text="Save Item" variant="btn-primary" :on-click="saveEditModalAsync" loading-label="Saving..." success-label="Saved ✓" error-label="Save Failed" @error="e => toastErr(e?.message || 'Save failed')"></base-button>
         </div>
       </div>
     </div>
@@ -175,7 +175,7 @@ import { apiGet, apiPost, apiUpload } from '../api'
 import { useToast } from '../composables/useToast'
 import { useButtonState } from '../composables/useButtonState'
 
-const { toast } = useToast()
+const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
 const uploadBtnState = useButtonState()
 
 const AVAILABLE_TAGS = [
@@ -216,9 +216,9 @@ async function handleImageUpload(e) {
   try {
     const result = await apiUpload(file)
     editItemData.image = result.url
-    toast.success('Image uploaded')
+    toastOk('Image uploaded')
   } catch (err) {
-    toast.error('Upload failed: ' + err.message)
+    toastErr('Upload failed: ' + err.message)
   } finally {
     imageUploading.value = false
     e.target.value = ''
@@ -299,7 +299,7 @@ async function saveAll() {
   }
   const result = await apiPost('menus/save', payload)
   dirty.value = false
-  toast.success(`Saved! ${result.count || '?'} items updated`)
+  toastOk(`Saved! ${result.count || '?'} items updated`)
 }
 
 function addCategory() {
@@ -318,7 +318,7 @@ function editCategory(ci) {
 
 function saveCatEdit() {
   if (!catEditName.value.trim()) {
-    toast.error('Category name is required')
+    toastErr('Category name is required')
     return
   }
   if (editCatCi === -1) {
@@ -329,7 +329,7 @@ function saveCatEdit() {
   }
   dirty.value = true
   catEditModal.value = false
-  toast(editCatCi === -1 ? 'Category added' : 'Category renamed')
+  toastOk(editCatCi === -1 ? 'Category added' : 'Category renamed')
 }
 
 function deleteCategory(ci) {
@@ -338,7 +338,7 @@ function deleteCategory(ci) {
   if (!confirm(`Delete category "${name}"${count ? ` with ${count} item(s)` : ''}?`)) return
   data.categories.splice(ci, 1)
   dirty.value = true
-  toast('Category deleted')
+  toastOk('Category deleted')
 }
 
 function moveCategory(ci, dir) {
@@ -426,7 +426,7 @@ function moveItem(ci, ii, dir) {
 function deleteItem(ci, ii) {
   data.categories[ci].items.splice(ii, 1)
   dirty.value = true
-  toast('Item removed')
+  toastOk('Item removed')
 }
 
 onMounted(loadData)
@@ -496,5 +496,18 @@ onMounted(loadData)
 .badge {
   font-size: .7rem; font-weight: 600; padding: 2px 10px; border-radius: 10px;
   background: var(--primary); color: #fff; vertical-align: middle; margin-left: 6px;
+}
+
+/* Mobile: card layout for menu items */
+@media(max-width:768px){
+  .category-actions{flex-wrap:wrap;gap:4px}
+  .item-row{grid-template-columns:36px 1fr auto;gap:8px 10px}
+  .col-name-am,.col-desc{display:none}
+  .col-actions{flex-direction:row}
+}
+@media(max-width:480px){
+  .item-row{grid-template-columns:1fr;gap:6px}
+  .col-img{justify-content:flex-start}
+  .col-actions{justify-content:flex-end;margin-top:4px}
 }
 </style>

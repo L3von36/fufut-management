@@ -60,7 +60,7 @@ import { ref, onMounted } from 'vue'
 import { apiGet, apiPost, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
 
-const { toast } = useToast()
+const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
 const SITE_ORIGIN = 'https://www.fufutcoffee.com'
 const images   = ref([])
 const showModal = ref(false)

@@ -72,7 +72,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { apiGet, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
-const { toast } = useToast()
+const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
 
 const items = ref([])
 const filter = ref('')
@@ -155,7 +155,7 @@ async function loadData() {
     const now = new Date()
     lastChecked.value = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   } catch (e) {
-    toast.error('Failed to load orders')
+    toastErr('Failed to load orders')
     throw e
   }
 }
@@ -222,7 +222,7 @@ async function updateStatus(o) {
     await apiPut('orders/' + o.id, { status: o.status })
     toast('Status updated to ' + o.status)
   } catch {
-    toast.error('Failed to update status')
+    toastErr('Failed to update status')
   }
 }
 
@@ -235,7 +235,7 @@ async function handleDelete(o) {
     toast('Order deleted')
     await loadData()
   } catch (e) {
-    toast.error('Failed to delete')
+    toastErr('Failed to delete')
     throw e
   }
 }

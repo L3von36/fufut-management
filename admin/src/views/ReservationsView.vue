@@ -67,7 +67,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
-const { toast } = useToast()
+const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
 
 const items = ref([])
 const filter = ref('')
@@ -86,7 +86,7 @@ async function loadData() {
     const data = await apiGet('reservations')
     items.value = Array.isArray(data) ? data : []
   } catch (e) {
-    toast.error('Failed to load reservations')
+    toastErr('Failed to load reservations')
     throw e
   }
 }
@@ -102,7 +102,7 @@ async function updateStatus(r) {
     await apiPut('reservations/' + r.id, { status: r.status })
     toast('Status updated to ' + r.status)
   } catch {
-    toast.error('Failed to update status')
+    toastErr('Failed to update status')
   }
 }
 
@@ -113,7 +113,7 @@ async function handleDelete(r) {
     toast('Reservation deleted')
     await loadData()
   } catch (e) {
-    toast.error('Failed to delete')
+    toastErr('Failed to delete')
     throw e
   }
 }

@@ -205,21 +205,75 @@ tr:hover td{background:var(--teal-50)}
   .form-row{grid-template-columns:1fr}
 }
 @media(max-width:768px){
-  .sidebar{position:fixed;transform:translateX(-100%);z-index:200;transition:transform .25s;width:280px;max-width:85vw}
+  /* Sidebar becomes off-canvas drawer */
+  .sidebar{position:fixed!important;transform:translateX(-100%);z-index:200;transition:transform .25s ease;width:280px;max-width:85vw}
   .sidebar.open{transform:translateX(0)}
-  .sidebar-overlay{display:block}
-  .main{margin-left:0}
-  .menu-toggle{display:block}
+  .sidebar-overlay{display:block!important}
+  .main{margin-left:0!important}
+  .menu-toggle{display:flex!important;align-items:center;justify-content:center;width:36px;height:36px;border:none;background:transparent;color:var(--text-body);border-radius:var(--radius-sm)}
+  .menu-toggle:hover{background:var(--neutral-50)}
   .w-sidebar .sidebar{transform:translateX(0)}
+
+  /* Layout */
   .kpi-grid{grid-template-columns:1fr 1fr;gap:10px}
-  .content-wrap{padding:16px}
-  .topbar{height:52px;padding:0 12px}
-  th,td{padding:8px 10px;font-size:.75rem}
+  .content-wrap{padding:14px 12px}
+  .topbar{height:52px;padding:0 10px}
+  .topbar h2{font-size:.88rem}
+  .topbar-left{gap:8px}
+  .date-display{display:none}
+
+  /* Tables */
+  th,td{padding:8px 8px;font-size:.72rem}
   .card{padding:14px}
+  .table-toolbar{flex-direction:column;align-items:stretch;gap:10px}
+  .table-toolbar h3{font-size:.88rem}
+
+  /* Modal full-screen on mobile */
+  .modal-overlay{padding:10px;align-items:flex-end}
+  .modal{width:100%!important;max-width:100%!important;max-height:90vh;border-radius:var(--radius-md) var(--radius-md) 0 0;padding:20px 16px}
+  .modal-actions{flex-direction:column-reverse;gap:8px}
+  .modal-actions button,.modal-actions .btn{width:100%;justify-content:center}
 }
 @media(max-width:480px){
   .kpi-grid{grid-template-columns:1fr}
   .kpi-value{font-size:1.2rem}
+  .content-wrap{padding:10px 8px}
+  .topbar{height:48px;padding:0 8px}
+  .topbar h2{font-size:.82rem}
+
+  /* Category header stacks on very small screens */
+  .category-header{flex-direction:column;align-items:stretch;gap:8px;padding:10px 12px}
+  .category-actions{justify-content:flex-end}
+  .category-title{font-size:.82rem}
+
+  /* Menu item row becomes card layout on tiny screens */
+  .item-row{grid-template-columns:1fr;gap:4px;padding:12px;align-items:start}
+  .item-row-header{display:none}
+  .col-img{justify-content:flex-start;margin-bottom:4px}
+  .col-name{font-size:.9rem}
+  .col-name-am{font-size:.78rem}
+  .col-price{font-size:.88rem;font-weight:600}
+  .col-desc{white-space:normal;font-size:.78rem}
+  .col-actions{margin-top:6px;gap:4px}
+  .col-avail{justify-content:flex-start}
+  .col-name-am,.col-desc{display:none}
+
+  /* Form groups tighter */
+  .form-group{margin-bottom:10px}
+  .form-group label{font-size:.68rem;margin-bottom:4px}
+  .form-group input,.form-group textarea,.form-group select{padding:9px 10px;font-size:.82rem}
+
+  /* Image upload stacks */
+  .image-upload-row{flex-direction:column;align-items:stretch}
+  .upload-btn{width:100%;justify-content:center}
+
+  /* Tags wrap better */
+  .tag-picker{gap:4px}
+  .tag-btn{padding:3px 8px;font-size:.7rem}
+
+  /* Toast full width on tiny screens */
+  .toast-notification{max-width:calc(100vw - 20px);min-width:0;border-radius:10px}
+  .toast-container{right:10px;left:10px;top:10px}
 }
 
 /* Button async states */

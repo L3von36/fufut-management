@@ -38,7 +38,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { useToast } from '../composables/useToast'
-const { toast } = useToast()
+const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
 const items = ref([]); const filter = ref('')
 const filtered = computed(() => !filter.value ? items.value : items.value.filter(r => r.status === filter.value))
 onMounted(loadData)

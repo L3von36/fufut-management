@@ -68,7 +68,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useToast } from '../composables/useToast'
-const { toast } = useToast()
+const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
 
 const timeSlots = Array.from({length:24}, (_,i) => `${String(i).padStart(2,'0')}:00`).concat(Array.from({length:23}, (_,i) => `${String(i).padStart(2,'0')}:30`)).sort()
 const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
