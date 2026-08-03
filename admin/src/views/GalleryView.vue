@@ -137,9 +137,22 @@ async function syncToContent() {
   syncing.value = true
   syncMsg.value = null
   try {
-    // 1. Load existing content so we don't wipe other fields
-    let content = {}
-    try { content = await apiGet('content') } catch {}
+    // 1. Load existing content so we don't wipe other fields.
+    // If this fails, ABORT — saving with an empty object would overwrite
+    // hero/story/signatureCoffee/etc. with empty values and wipe the site.
+    let content
+    try {
+      content = await apiGet('content')
+    } catch (e) {
+      syncMsg.value = { ok: false, text: 'Could not load existing landing content — sync aborted to prevent data loss. Try again in a moment.' }
+      return
+    }
+    if (!content || typeof content !== 'object' || Object.keys(content).length === 0) {
+      // Defensive: if /api/content returned an empty object, treat it as a failure
+      // rather than risk overwriting valid KV data with just {gallery}.
+      syncMsg.value = { ok: false, text: 'Landing content returned empty — sync aborted to prevent data loss.' }
+      return
+    }
 
     // 2. Map gallery rows → { url, title, desc } that applyContent expects
     content.gallery = images.value
