@@ -61,7 +61,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy admin/dist --project-name=fufut-admin --branch=main --commit-dirty=true --skip-caching
+          workingDirectory: admin
+          command: pages deploy dist --project-name=fufut-admin --branch=main --commit-dirty=true --skip-caching
 
   build-pos:
     runs-on: ubuntu-latest
@@ -91,7 +92,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy pos/dist --project-name=fufut-pos --branch=main --commit-dirty=true --skip-caching
+          workingDirectory: pos
+          command: pages deploy dist --project-name=fufut-pos --branch=main --commit-dirty=true --skip-caching
       - name: Commit built assets back
         if: success()
         run: |
@@ -130,4 +132,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy backoffice/dist --project-name=fufut-backoffice --branch=main --commit-dirty=true --skip-caching
+          workingDirectory: backoffice
+          command: pages deploy dist --project-name=fufut-backoffice --branch=main --commit-dirty=true --skip-caching
