@@ -19,14 +19,14 @@
  *
  * Settings endpoint
  * -----------------
- * `/api/settings` is intercepted here and stored in Cloudflare KV
- * (binding: SETTINGS_KV). This keeps settings persistent across devices
- * without needing to modify the external Worker.
- *
- * Setup: Create a KV namespace in the Cloudflare dashboard and bind it
- * as SETTINGS_KV to this Pages project under Settings → Functions.
+ * `/api/settings` is intercepted here and stored directly in Cloudflare KV
+ * via the KV REST API (no binding required). Falls back to the upstream
+ * Worker if the CF_API_TOKEN secret is not configured.
  */
 const WORKER_BASE = 'https://fufut-api.fufutcoffee.workers.dev';
+const CF_ACCOUNT_ID = '8793f2ad3a46fcc18960393d39961ba5';
+const SETTINGS_KV_ID = '42961d3c761b4f4ca7e0da0de99bc1cc';
+const SETTINGS_KEY = 'admin_settings';
 
 const STRIP_REQUEST_HEADERS = new Set([
   'host',
@@ -108,32 +108,60 @@ function buildResponseHeaders(response) {
   return headers;
 }
 
-// ─── Settings handler (KV-backed) ─────────────────────────────────
-// NOTE: KV interception is currently bypassed by a Workers Route on
-// admin.fufutcoffee.com. Settings are stored via the Worker's generic
-// collection API (D1) instead. This handler remains as a future
-// optimization once the Workers Route is reconfigured.
-const SETTINGS_KEY = 'admin_settings';
-
+// ─── Settings handler (KV REST API) ────────────────────────────────
+// Uses the Cloudflare KV REST API directly — no binding required.
+// Requires CF_API_TOKEN env var (set as a secret in Pages dashboard or via API).
 async function handleSettings(request, env) {
-  if (!env.SETTINGS_KV) {
+  const token = env.CF_API_TOKEN;
+  if (!token) {
     return new Response(
-      JSON.stringify({ ok: false, error: 'KV not configured' }),
+      JSON.stringify({ ok: false, error: 'KV not configured — CF_API_TOKEN secret missing' }),
       { status: 503, headers: { 'Content-Type': 'application/json' } }
     );
   }
+
+  const kvUrl = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/storage/kv/namespaces/${SETTINGS_KV_ID}/values/${SETTINGS_KEY}`;
+  const cfHeaders = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+
   try {
     if (request.method === 'GET') {
-      const data = await env.SETTINGS_KV.get(SETTINGS_KEY, 'json') || {};
+      const resp = await fetch(kvUrl, { headers: cfHeaders });
+      if (resp.status === 404) {
+        return new Response(JSON.stringify({ ok: true, data: {} }), { headers: { 'Content-Type': 'application/json' } });
+      }
+      if (!resp.ok) {
+        const err = await resp.text();
+        return new Response(JSON.stringify({ ok: false, error: 'KV read failed', detail: err }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      }
+      const data = await resp.json();
       return new Response(JSON.stringify({ ok: true, data }), { headers: { 'Content-Type': 'application/json' } });
     }
+
     if (request.method === 'PUT' || request.method === 'POST') {
       const patch = await request.json();
-      const existing = await env.SETTINGS_KV.get(SETTINGS_KEY, 'json') || {};
+      // Read existing
+      let existing = {};
+      try {
+        const getResp = await fetch(kvUrl, { headers: cfHeaders });
+        if (getResp.ok) existing = await getResp.json();
+      } catch (_) { /* empty on first write */ }
       const updated = { ...existing, ...patch };
-      await env.SETTINGS_KV.put(SETTINGS_KEY, JSON.stringify(updated));
+      // Write merged
+      const putResp = await fetch(kvUrl, {
+        method: 'PUT',
+        headers: cfHeaders,
+        body: JSON.stringify(updated),
+      });
+      if (!putResp.ok) {
+        const err = await putResp.text();
+        return new Response(JSON.stringify({ ok: false, error: 'KV write failed', detail: err }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      }
       return new Response(JSON.stringify({ ok: true, data: updated }), { headers: { 'Content-Type': 'application/json' } });
     }
+
     return new Response(JSON.stringify({ ok: false, error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   } catch (err) {
     return new Response(JSON.stringify({ ok: false, error: String(err.message || err) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
@@ -144,6 +172,11 @@ async function handleSettings(request, env) {
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
+
+  // Intercept /api/settings — store in KV via REST API
+  if (url.pathname === '/api/settings' || url.pathname === '/api/settings/') {
+    return handleSettings(request, env);
+  }
 
   // Everything else → proxy to the upstream Worker
   const target = WORKER_BASE + url.pathname + url.search;
