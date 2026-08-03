@@ -25,21 +25,52 @@ export async function apiDelete(endpoint) {
   if (!r.ok) throw new Error(`DELETE ${endpoint} ${r.status}`)
   return r.json()
 }
-export async function apiUpload(file) {
-  const form = new FormData()
-  form.append('file', file)
-  const r = await fetch(`${API}/api/upload`, { method:'POST', credentials:'include', body: form })
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({ error: r.statusText }))
-    throw new Error(err.error || `Upload failed ${r.status}`)
-  }
-  const data = await r.json() // { ok, url, key }
-  // Rewrite broken images.futfutcoffee.com URLs to working proxy path
-  if (data.url && data.url.includes('images.futfutcoffee.com')) {
-    const key = data.key || data.url.split('images.futfutcoffee.com/')[1]
-    data.url = `${API}/api/images/${key}`
-  }
-  return data
+/**
+ * Upload a file to /api/upload with real progress via XHR (fetch can't observe
+ * upload progress). onProgress receives a percentage 0–100.
+ */
+export function apiUpload(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    const form = new FormData()
+    form.append('file', file)
+
+    xhr.open('POST', `${API}/api/upload`)
+    xhr.withCredentials = true
+
+    if (typeof onProgress === 'function' && xhr.upload) {
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          onProgress((e.loaded / e.total) * 100)
+        }
+      })
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText) // { ok, url, key }
+          if (data.url && data.url.includes('images.futfutcoffee.com')) {
+            const key = data.key || data.url.split('images.futfutcoffee.com/')[1]
+            data.url = `${API}/api/images/${key}`
+          }
+          resolve(data)
+        } catch (e) {
+          reject(new Error('Invalid response from server'))
+        }
+      } else {
+        let msg = `Upload failed ${xhr.status}`
+        try {
+          const err = JSON.parse(xhr.responseText)
+          if (err.error) msg = err.error
+        } catch {}
+        reject(new Error(msg))
+      }
+    }
+    xhr.onerror = () => reject(new Error('Network error during upload'))
+    xhr.onabort = () => reject(new Error('Upload aborted'))
+    xhr.send(form)
+  })
 }
 
 export const NAV_ITEMS = [
