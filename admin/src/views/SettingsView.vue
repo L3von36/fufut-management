@@ -80,7 +80,7 @@
 </template>
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { apiPost } from '../api'
+import { apiGet, apiPut, apiPost } from '../api'
 import { useToast } from '../composables/useToast'
 
 const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
@@ -111,6 +111,7 @@ const passForm = ref({ current: '', newPass: '', confirm: '' })
 
 const loading = ref(true)
 const saving = reactive({ hours: false, contact: false, holidays: false, banner: false, password: false })
+const storageMode = ref('')  // 'kv' or 'local'
 
 // ── localStorage persistence ──
 const LS_KEY = 'admin_settings'
@@ -136,57 +137,68 @@ function saveToLocal() {
   } catch {}
 }
 
-// ── Load on mount ──
-onMounted(() => {
-  loadFromLocal()
+// ── Load on mount — API first, localStorage fallback ──
+onMounted(async () => {
+  loadFromLocal()  // pre-fill from cache immediately
+  try {
+    const resp = await apiGet('settings')
+    if (resp.ok && resp.data) {
+      storageMode.value = 'kv'
+      if (resp.data.hours) Object.assign(hours, resp.data.hours)
+      if (resp.data.contact) Object.assign(contact, resp.data.contact)
+      if (Array.isArray(resp.data.holidays)) holidays.value = resp.data.holidays
+      if (resp.data.banner) Object.assign(banner, resp.data.banner)
+      saveToLocal()  // sync cache
+    }
+  } catch (e) {
+    // API unavailable — localStorage values already loaded
+    storageMode.value = 'local'
+  }
   loading.value = false
 })
 
-// ── Save functions ──
-async function saveHours() {
-  saving.hours = true
+// ── Save helper: PUT to KV, always update localStorage ──
+async function saveSection(section, data) {
+  saving[section] = true
   try {
+    const resp = await apiPut('settings', data)
+    if (resp.ok) {
+      storageMode.value = 'kv'
+      saveToLocal()
+      return true
+    }
+    // API returned ok:false (e.g. KV not configured)
     saveToLocal()
-    toastOk('Hours saved')
+    storageMode.value = 'local'
+    return true
   } catch (e) {
-    toastErr('Save failed')
+    // API error — save locally as fallback
+    saveToLocal()
+    storageMode.value = 'local'
+    return true  // don't fail the UX, local save worked
   } finally {
-    saving.hours = false
+    saving[section] = false
   }
+}
+
+async function saveHours() {
+  const ok = await saveSection('hours', { hours: { ...hours } })
+ toastOk(ok ? 'Hours saved' : 'Save failed')
 }
 
 async function saveContact() {
-  saving.contact = true
-  try {
-    saveToLocal()
-    toastOk('Contact saved')
-  } catch (e) {
-    toastErr('Save failed')
-  } finally {
-    saving.contact = false
-  }
+  const ok = await saveSection('contact', { contact: { ...contact } })
+  toastOk(ok ? 'Contact saved' : 'Save failed')
 }
 
 async function saveHolidays() {
-  saving.holidays = true
-  try {
-    saveToLocal()
-  } catch {}
-  finally {
-    saving.holidays = false
-  }
+  const ok = await saveSection('holidays', { holidays: holidays.value })
+  // silent — caller shows own toast
 }
 
 async function saveBanner() {
-  saving.banner = true
-  try {
-    saveToLocal()
-    toastOk('Banner saved')
-  } catch (e) {
-    toastErr('Save failed')
-  } finally {
-    saving.banner = false
-  }
+  const ok = await saveSection('banner', { banner: { ...banner } })
+  toastOk(ok ? 'Banner saved' : 'Save failed')
 }
 
 function addHoliday() {
@@ -206,7 +218,7 @@ function removeHoliday(index) {
   toastInfo('Holiday removed')
 }
 
-// ── Password change (real API call) ──
+// ── Password change (real API call to Worker) ──
 async function savePassword() {
   if (!passForm.value.current) { toastErr('Enter current password'); return }
   if (passForm.value.newPass !== passForm.value.confirm) { toastErr('Passwords do not match'); return }
