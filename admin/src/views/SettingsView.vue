@@ -22,7 +22,7 @@
           </div>
         </div>
         <button class="btn btn-primary btn-sm" style="margin-top:12px" :disabled="saving.hours" @click="saveHours">
-          {{ saving.hours ? 'Saving…' : 'Save Hours' }}
+          {{ saving.hours ? 'Saving\u2026' : 'Save Hours' }}
         </button>
       </div>
 
@@ -34,7 +34,7 @@
         <div class="form-group"><label>Address</label><input v-model="contact.address" /></div>
         <div class="form-group"><label>Map URL</label><input v-model="contact.map" /></div>
         <button class="btn btn-primary btn-sm" :disabled="saving.contact" @click="saveContact">
-          {{ saving.contact ? 'Saving…' : 'Save Contact' }}
+          {{ saving.contact ? 'Saving\u2026' : 'Save Contact' }}
         </button>
       </div>
 
@@ -42,8 +42,8 @@
       <div class="card">
         <div class="card-header"><h3>Holiday Closures</h3></div>
         <div v-for="(h, i) in holidays" :key="h.date + h.reason + i" style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:.8rem">
-          <span>{{ h.date }} — {{ h.reason }}</span>
-          <button class="btn btn-sm btn-ghost" style="color:var(--danger)" @click="removeHoliday(i)">✕</button>
+          <span>{{ h.date }} \u2014 {{ h.reason }}</span>
+          <button class="btn btn-sm btn-ghost" style="color:var(--danger)" @click="removeHoliday(i)">\u2715</button>
         </div>
         <div v-if="holidays.length === 0" style="padding:12px 0;color:var(--text-muted);font-size:.82rem">No holidays added yet</div>
         <div style="display:flex;gap:8px;margin-top:12px">
@@ -56,13 +56,13 @@
       <!-- Announcement -->
       <div class="card">
         <div class="card-header"><h3>Announcement Banner</h3></div>
-        <div class="form-group"><label>Banner Text</label><textarea v-model="banner.text" rows="2" placeholder="e.g. Closed for Meskel — Sept 27"></textarea></div>
+        <div class="form-group"><label>Banner Text</label><textarea v-model="banner.text" rows="2" placeholder="e.g. Closed for Meskel \u2014 Sept 27"></textarea></div>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
           <label class="toggle"><input type="checkbox" v-model="banner.show"><span class="slider"></span></label>
           <span style="font-size:.8rem">Show banner on site</span>
         </div>
         <button class="btn btn-primary btn-sm" :disabled="saving.banner" @click="saveBanner">
-          {{ saving.banner ? 'Saving…' : 'Save Banner' }}
+          {{ saving.banner ? 'Saving\u2026' : 'Save Banner' }}
         </button>
       </div>
 
@@ -73,7 +73,7 @@
         <div class="form-group"><label>New Password</label><input v-model="passForm.newPass" type="password" /></div>
         <div class="form-group"><label>Confirm</label><input v-model="passForm.confirm" type="password" /></div>
         <button class="btn btn-primary btn-sm" :disabled="saving.password" @click="savePassword">
-          {{ saving.password ? 'Updating…' : 'Change Password' }}
+          {{ saving.password ? 'Updating\u2026' : 'Change Password' }}
         </button>
       </div>
 
@@ -81,9 +81,9 @@
       <div class="card" style="grid-column:1/-1">
         <div class="card-header"><h3>Storage Status</h3></div>
         <div style="display:flex;align-items:center;gap:8px;font-size:.82rem">
-          <span class="badge" :class="storageMode === 'kv' ? 'badge-success' : 'badge-pending'">{{ storageMode === 'kv' ? 'Cloud (KV)' : 'Local (browser only)' }}</span>
+          <span class="badge" :class="storageMode === 'api' ? 'badge-success' : 'badge-pending'">{{ storageMode === 'api' ? 'Cloud (API)' : 'Local (browser only)' }}</span>
           <span style="color:var(--text-muted)">
-            {{ storageMode === 'kv' ? 'Settings persist across devices' : 'Settings stored in this browser only — configure SETTINGS_KV binding for cloud sync' }}
+            {{ storageMode === 'api' ? 'Settings persist across devices' : 'Settings stored in this browser only' }}
           </span>
         </div>
       </div>
@@ -92,7 +92,7 @@
 </template>
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { apiGet, apiPut, apiPost } from '../api'
+import { apiGet, apiPost, apiPut } from '../api'
 import { useToast } from '../composables/useToast'
 
 const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
@@ -122,7 +122,7 @@ const holidayForm = ref({ date: '', reason: '' })
 const passForm = ref({ current: '', newPass: '', confirm: '' })
 
 const loading = ref(true)
-const storageMode = ref('local') // 'kv' or 'local'
+const storageMode = ref('local') // 'api' or 'local'
 const saving = reactive({ hours: false, contact: false, holidays: false, banner: false, password: false })
 
 // ── localStorage helpers (fallback / cache) ──
@@ -149,92 +149,76 @@ function cacheLocal() {
   } catch { /* quota exceeded — ignore */ }
 }
 
-// ── API helpers ──
-async function putSettings(patch) {
-  const res = await apiPut('settings', patch)
-  return res
+function buildPayload() {
+  return JSON.stringify({
+    hours: { ...hours },
+    contact: { ...contact },
+    holidays: holidays.value,
+    banner: { ...banner }
+  })
 }
 
-// ── Load settings on mount ──
+// ── Load settings on mount (try Worker collection API, fall back to localStorage) ──
 onMounted(async () => {
   try {
-    const res = await apiGet('settings')
-    if (res.ok && res.data) {
-      if (res.data.hours) Object.assign(hours, res.data.hours)
-      if (res.data.contact) Object.assign(contact, res.data.contact)
-      if (Array.isArray(res.data.holidays)) holidays.value = res.data.holidays
-      if (res.data.banner) Object.assign(banner, res.data.banner)
-      storageMode.value = 'kv'
-      cacheLocal() // keep localStorage in sync as cache
+    const raw = await apiGet('settings')
+    // The Worker returns an array of records; find the latest one with data
+    const items = Array.isArray(raw) ? raw : []
+    const record = items
+      .filter(r => r.data && !r.data.startsWith('__'))
+      .sort((a, b) => (b.created || '').localeCompare(a.created || ''))[0]
+    if (record) {
+      let data = record.data
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data) } catch { data = {} }
+      }
+      if (data.hours) Object.assign(hours, data.hours)
+      if (data.contact) Object.assign(contact, data.contact)
+      if (Array.isArray(data.holidays)) holidays.value = data.holidays
+      if (data.banner) Object.assign(banner, data.banner)
+      storageMode.value = 'api'
     } else {
       loadFromLocal()
     }
   } catch {
-    // API unavailable (KV not configured yet, or offline) → use localStorage
     loadFromLocal()
   }
+  cacheLocal()
   loading.value = false
 })
 
-// ── Save functions (API-first, localStorage as fallback) ──
-async function saveHours() {
-  saving.hours = true
+// ── Save functions: POST to Worker's settings collection + cache locally ──
+async function saveAll(label) {
+  saving[label] = true
   try {
-    await putSettings({ hours: { ...hours } })
-    storageMode.value = 'kv'
+    await apiPost('settings', { id: 'admin_settings', data: buildPayload() })
+    storageMode.value = 'api'
     cacheLocal()
-    toastOk('Hours saved')
+    toastOk(`${label} saved`)
   } catch (e) {
-    cacheLocal() // still persist locally
-    toastErr('Save failed: ' + (e.message || 'unknown error'))
+    cacheLocal() // always persist locally as fallback
+    toastErr(`Save failed: ${e.message || 'unknown error'}`)
   } finally {
-    saving.hours = false
+    saving[label] = false
   }
 }
 
-async function saveContact() {
-  saving.contact = true
-  try {
-    await putSettings({ contact: { ...contact } })
-    storageMode.value = 'kv'
-    cacheLocal()
-    toastOk('Contact saved')
-  } catch (e) {
-    cacheLocal()
-    toastErr('Save failed: ' + (e.message || 'unknown error'))
-  } finally {
-    saving.contact = false
-  }
-}
-
+const saveHours = () => saveAll('Hours')
+const saveContact = () => saveAll('Contact')
 async function saveHolidays() {
   saving.holidays = true
   try {
-    await putSettings({ holidays: holidays.value })
-    storageMode.value = 'kv'
+    await apiPost('settings', { id: 'admin_settings', data: buildPayload() })
+    storageMode.value = 'api'
     cacheLocal()
-  } catch (e) {
+  } catch {
     cacheLocal()
-    toastErr('Save failed: ' + (e.message || 'unknown error'))
   } finally {
     saving.holidays = false
   }
 }
 
-async function saveBanner() {
-  saving.banner = true
-  try {
-    await putSettings({ banner: { ...banner } })
-    storageMode.value = 'kv'
-    cacheLocal()
-    toastOk('Banner saved')
-  } catch (e) {
-    cacheLocal()
-    toastErr('Save failed: ' + (e.message || 'unknown error'))
-  } finally {
-    saving.banner = false
-  }
-}
+const saveBanner = () => saveAll('Banner')
 
 function addHoliday() {
   if (!holidayForm.value.date || !holidayForm.value.reason.trim()) {

@@ -109,49 +109,34 @@ function buildResponseHeaders(response) {
 }
 
 // ─── Settings handler (KV-backed) ─────────────────────────────────
+// NOTE: KV interception is currently bypassed by a Workers Route on
+// admin.fufutcoffee.com. Settings are stored via the Worker's generic
+// collection API (D1) instead. This handler remains as a future
+// optimization once the Workers Route is reconfigured.
 const SETTINGS_KEY = 'admin_settings';
 
 async function handleSettings(request, env) {
-  // If KV binding is not configured, return a clear error so the
-  // frontend can fall back to localStorage.
   if (!env.SETTINGS_KV) {
     return new Response(
-      JSON.stringify({ ok: false, error: 'KV not configured — add SETTINGS_KV binding in Cloudflare Pages settings' }),
+      JSON.stringify({ ok: false, error: 'KV not configured' }),
       { status: 503, headers: { 'Content-Type': 'application/json' } }
     );
   }
-
   try {
-    // GET — return the full settings object
     if (request.method === 'GET') {
       const data = await env.SETTINGS_KV.get(SETTINGS_KEY, 'json') || {};
-      return new Response(
-        JSON.stringify({ ok: true, data }),
-        { headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ ok: true, data }), { headers: { 'Content-Type': 'application/json' } });
     }
-
-    // PUT / POST — merge the incoming partial update into the stored object
     if (request.method === 'PUT' || request.method === 'POST') {
       const patch = await request.json();
       const existing = await env.SETTINGS_KV.get(SETTINGS_KEY, 'json') || {};
       const updated = { ...existing, ...patch };
       await env.SETTINGS_KV.put(SETTINGS_KEY, JSON.stringify(updated));
-      return new Response(
-        JSON.stringify({ ok: true, data: updated }),
-        { headers: { 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ ok: true, data: updated }), { headers: { 'Content-Type': 'application/json' } });
     }
-
-    return new Response(JSON.stringify({ ok: false, error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ ok: false, error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   } catch (err) {
-    return new Response(
-      JSON.stringify({ ok: false, error: String(err.message || err) }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ ok: false, error: String(err.message || err) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
 
@@ -159,18 +144,6 @@ async function handleSettings(request, env) {
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
-
-  // Intercept settings requests — handle locally via KV
-  if (url.pathname === '/api/settings' || url.pathname.startsWith('/api/settings/')) {
-    return handleSettings(request, env);
-  }
-
-  // DEBUG: return pathname for __debug
-  if (url.pathname.includes('__debug')) {
-    return new Response(JSON.stringify({ pathname: url.pathname, params: context.params }), {
-      headers: { 'Content-Type': 'application/json', 'X-Debug': 'from-function' }
-    });
-  }
 
   // Everything else → proxy to the upstream Worker
   const target = WORKER_BASE + url.pathname + url.search;
