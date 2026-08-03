@@ -222,11 +222,26 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { apiGet, apiPost, apiDelete, apiUpload } from '../api'
+import { apiGet, apiPost, apiUpload } from '../api'
 import { useToast } from '../composables/useToast'
 
 const { toast, success: toastOk, error: toastErr, info: toastInfo } = useToast()
 const SITE_ORIGIN = 'https://www.fufutcoffee.com'
+
+/**
+ * Source of truth
+ * ----------------
+ * The gallery is stored inside the public /api/content object (KV-backed on
+ * the fufut-coffee Pages Function). The Worker's /api/gallery endpoint is
+ * append-only — it can't delete or update, only push new entries — so we
+ * ignore it for mutations and treat /api/content as canonical.
+ *
+ * Flow for every mutation (add / edit / delete / bulk-delete):
+ *   1. Load /api/content (full object — never blank, abort if empty)
+ *   2. Compute the new gallery array locally
+ *   3. Replace content.gallery and POST /api/save-content
+ *   4. Update local `images` ref from the saved array
+ */
 const images   = ref([])
 const loading  = ref(true)
 const showModal = ref(false)
@@ -267,6 +282,8 @@ const fileInputRef    = ref(null)
 function resolveUrl(url) {
   if (!url) return ''
   if (/^https?:\/\//.test(url) || url.startsWith('data:')) return url
+  // /api/images/... paths live on the admin origin
+  if (url.startsWith('/api/')) return url
   return SITE_ORIGIN + '/' + url.replace(/^\//, '')
 }
 
@@ -280,15 +297,44 @@ function onImgError(e) {
   if (t.parentNode) t.parentNode.classList.add('img-broken')
 }
 
+/** Generate a stable, unique id for new gallery entries */
+function makeId() {
+  return 'g_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7)
+}
+
 onMounted(loadData)
 
+/**
+ * Load gallery from /api/content (the canonical source).
+ * We don't read from /api/gallery on the Worker because it's append-only and
+ * accumulates junk (delete markers, dupes, empty entries) that we can't remove.
+ */
 async function loadData() {
   loading.value = true
   try {
-    const raw = await apiGet('gallery') || []
-    images.value = raw.filter(img => img.url && !img.url.startsWith('__'))
-  } catch {
+    const content = await apiGet('content')
+    const raw = (content && Array.isArray(content.gallery)) ? content.gallery : []
+    // Normalize: ensure each entry has id + url; drop junk
+    images.value = raw
+      .filter(g => g && (g.url || g.src) && !(g.url || '').startsWith('__'))
+      .map(g => {
+        const url = g.url || g.src
+        // Pull caption from caption/title, category from category/desc
+        const caption = g.caption || g.title || ''
+        const category = g.category || (g.desc && ['food','interior','event'].includes(g.desc) ? g.desc : '')
+        return {
+          id: g.id || makeId(),
+          url,
+          caption,
+          category,
+          // Keep original title/desc so syncToContent can map back if needed
+          title: g.title || caption,
+          desc: g.desc || ''
+        }
+      })
+  } catch (e) {
     images.value = []
+    toastErr('Could not load gallery from server')
   } finally {
     loading.value = false
   }
@@ -301,9 +347,9 @@ const filteredImages = computed(() => {
   }
   const arr = [...list]
   if (sortBy.value === 'newest') {
-    arr.sort((a, b) => (b.id || '').localeCompare(a.id || ''))
+    arr.sort((a, b) => String(b.id).localeCompare(String(a.id)))
   } else if (sortBy.value === 'oldest') {
-    arr.sort((a, b) => (a.id || '').localeCompare(b.id || ''))
+    arr.sort((a, b) => String(a.id).localeCompare(String(b.id)))
   } else if (sortBy.value === 'caption') {
     arr.sort((a, b) => (a.caption || a.title || '').localeCompare(b.caption || b.title || ''))
   }
@@ -331,26 +377,44 @@ function onCardClick(img) {
 async function bulkDelete() {
   if (!selected.value.size) return
   if (!confirm(`Delete ${selected.value.size} image(s)? This cannot be undone.`)) return
-  const ids = [...selected.value]
-  let ok = 0, fail = 0
-  for (const k of ids) {
-    try {
-      await apiPost('gallery', { id: k, _method: 'DELETE' })
-      ok++
-    } catch { fail++ }
+  const idsToDelete = new Set(selected.value)
+  const newImages = images.value.filter(img => !idsToDelete.has(getKey(img)))
+  const ok = await saveGallery(newImages, 'bulk delete')
+  if (ok) {
+    selected.value = new Set()
+    selectMode.value = false
+    toastOk(`Deleted ${idsToDelete.size} image(s)`)
   }
-  selected.value = new Set()
-  selectMode.value = false
-  if (ok) toastOk(`Deleted ${ok} image(s)`)
-  if (fail) toastErr(`${fail} failed to delete`)
-  await loadData()
-  if (ok) await syncToContent()
 }
 
 // === Add by URL ===
 function openAdd() {
   form.value = { url: '', caption: '', category: '' }
   showModal.value = true
+}
+
+async function saveItem() {
+  const url = (form.value.url || '').trim()
+  if (!url) {
+    toastErr('Please enter an image URL')
+    throw new Error('empty url')
+  }
+  const newItem = {
+    id: makeId(),
+    url,
+    caption: form.value.caption || '',
+    category: form.value.category || '',
+    title: form.value.caption || '',
+    desc: ''
+  }
+  const newImages = [...images.value, newItem]
+  const ok = await saveGallery(newImages, 'add by URL')
+  if (ok) {
+    toastOk('Image added')
+    showModal.value = false
+  } else {
+    throw new Error('save failed')
+  }
 }
 
 // === Edit ===
@@ -362,34 +426,23 @@ function openEdit(img) {
 
 async function saveEdit() {
   if (!editingImg.value) return
-  const img = editingImg.value
-  if (!img.id) {
-    toastErr('This image has no ID — cannot edit. Try removing and re-adding.')
-    throw new Error('no id')
-  }
-  try {
-    // Best-effort update: worker doesn't have PUT /api/gallery/:id, so use POST merge.
-    await apiPost('gallery', {
-      id: img.id,
-      url: img.url,
-      caption: editForm.value.caption,
-      category: editForm.value.category
-    })
-    // Apply locally to avoid a round trip
-    img.caption = editForm.value.caption
-    img.category = editForm.value.category
+  const target = editingImg.value
+  const newImages = images.value.map(img =>
+    getKey(img) === getKey(target)
+      ? { ...img, caption: editForm.value.caption, category: editForm.value.category, title: editForm.value.caption }
+      : img
+  )
+  const ok = await saveGallery(newImages, 'edit')
+  if (ok) {
     toastOk('Image updated')
     showEditModal.value = false
-    await syncToContent()
-  } catch (e) {
-    toastErr('Failed to update image')
-    throw e
+  } else {
+    throw new Error('save failed')
   }
 }
 
 async function copyUrl(img) {
-  const url = resolveUrl(img.url)
-  await copyToClipboard(url)
+  await copyToClipboard(resolveUrl(img.url))
 }
 
 async function copyToClipboard(text) {
@@ -397,7 +450,6 @@ async function copyToClipboard(text) {
     await navigator.clipboard.writeText(text)
     toastOk('URL copied')
   } catch {
-    // Fallback
     const ta = document.createElement('textarea')
     ta.value = text
     document.body.appendChild(ta)
@@ -441,7 +493,6 @@ function triggerFileInput() {
 function handleFileSelect(e) {
   const files = e.target.files
   if (!files || !files.length) return
-  // Only use the first file in this single-upload modal flow.
   startUpload(files[0])
   e.target.value = ''
 }
@@ -489,93 +540,85 @@ async function saveUploaded() {
     uploadError.value = 'No image uploaded yet'
     throw new Error('no upload')
   }
-  try {
-    await apiPost('gallery', {
-      url: uploadedUrl.value,
-      caption: uploadForm.value.caption,
-      category: uploadForm.value.category
-    })
+  const newItem = {
+    id: makeId(),
+    url: uploadedUrl.value,
+    caption: uploadForm.value.caption || '',
+    category: uploadForm.value.category || '',
+    title: uploadForm.value.caption || '',
+    desc: ''
+  }
+  const newImages = [...images.value, newItem]
+  const ok = await saveGallery(newImages, 'upload')
+  if (ok) {
     toastOk('Image added to gallery')
     showUploadModal.value = false
     resetUploadState()
-    await loadData()
-    await syncToContent()
-  } catch (e) {
-    uploadError.value = 'Failed to add to gallery: ' + (e && e.message || 'unknown error')
-    throw e
-  }
-}
-
-async function saveItem() {
-  const url = (form.value.url || '').trim()
-  if (!url) {
-    toastErr('Please enter an image URL')
-    throw new Error('empty url')
-  }
-  try {
-    await apiPost('gallery', { ...form.value, url })
-    toastOk('Image added')
-    showModal.value = false
-    await loadData()
-    await syncToContent()
-  } catch (e) {
-    if (e.message !== 'empty url') toastErr('Failed to add image')
-    throw e
+  } else {
+    throw new Error('save failed')
   }
 }
 
 async function handleDelete(img) {
-  if (!img.id) {
-    toastErr('Cannot delete — this image has no ID')
-    return
-  }
-  if (!confirm('Delete this image?')) return
-  try {
-    await apiPost('gallery', { id: img.id, _method: 'DELETE' })
-    toastOk('Deleted')
-    await loadData()
-    await syncToContent()
-  } catch (e) {
-    toastErr('Failed to delete image')
-  }
+  if (!confirm('Delete this image? This cannot be undone.')) return
+  const key = getKey(img)
+  const newImages = images.value.filter(i => getKey(i) !== key)
+  const ok = await saveGallery(newImages, 'delete')
+  if (ok) toastOk('Deleted')
+  else toastErr('Failed to delete image')
 }
 
 /**
- * Push the current gallery list into the public /api/content object so the
- * landing page (which can't authenticate) can read it via /api/content.
+ * Core save: replace /api/content.gallery with `newImages` and persist via
+ * /api/save-content. Also updates local `images` ref on success.
+ *
+ * Returns true on success, false on failure.
  */
-async function syncToContent() {
+async function saveGallery(newImages, opLabel) {
   syncing.value = true
   syncMsg.value = null
   try {
+    // 1. Load existing content so we don't wipe other fields.
     let content
     try {
       content = await apiGet('content')
     } catch (e) {
       syncMsg.value = { ok: false, text: 'Could not load existing landing content — sync aborted to prevent data loss. Try again in a moment.' }
-      return
+      return false
     }
     if (!content || typeof content !== 'object' || Object.keys(content).length === 0) {
       syncMsg.value = { ok: false, text: 'Landing content returned empty — sync aborted to prevent data loss.' }
-      return
+      return false
     }
 
-    content.gallery = images.value
-      .filter(img => img.url)
+    // 2. Replace gallery field. Map to {url,title,desc} which is what the
+    // landing page's rebuildGallery expects.
+    content.gallery = newImages
+      .filter(img => img && (img.url || img.src))
       .map(img => ({
-        url:   img.url,
+        url:   img.url || img.src,
         title: img.caption || img.title || '',
         desc:  img.category || img.desc || ''
       }))
 
+    // 3. Save back
     const res = await apiPost('save-content', content)
     if (res && res.ok) {
-      syncMsg.value = { ok: true, text: 'Gallery synced to landing page' }
+      // 4. Update local state to match what we just saved
+      images.value = newImages.map(img => ({
+        ...img,
+        title: img.caption || img.title || '',
+        desc: img.category || img.desc || ''
+      }))
+      syncMsg.value = { ok: true, text: `✓ Gallery synced to landing page (${opLabel})` }
+      return true
     } else {
-      syncMsg.value = { ok: false, text: 'Saved to gallery but could not sync to landing page' }
+      syncMsg.value = { ok: false, text: 'Could not sync to landing page' }
+      return false
     }
-  } catch {
-    syncMsg.value = { ok: false, text: 'Could not sync to landing page — changes are still saved in the gallery' }
+  } catch (e) {
+    syncMsg.value = { ok: false, text: 'Could not sync to landing page — ' + (e && e.message || 'unknown error') }
+    return false
   } finally {
     syncing.value = false
     setTimeout(() => { syncMsg.value = null }, 4000)
