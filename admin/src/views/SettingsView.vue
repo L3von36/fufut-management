@@ -1,6 +1,5 @@
 <template>
   <div>
-    <!-- Loading state -->
     <div v-if="loading" style="text-align:center;padding:40px;color:var(--text-muted)">
       Loading settings…
     </div>
@@ -76,23 +75,12 @@
           {{ saving.password ? 'Updating\u2026' : 'Change Password' }}
         </button>
       </div>
-
-      <!-- Storage status -->
-      <div class="card" style="grid-column:1/-1">
-        <div class="card-header"><h3>Storage Status</h3></div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:.82rem">
-          <span class="badge" :class="storageMode === 'api' ? 'badge-success' : 'badge-pending'">{{ storageMode === 'api' ? 'Cloud (API)' : 'Local (browser only)' }}</span>
-          <span style="color:var(--text-muted)">
-            {{ storageMode === 'api' ? 'Settings persist across devices' : 'Settings stored in this browser only' }}
-          </span>
-        </div>
-      </div>
     </div>
   </div>
 </template>
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { apiGet, apiPost, apiPut } from '../api'
+import { apiPost } from '../api'
 import { useToast } from '../composables/useToast'
 
 const { success: toastOk, error: toastErr, info: toastInfo } = useToast()
@@ -122,10 +110,9 @@ const holidayForm = ref({ date: '', reason: '' })
 const passForm = ref({ current: '', newPass: '', confirm: '' })
 
 const loading = ref(true)
-const storageMode = ref('local') // 'api' or 'local'
 const saving = reactive({ hours: false, contact: false, holidays: false, banner: false, password: false })
 
-// ── localStorage helpers (fallback / cache) ──
+// ── localStorage persistence ──
 const LS_KEY = 'admin_settings'
 
 function loadFromLocal() {
@@ -135,10 +122,10 @@ function loadFromLocal() {
     if (saved.contact) Object.assign(contact, saved.contact)
     if (Array.isArray(saved.holidays)) holidays.value = saved.holidays
     if (saved.banner) Object.assign(banner, saved.banner)
-  } catch { /* ignore */ }
+  } catch {}
 }
 
-function cacheLocal() {
+function saveToLocal() {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
       hours: { ...hours },
@@ -146,79 +133,61 @@ function cacheLocal() {
       holidays: holidays.value,
       banner: { ...banner }
     }))
-  } catch { /* quota exceeded — ignore */ }
+  } catch {}
 }
 
-function buildPayload() {
-  return JSON.stringify({
-    hours: { ...hours },
-    contact: { ...contact },
-    holidays: holidays.value,
-    banner: { ...banner }
-  })
-}
-
-// ── Load settings on mount (try Worker collection API, fall back to localStorage) ──
-onMounted(async () => {
-  try {
-    const raw = await apiGet('settings')
-    // The Worker returns an array of records; find the latest one with data
-    const items = Array.isArray(raw) ? raw : []
-    const record = items
-      .filter(r => r.data && !r.data.startsWith('__'))
-      .sort((a, b) => (b.created || '').localeCompare(a.created || ''))[0]
-    if (record) {
-      let data = record.data
-      if (typeof data === 'string') {
-        try { data = JSON.parse(data) } catch { data = {} }
-      }
-      if (data.hours) Object.assign(hours, data.hours)
-      if (data.contact) Object.assign(contact, data.contact)
-      if (Array.isArray(data.holidays)) holidays.value = data.holidays
-      if (data.banner) Object.assign(banner, data.banner)
-      storageMode.value = 'api'
-    } else {
-      loadFromLocal()
-    }
-  } catch {
-    loadFromLocal()
-  }
-  cacheLocal()
+// ── Load on mount ──
+onMounted(() => {
+  loadFromLocal()
   loading.value = false
 })
 
-// ── Save functions: POST to Worker's settings collection + cache locally ──
-async function saveAll(label) {
-  saving[label] = true
+// ── Save functions ──
+async function saveHours() {
+  saving.hours = true
   try {
-    await apiPost('settings', { id: 'admin_settings', data: buildPayload() })
-    storageMode.value = 'api'
-    cacheLocal()
-    toastOk(`${label} saved`)
+    saveToLocal()
+    toastOk('Hours saved')
   } catch (e) {
-    cacheLocal() // always persist locally as fallback
-    toastErr(`Save failed: ${e.message || 'unknown error'}`)
+    toastErr('Save failed')
   } finally {
-    saving[label] = false
+    saving.hours = false
   }
 }
 
-const saveHours = () => saveAll('Hours')
-const saveContact = () => saveAll('Contact')
+async function saveContact() {
+  saving.contact = true
+  try {
+    saveToLocal()
+    toastOk('Contact saved')
+  } catch (e) {
+    toastErr('Save failed')
+  } finally {
+    saving.contact = false
+  }
+}
+
 async function saveHolidays() {
   saving.holidays = true
   try {
-    await apiPost('settings', { id: 'admin_settings', data: buildPayload() })
-    storageMode.value = 'api'
-    cacheLocal()
-  } catch {
-    cacheLocal()
-  } finally {
+    saveToLocal()
+  } catch {}
+  finally {
     saving.holidays = false
   }
 }
 
-const saveBanner = () => saveAll('Banner')
+async function saveBanner() {
+  saving.banner = true
+  try {
+    saveToLocal()
+    toastOk('Banner saved')
+  } catch (e) {
+    toastErr('Save failed')
+  } finally {
+    saving.banner = false
+  }
+}
 
 function addHoliday() {
   if (!holidayForm.value.date || !holidayForm.value.reason.trim()) {
@@ -242,7 +211,6 @@ async function savePassword() {
   if (!passForm.value.current) { toastErr('Enter current password'); return }
   if (passForm.value.newPass !== passForm.value.confirm) { toastErr('Passwords do not match'); return }
   if (passForm.value.newPass.length < 4) { toastErr('New password must be at least 4 characters'); return }
-
   saving.password = true
   try {
     await apiPost('auth/change-password', {
