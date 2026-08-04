@@ -51,7 +51,6 @@
             --color-primary:var(--teal-600); --color-primary-dark:var(--teal-700);
             --color-secondary:var(--teal-500); --color-light:var(--teal-50);
             --color-background:var(--neutral-25); --color-surface:var(--neutral-0);
-            --success:#2E7D32;
             --color-accent:var(--gold-500);
             --text-heading:var(--neutral-900); --text-body:var(--neutral-700);
             --text-muted:var(--neutral-500); --text-on-primary:var(--neutral-0);
@@ -85,7 +84,7 @@
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
         }
-        html { scroll-behavior: smooth; scrollbar-width: none; -ms-overflow-style: none; overflow-x: hidden; max-width: 100vw; }
+        html { scroll-behavior: smooth; scrollbar-width: none; -ms-overflow-style: none; }
         html::-webkit-scrollbar { display: none; }
         body { font-family: var(--font-body); color: var(--text-body); background: var(--color-background); overflow-x: hidden; line-height: var(--leading-normal); }
         img { max-width: 100%; display: block; }
@@ -646,7 +645,7 @@
         .story-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
         @media(max-width:900px){ .story-grid { grid-template-columns: 1fr; gap: 40px; } }
 
-        .story-visual { position: relative; display: flex; align-items: center; justify-content: center; min-height: 480px; overflow: hidden; }
+        .story-visual { position: relative; display: flex; align-items: center; justify-content: center; min-height: 480px; }
         .story-visual-bg {
             position: absolute; width: 380px; height: 380px; border-radius: 50%;
             background: linear-gradient(135deg, var(--teal-50), var(--teal-100));
@@ -977,18 +976,6 @@
         }
         .ceremony-step-text h4 { font-family: var(--font-display); font-size: var(--text-md); margin: 0 0 4px; font-weight: 600; }
         .ceremony-step-text p { font-size: var(--text-sm); opacity: .7; margin: 0; line-height: 1.6; }
-        /* Ceremony CTA button — overrides btn-gold for dark teal background */
-        .ceremony-cta {
-            display: inline-flex; align-items: center; justify-content: center;
-            margin-top: 32px; text-decoration: none;
-            background: var(--color-accent); color: var(--neutral-900);
-            padding: 14px 36px; border-radius: var(--radius-pill); border: none;
-            font-weight: 700; font-size: var(--text-base); cursor: pointer;
-            transition: all var(--duration-base) var(--ease-out);
-            box-shadow: 0 4px 20px rgba(214,179,106,.3);
-            white-space: nowrap; max-width: 100%;
-        }
-        .ceremony-cta:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(214,179,106,.5); background: var(--gold-700); color: #fff; }
 
         /* ===== GALLERY ===== */
         .gallery-grid {
@@ -1157,7 +1144,7 @@
         .testimonials-outer::after { right: 0; background: linear-gradient(to left, var(--color-background), transparent); }
         .testimonials-track { display: flex; gap: 24px; padding: 16px 0; width: max-content; will-change: transform; }
         .testimonial-card {
-            min-width: min(380px, 85vw); max-width: min(380px, 85vw); flex-shrink: 0;
+            min-width: 380px; max-width: 380px; flex-shrink: 0;
             background: var(--color-surface); border-radius: var(--radius-lg);
             border: 1px solid var(--border-subtle); padding: 36px;
             box-shadow: var(--shadow-sm);
@@ -1170,7 +1157,7 @@
             color: var(--color-primary); opacity: .07; pointer-events: none;
         }
         .testimonial-card:hover { box-shadow: var(--shadow-md); transform: translateY(-4px); }
-        @media(max-width:480px){ .testimonial-card { min-width: calc(100vw - 48px); max-width: calc(100vw - 48px); padding: 24px; } }
+        @media(max-width:480px){ .testimonial-card { min-width: 300px; max-width: 300px; padding: 24px; } }
         .testimonial-stars { display: flex; gap: 4px; margin-bottom: 20px; }
         .testimonial-stars svg { width: 17px; height: 17px; fill: var(--color-accent); }
         .testimonial-quote {
@@ -1552,15 +1539,14 @@
             /* Hero CTA buttons: equal width when they wrap to second line */
             .hero-btns .btn-gold,
             .hero-btns .btn-ghost { flex: 1 1 160px; text-align: center; }
-            /* Story visual: overflow: hidden already set in base rule */
+            /* Story visual: prevent ring bleeds past viewport edge */
+            .story-visual { overflow: hidden; }
             /* Toast: full-width snackbar — prevents right-edge clip on long item names */
             .toast { left: 16px; right: 16px; bottom: 16px; border-radius: var(--radius-md); justify-content: center; }
             /* Back-to-top: lift above the full-width toast */
             .back-to-top { bottom: 76px; right: 16px; }
             /* Coffee / menu grid: remove max-width cap so cards fill viewport naturally */
             .coffee-grid, .menu-grid { max-width: 100%; }
-            /* Ceremony CTA: allow wrapping on small tablets */
-            .ceremony-cta { white-space: normal; text-align: center; }
         }
 
         /* Phone */
@@ -1571,8 +1557,6 @@
             .hero-btns { gap: 10px; }
             .hero-btns .btn-gold,
             .hero-btns .btn-ghost { flex: 1 1 120px; padding: 12px 20px; font-size: var(--text-sm); }
-            /* Ceremony CTA: compact on phone */
-            .ceremony-cta { padding: 12px 24px; font-size: var(--text-sm); white-space: normal; }
             /* Story visual: scale rings down to fit <480px viewport */
             .story-visual { min-height: 280px; }
             .story-visual-bg { width: 210px; height: 210px; }
@@ -2056,7 +2040,7 @@
                             </div>
                         </div>
                     </div>
-                    <a href="#reservation" class="btn-gold ceremony-cta">Book Ceremony</a>
+                    <a href="#reservation" class="btn-gold" style="display: inline-block; margin-top: 32px; text-decoration: none;">Book Ceremony</a>
                 </div>
             </div>
         </div>
@@ -2533,8 +2517,6 @@
                 })
                 .catch(function(err) {
                     console.warn('Could not load menu:', err);
-                    var grid = document.getElementById('menuGrid');
-                    if (grid) grid.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:32px 0;">Menu is currently unavailable. Please check back later.</p>';
                 });
         });
 
@@ -2919,7 +2901,7 @@
     }
 
     function showToast(message) {
-        const toast = document.getElementById('toast');
+        const toast = document.getElementById('toastNotification');
         document.getElementById('toastMsg').textContent = message;
         toast.classList.add('show');
         clearTimeout(toast._hideTimer);
@@ -3299,91 +3281,58 @@
     <!-- DYNAMIC CONTENT LOADER -->
     <script>
     (function() {
-        // Sanitize HTML: escape first, then selectively re-enable safe tags
-        // Note: we escape < > & first, but " quotes stay as " (not &quot;),
-        // so our unescape patterns must match plain " quotes
-        function safeHtml(str) {
-            if (!str) return '';
-            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-                       .replace(/&lt;br\s*\/?&gt;/gi, '<br>')
-                       .replace(/&lt;span\s+class="([^"]*)"&gt;(.*?)&lt;\/span&gt;/gi, '<span class="$1">$2</span>')
-                       .replace(/&lt;span\s+style="([^"]*)"&gt;(.*?)&lt;\/span&gt;/gi, '<span style="$1">$2</span>');
-        }
-
         function applyContent(c) {
             if (!c) return;
-
-            // Support both nested API format { hero:{...}, ceremony:{...} } and flat legacy format
-            var hero = c.hero || {};
-            var story = c.story || {};
-            var ceremony = c.ceremony || {};
-            var reservation = c.reservation || {};
-            var footer = c.footer || {};
-
             // Hero
             var hTitle = document.querySelector('.hero-content h1');
             var hSub = document.querySelector('.hero-sub');
             var hAmh = document.querySelector('.hero-amharic');
             var hBtns = document.querySelectorAll('.hero-btns button');
-            if (hTitle && (hero.title || c.heroTitle)) hTitle.innerHTML = safeHtml(hero.title || c.heroTitle);
-            if (hSub && (hero.subtitle || c.heroSub)) hSub.textContent = hero.subtitle || c.heroSub;
-            if (hAmh && (hero.amharic || c.heroAmharic)) hAmh.textContent = hero.amharic || c.heroAmharic;
-            if (hBtns[0] && (hero.btn1 || c.heroBtn1)) hBtns[0].textContent = hero.btn1 || c.heroBtn1;
-            if (hBtns[1] && (hero.btn2 || c.heroBtn2)) hBtns[1].textContent = hero.btn2 || c.heroBtn2;
+            if (hTitle && c.heroTitle) hTitle.innerHTML = c.heroTitle;
+            if (hSub && c.heroSub) hSub.textContent = c.heroSub;
+            if (hAmh && c.heroAmharic) hAmh.textContent = c.heroAmharic;
+            if (hBtns[0] && c.heroBtn1) hBtns[0].textContent = c.heroBtn1;
+            if (hBtns[1] && c.heroBtn2) hBtns[1].textContent = c.heroBtn2;
             // Story
             var sEye = document.querySelector('#story .sec-eyebrow');
             var sTitle = document.querySelector('#story .story-text h3');
             var sP = document.querySelectorAll('#story .story-text p');
             var sBadge = document.querySelectorAll('.story-badge-float');
             var sFeat = document.querySelectorAll('.story-feat span');
-            if (sEye && (story.eyebrow || c.storyEyebrow)) sEye.textContent = story.eyebrow || c.storyEyebrow;
-            if (sTitle && (story.title || c.storyTitle)) sTitle.innerHTML = safeHtml(story.title || c.storyTitle);
-            if (sP[0] && (story.p1 || c.storyP1)) sP[0].textContent = story.p1 || c.storyP1;
-            if (sP[1] && (story.p2 || c.storyP2)) sP[1].textContent = story.p2 || c.storyP2;
-            if (sBadge[0]) { if (story.badge1Num || c.badge1Num) sBadge[0].querySelector('.story-badge-num').textContent = story.badge1Num || c.badge1Num; if (story.badge1Label || c.badge1Label) sBadge[0].querySelector('.story-badge-label').textContent = story.badge1Label || c.badge1Label; }
-            if (sBadge[1]) { if (story.badge2Num || c.badge2Num) sBadge[1].querySelector('.story-badge-num').textContent = story.badge2Num || c.badge2Num; if (story.badge2Label || c.badge2Label) sBadge[1].querySelector('.story-badge-label').textContent = story.badge2Label || c.badge2Label; }
-            if (sFeat[0] && (story.feat1 || c.feat1)) sFeat[0].textContent = story.feat1 || c.feat1;
-            if (sFeat[1] && (story.feat2 || c.feat2)) sFeat[1].textContent = story.feat2 || c.feat2;
-            if (sFeat[2] && (story.feat3 || c.feat3)) sFeat[2].textContent = story.feat3 || c.feat3;
-            if (sFeat[3] && (story.feat4 || c.feat4)) sFeat[3].textContent = story.feat4 || c.feat4;
+            if (sEye && c.storyEyebrow) sEye.textContent = c.storyEyebrow;
+            if (sTitle && c.storyTitle) sTitle.innerHTML = c.storyTitle;
+            if (sP[0] && c.storyP1) sP[0].textContent = c.storyP1;
+            if (sP[1] && c.storyP2) sP[1].textContent = c.storyP2;
+            if (sBadge[0]) { if (c.badge1Num) sBadge[0].querySelector('.story-badge-num').textContent = c.badge1Num; if (c.badge1Label) sBadge[0].querySelector('.story-badge-label').textContent = c.badge1Label; }
+            if (sBadge[1]) { if (c.badge2Num) sBadge[1].querySelector('.story-badge-num').textContent = c.badge2Num; if (c.badge2Label) sBadge[1].querySelector('.story-badge-label').textContent = c.badge2Label; }
+            if (sFeat[0] && c.feat1) sFeat[0].textContent = c.feat1;
+            if (sFeat[1] && c.feat2) sFeat[1].textContent = c.feat2;
+            if (sFeat[2] && c.feat3) sFeat[2].textContent = c.feat3;
+            if (sFeat[3] && c.feat4) sFeat[3].textContent = c.feat4;
             // Stats
             var stats = document.querySelectorAll('.stat-value');
             var sLabels = document.querySelectorAll('.stat-label');
-            var statArr = Array.isArray(c.stats) ? c.stats : [];
-            if (stats[0] && (statArr[0] || c.stat1Val !== undefined)) stats[0].dataset.target = String((statArr[0] && statArr[0].value) || c.stat1Val || 0);
-            if (stats[1] && (statArr[1] || c.stat2Val !== undefined)) stats[1].dataset.target = String((statArr[1] && statArr[1].value) || c.stat2Val || 0);
-            if (stats[2] && (statArr[2] || c.stat3Val !== undefined)) stats[2].dataset.target = String((statArr[2] && statArr[2].value) || c.stat3Val || 0);
-            if (stats[3] && (statArr[3] || c.stat4Val !== undefined)) stats[3].dataset.target = String((statArr[3] && statArr[3].value) || c.stat4Val || 0);
-            if (sLabels[0] && (statArr[0] || c.stat1Label)) sLabels[0].textContent = (statArr[0] && statArr[0].label) || c.stat1Label || '';
-            if (sLabels[1] && (statArr[1] || c.stat2Label)) sLabels[1].textContent = (statArr[1] && statArr[1].label) || c.stat2Label || '';
-            if (sLabels[2] && (statArr[2] || c.stat3Label)) sLabels[2].textContent = (statArr[2] && statArr[2].label) || c.stat3Label || '';
-            if (sLabels[3] && (statArr[3] || c.stat4Label)) sLabels[3].textContent = (statArr[3] && statArr[3].label) || c.stat4Label || '';
+            if (stats[0] && c.stat1Val !== undefined) stats[0].dataset.target = c.stat1Val;
+            if (stats[1] && c.stat2Val !== undefined) stats[1].dataset.target = c.stat2Val;
+            if (stats[2] && c.stat3Val !== undefined) stats[2].dataset.target = c.stat3Val;
+            if (stats[3] && c.stat4Val !== undefined) stats[3].dataset.target = c.stat4Val;
+            if (sLabels[0] && c.stat1Label) sLabels[0].textContent = c.stat1Label;
+            if (sLabels[1] && c.stat2Label) sLabels[1].textContent = c.stat2Label;
+            if (sLabels[2] && c.stat3Label) sLabels[2].textContent = c.stat3Label;
+            if (sLabels[3] && c.stat4Label) sLabels[3].textContent = c.stat4Label;
             // Ceremony
             var cEye = document.querySelector('#ceremony .sec-eyebrow');
             var cTitle = document.querySelector('#ceremony .sec-title');
             var cDesc = document.querySelector('#ceremony .sec-desc');
             var cSteps = document.querySelectorAll('.ceremony-step-text');
-            var cCta = document.querySelector('.ceremony-cta');
-            var cerSteps = Array.isArray(ceremony.steps) ? ceremony.steps : [];
-            if (cEye && (ceremony.eyebrow || c.cerEyebrow)) cEye.textContent = ceremony.eyebrow || c.cerEyebrow;
-            if (cTitle && (ceremony.title || c.cerTitle)) cTitle.textContent = ceremony.title || c.cerTitle;
-            if (cDesc && (ceremony.desc || c.cerDesc)) cDesc.textContent = ceremony.desc || c.cerDesc;
-            if (cSteps[0]) { if (cerSteps[0] && cerSteps[0].title || c.cerS1Title) cSteps[0].querySelector('h4').textContent = (cerSteps[0] && cerSteps[0].title) || c.cerS1Title; if (cerSteps[0] && cerSteps[0].text || c.cerS1Text) cSteps[0].querySelector('p').textContent = (cerSteps[0] && cerSteps[0].text) || c.cerS1Text; }
-            if (cSteps[1]) { if (cerSteps[1] && cerSteps[1].title || c.cerS2Title) cSteps[1].querySelector('h4').textContent = (cerSteps[1] && cerSteps[1].title) || c.cerS2Title; if (cerSteps[1] && cerSteps[1].text || c.cerS2Text) cSteps[1].querySelector('p').textContent = (cerSteps[1] && cerSteps[1].text) || c.cerS2Text; }
-            if (cSteps[2]) { if (cerSteps[2] && cerSteps[2].title || c.cerS3Title) cSteps[2].querySelector('h4').textContent = (cerSteps[2] && cerSteps[2].title) || c.cerS3Title; if (cerSteps[2] && cerSteps[2].text || c.cerS3Text) cSteps[2].querySelector('p').textContent = (cerSteps[2] && cerSteps[2].text) || c.cerS3Text; }
-            if (cCta && (ceremony.cta || c.cerCta)) cCta.textContent = ceremony.cta || c.cerCta;
-            if (ceremony.image || c.cerImage) { var cerImg = document.querySelector('.ceremony-img img'); if (cerImg) cerImg.src = ceremony.image || c.cerImage; }
-            // Reservation
-            var rEye = document.querySelector('.res-info .sec-eyebrow');
-            var rTitle = document.querySelector('.res-info h3');
-            var rDesc = document.querySelector('.res-info > p');
-            var rDetails = document.querySelectorAll('.res-detail-text');
-            if (rEye && reservation.eyebrow) rEye.textContent = reservation.eyebrow;
-            if (rTitle && reservation.title) rTitle.innerHTML = safeHtml(reservation.title);
-            if (rDesc && reservation.desc) rDesc.textContent = reservation.desc;
-            if (rDetails[0] && reservation.hoursVal) rDetails[0].querySelector('span').textContent = reservation.hoursVal;
-            if (rDetails[1] && reservation.locationVal) rDetails[1].querySelector('span').textContent = reservation.locationVal;
-            if (rDetails[2] && reservation.contactVal) rDetails[2].querySelector('span').textContent = reservation.contactVal;
+            var cCta = document.querySelector('#ceremony .btn-gold');
+            if (cEye && c.cerEyebrow) cEye.textContent = c.cerEyebrow;
+            if (cTitle && c.cerTitle) cTitle.textContent = c.cerTitle;
+            if (cDesc && c.cerDesc) cDesc.textContent = c.cerDesc;
+            if (cSteps[0]) { if (c.cerS1Title) cSteps[0].querySelector('h4').textContent = c.cerS1Title; if (c.cerS1Text) cSteps[0].querySelector('p').textContent = c.cerS1Text; }
+            if (cSteps[1]) { if (c.cerS2Title) cSteps[1].querySelector('h4').textContent = c.cerS2Title; if (c.cerS2Text) cSteps[1].querySelector('p').textContent = c.cerS2Text; }
+            if (cSteps[2]) { if (c.cerS3Title) cSteps[2].querySelector('h4').textContent = c.cerS3Title; if (c.cerS3Text) cSteps[2].querySelector('p').textContent = c.cerS3Text; }
+            if (cCta && c.cerCta) cCta.textContent = c.cerCta;
             // Footer
             var fDesc = document.querySelector('.footer-brand p');
             var fYear = document.querySelector('.footer-bottom span:first-child');
