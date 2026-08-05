@@ -58,10 +58,10 @@
             <button type="button" class="btn btn-sm btn-secondary" style="width:100%;margin-top:6px" @click="pickImage">Change Image</button>
           </div>
           <div style="flex:1">
-            <div class="form-group"><label>Item Name</label><input v-model="form.name" placeholder="e.g. Cappuccino" /></div>
-            <div class="form-group"><label>Category</label><select v-model="form.category" class="select"><option value="">Select...</option><option value="Espresso">Espresso</option><option value="Filter">Filter</option><option value="Cold">Cold</option><option value="Blended">Blended</option><option value="Food">Food</option><option value="Drinks">Drinks</option></select></div>
+            <div class="form-group"><label>Item Name</label><input v-model="form.name" placeholder="e.g. Cappuccino" :class="{ 'input-error': vErrors.name }" /><span v-if="vErrors.name" class="field-error">{{ vErrors.name }}</span></div>
+            <div class="form-group"><label>Category</label><select v-model="form.category" class="select" :class="{ 'input-error': vErrors.category }"><option value="">Select...</option><option value="Espresso">Espresso</option><option value="Filter">Filter</option><option value="Cold">Cold</option><option value="Blended">Blended</option><option value="Food">Food</option><option value="Drinks">Drinks</option></select><span v-if="vErrors.category" class="field-error">{{ vErrors.category }}</span></div>
             <div class="form-row">
-              <div class="form-group"><label>Selling Price (ETB)</label><input v-model.number="form.price" type="number" step="0.01" placeholder="0" /></div>
+              <div class="form-group"><label>Selling Price (ETB)</label><input v-model.number="form.price" type="number" step="0.01" placeholder="0" :class="{ 'input-error': vErrors.price }" /><span v-if="vErrors.price" class="field-error">{{ vErrors.price }}</span></div>
               <div class="form-group"><label>Cost (ETB)</label><input v-model.number="form.cost" type="number" step="0.01" placeholder="0" /></div>
             </div>
             <div class="form-group"><label>Modifiers (comma-separated)</label><input v-model="form.modifiers" placeholder="e.g. hot, iced, oat-milk" /></div>
@@ -87,9 +87,16 @@ import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
 import { useButtonState } from '../composables/useButtonState'
+import { useFormValidation } from '../composables/useFormValidation'
 
 const { toast } = useToast()
 const btnState = useButtonState({ successDuration: 2000 })
+const schema = {
+  name: { required: true, label: 'Item Name', max: 100 },
+  price: { required: true, label: 'Selling Price', min: 0, maxVal: 99999 },
+  category: { required: true, label: 'Category' }
+}
+const { errors: vErrors, validate } = useFormValidation(schema)
 const items = ref([])
 const filter = ref('')
 const showModal = ref(false)
@@ -148,6 +155,7 @@ function openEdit(item) {
 }
 
 async function saveItem() {
+  if (!validate(form.value)) { toast('Please fix the errors', 'error'); return }
   btnState.setLoading()
   try {
     const data = { ...form.value, modifiers: form.value.modifiers ? form.value.modifiers.split(',').map(s => s.trim()).filter(Boolean) : [] }
@@ -165,3 +173,7 @@ async function handleDelete(item) {
   try { await apiDelete('menu/' + item.id); toast('Deleted'); await loadData() } catch (e) { toast(e.message, 'error') }
 }
 </script>
+<style scoped>
+.input-error { border-color: var(--danger, #e74c3c) !important; }
+.field-error { display: block; color: var(--danger, #e74c3c); font-size: 0.75rem; margin-top: 2px; }
+</style>

@@ -230,11 +230,11 @@ describe('API Client', () => {
     })
 
     it('manager should have most permissions', () => {
-      // Manager has all permissions except menu-view, pipeline, and revenue
+      // Manager has all permissions except pipeline and revenue
       const allViews = NAV_ITEMS.map(n => n.view)
       const nonManagerViews = allViews.filter(v => !ROLE_PERMISSIONS.manager.includes(v))
       // These views exist in NAV_ITEMS but are not in manager permissions
-      expect(nonManagerViews.sort()).toEqual(['menu-view', 'pipeline', 'revenue'].sort())
+      expect(nonManagerViews.sort()).toEqual(['pipeline', 'revenue'].sort())
     })
 
     it('cleaner should only have waste and dashboard', () => {

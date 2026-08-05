@@ -69,11 +69,11 @@ describe('Router Configuration', () => {
     ]
 
     const ROLE_PERMISSIONS = {
-      manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery'],
+      manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery'],
       'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline'],
       'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory'],
-      'head-waiter': ['tables', 'orders', 'dashboard', 'reservations', 'delivery', 'shifts', 'timeclock', 'inventory', 'waste', 'kitchen', 'reports', 'pipeline'],
-      cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue'],
+      'head-waiter': ['tables', 'orders', 'dashboard', 'reservations', 'delivery', 'shifts', 'timeclock', 'inventory', 'waste', 'kitchen', 'reports', 'pipeline', 'menu-view'],
+      cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view'],
       'delivery-staff': ['delivery', 'dashboard'],
       cleaner: ['waste', 'dashboard']
     }
@@ -95,8 +95,8 @@ describe('Router Configuration', () => {
         perms.forEach(p => allPerms.add(p))
       })
 
-      // menu-view is a read-only view accessible via nav, not a direct permission
-      const allowedMissing = ['menu-view']
+      // menu-view is now in some role permissions, pipeline and revenue remain absent for manager
+      const allowedMissing = ['pipeline', 'revenue']
       routeNames.forEach(name => {
         if (allowedMissing.includes(name)) return
         expect(allPerms.has(name)).toBe(true)

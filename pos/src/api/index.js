@@ -34,7 +34,16 @@ if (typeof window !== 'undefined') {
 // Default request timeout (10 seconds)
 const REQUEST_TIMEOUT_MS = 10000
 
-async function tryFetch(url, options) {
+// Retry configuration for transient failures
+const MAX_RETRIES = 2
+const INITIAL_RETRY_DELAY_MS = 500
+const RETRYABLE_STATUS_CODES = [502, 503, 504, 429]
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function tryFetch(url, options, retries = MAX_RETRIES) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
@@ -49,9 +58,30 @@ async function tryFetch(url, options) {
           if (errBody.error) errMsg = errBody.error
         }
       } catch { /* ignore parse failure */ }
+
+      // Retry on transient server errors
+      const isRetryable = RETRYABLE_STATUS_CODES.includes(r.status) && retries > 0
+      if (isRetryable) {
+        const retryDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, MAX_RETRIES - retries)
+        console.warn(`Retrying ${options?.method || 'GET'} ${url} (${r.status}), attempt ${MAX_RETRIES - retries + 2}/${MAX_RETRIES + 1} in ${retryDelay}ms`)
+        await delay(retryDelay)
+        return tryFetch(url, options, retries - 1)
+      }
+
       throw new Error(errMsg)
     }
     return r.json()
+  } catch (e) {
+    // Retry on network errors (not timeouts/aborts) for non-auth endpoints
+    const isAuthEndpoint = url.includes('/auth/')
+    const isNetworkError = e.name !== 'AbortError' && !isAuthEndpoint
+    if (isNetworkError && retries > 0) {
+      const retryDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, MAX_RETRIES - retries)
+      console.warn(`Retrying ${options?.method || 'GET'} ${url} (network error), attempt ${MAX_RETRIES - retries + 2}/${MAX_RETRIES + 1} in ${retryDelay}ms`)
+      await delay(retryDelay)
+      return tryFetch(url, options, retries - 1)
+    }
+    throw e
   } finally {
     clearTimeout(timer)
   }
@@ -136,11 +166,11 @@ export async function apiDelete(endpoint, id) {
 
 // Role permissions (unchanged)
 export const ROLE_PERMISSIONS = {
-  manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery'],
+  manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery'],
   'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline'],
   'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory'],
-  'head-waiter': ['tables', 'orders', 'dashboard', 'reservations', 'delivery', 'shifts', 'timeclock', 'inventory', 'waste', 'kitchen', 'reports', 'pipeline'],
-  cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue'],
+  'head-waiter': ['tables', 'orders', 'dashboard', 'reservations', 'delivery', 'shifts', 'timeclock', 'inventory', 'waste', 'kitchen', 'reports', 'pipeline', 'menu-view'],
+  cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view'],
   'delivery-staff': ['delivery', 'dashboard'],
   cleaner: ['waste', 'dashboard']
 }

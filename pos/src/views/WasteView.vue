@@ -36,12 +36,12 @@
       <div class="modal">
         <h3>Log Waste</h3>
         <p class="modal-sub">Record discarded items</p>
-        <div class="form-group"><label>Item</label><input v-model="form.name" /></div>
+        <div class="form-group"><label>Item</label><input v-model="form.name" :class="{ 'input-error': vErrors.name }" /><span v-if="vErrors.name" class="field-error">{{ vErrors.name }}</span></div>
         <div class="form-row">
           <div class="form-group"><label>Category</label><select v-model="form.category" class="select"><option value="">Select...</option><option value="Food">Food</option><option value="Beverage">Beverage</option><option value="Packaging">Packaging</option><option value="Other">Other</option></select></div>
-          <div class="form-group"><label>Qty</label><input v-model.number="form.quantity" type="number" /></div>
+          <div class="form-group"><label>Qty</label><input v-model.number="form.quantity" type="number" :class="{ 'input-error': vErrors.quantity }" /><span v-if="vErrors.quantity" class="field-error">{{ vErrors.quantity }}</span></div>
         </div>
-        <div class="form-group"><label>Reason</label><select v-model="form.reason" class="select"><option value="">Select...</option><option value="spoiled">Spoiled</option><option value="overproduction">Overproduction</option><option value="quality">Quality</option><option value="damaged">Damaged</option><option value="other">Other</option></select></div>
+        <div class="form-group"><label>Reason</label><select v-model="form.reason" class="select" :class="{ 'input-error': vErrors.reason }"><option value="">Select...</option><option value="spoiled">Spoiled</option><option value="overproduction">Overproduction</option><option value="quality">Quality</option><option value="damaged">Damaged</option><option value="other">Other</option></select></div>
         <div class="form-row">
           <div class="form-group"><label>Cost (ETB)</label><input v-model.number="form.cost" type="number" step="0.01" /></div>
           <div class="form-group"><label>Date</label><input v-model="form.date" type="date" /></div>
@@ -55,7 +55,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPost, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
+import { useFormValidation } from '../composables/useFormValidation'
 const { toast } = useToast()
+const schema = {
+  name: { required: true, label: 'Item', max: 100 },
+  reason: { label: 'Reason', max: 200 },
+  quantity: { label: 'Qty', min: 0.01 }
+}
+const { errors: vErrors, validate } = useFormValidation(schema)
 const wasteItems = ref([]); const filter = ref(''); const showModal = ref(false)
 const form = ref({ name:'', category:'', quantity:1, reason:'', cost:0, date:'' })
 const filteredWaste = computed(()=>!filter.value?wasteItems.value:wasteItems.value.filter(w=>w.category===filter.value))
@@ -63,6 +70,10 @@ const totalWasteCost = computed(()=>wasteItems.value.reduce((s,w)=>s+parseFloat(
 onMounted(()=>{form.value.date=new Date().toISOString().slice(0,10); loadData()})
 async function loadData() { try { wasteItems.value = await apiGet('waste') } catch (e) { console.error(e) } }
 function openAdd() { form.value={name:'',category:'',quantity:1,reason:'',cost:0,date:new Date().toISOString().slice(0,10)}; showModal.value=true }
-async function saveItem() { try { await apiPost('waste',form.value); toast('Logged'); showModal.value=false; await loadData() } catch { toast('Failed','error') } }
-async function handleDelete(w) { if(!confirm('Delete?'))return; try { await apiDelete('waste/'+w.id); toast('Deleted'); await loadData() } catch { toast('Failed','error') } }
+async function saveItem() { if (!validate(form.value)) { toast('Please fix the errors', 'error'); return } try { await apiPost('waste',form.value); toast('Logged'); showModal.value=false; await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
+async function handleDelete(w) { if(!confirm('Delete?'))return; try { await apiDelete('waste/'+w.id); toast('Deleted'); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
 </script>
+<style scoped>
+.input-error { border-color: var(--danger, #e74c3c) !important; }
+.field-error { display: block; color: var(--danger, #e74c3c); font-size: 0.75rem; margin-top: 2px; }
+</style>

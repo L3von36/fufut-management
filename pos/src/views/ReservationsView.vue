@@ -38,15 +38,15 @@
         <h3>New Reservation</h3>
         <p class="modal-sub">Add a guest reservation</p>
         <div class="form-row">
-          <div class="form-group"><label>Guest Name</label><input v-model="form.name" /></div>
-          <div class="form-group"><label>Guests</label><input v-model.number="form.guests" type="number" /></div>
+          <div class="form-group"><label>Guest Name</label><input v-model="form.name" :class="{ 'input-error': vErrors.name }" /><span v-if="vErrors.name" class="field-error">{{ vErrors.name }}</span></div>
+          <div class="form-group"><label>Guests</label><input v-model.number="form.guests" type="number" :class="{ 'input-error': vErrors.guests }" /><span v-if="vErrors.guests" class="field-error">{{ vErrors.guests }}</span></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Date</label><input v-model="form.date" type="date" /></div>
+          <div class="form-group"><label>Date</label><input v-model="form.date" type="date" :class="{ 'input-error': vErrors.date }" /><span v-if="vErrors.date" class="field-error">{{ vErrors.date }}</span></div>
           <div class="form-group"><label>Time</label><input v-model="form.time" type="time" /></div>
         </div>
-        <div class="form-group"><label>Table #</label><input v-model="form.tableNum" /></div>
-        <div class="form-group"><label>Phone</label><input v-model="form.phone" /></div>
+        <div class="form-group"><label>Table #</label><input v-model="form.tableNum" :class="{ 'input-error': vErrors.tableNum }" /><span v-if="vErrors.tableNum" class="field-error">{{ vErrors.tableNum }}</span></div>
+        <div class="form-group"><label>Phone</label><input v-model="form.phone" :class="{ 'input-error': vErrors.phone }" /><span v-if="vErrors.phone" class="field-error">{{ vErrors.phone }}</span></div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="showModal=false">Cancel</button>
           <button class="btn btn-primary" @click="saveItem">Create</button>
@@ -59,14 +59,27 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
+import { useFormValidation } from '../composables/useFormValidation'
 const { toast } = useToast()
+const schema = {
+  name: { required: true, label: 'Guest Name', max: 100 },
+  guests: { required: true, label: 'Guests', min: 1, maxVal: 50 },
+  date: { required: true, label: 'Date' },
+  tableNum: { label: 'Table #' },
+  phone: { label: 'Phone', pattern: /^\+?\d{8,15}$/ }
+}
+const { errors: vErrors, validate } = useFormValidation(schema)
 const reservations = ref([]); const statusFilter = ref(''); const showModal = ref(false)
 const form = ref({ name:'', guests:2, date:'', time:'', tableNum:'', phone:'' })
 const filteredReservations = computed(() => !statusFilter.value ? reservations.value : reservations.value.filter(r=>r.status===statusFilter.value))
 onMounted(()=>{const n=new Date(); form.value.date=n.toISOString().slice(0,10); form.value.time=n.toTimeString().slice(0,5); loadData()})
 async function loadData() { try { reservations.value = await apiGet('reservations') } catch (e) { console.error(e) } }
-async function saveItem() { try { await apiPost('reservations',{...form.value,status:'new'}); toast('Created'); showModal.value=false; await loadData() } catch { toast('Failed','error') } }
-async function updateStatus(r,s) { r.status=s; try { await apiPut('reservations/'+r.id,r); toast(s); await loadData() } catch { toast('Failed','error') } }
+async function saveItem() { if (!validate(form.value)) { toast('Please fix the errors', 'error'); return } try { await apiPost('reservations',{...form.value,status:'new'}); toast('Created'); showModal.value=false; await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
+async function updateStatus(r,s) { r.status=s; try { await apiPut('reservations/'+r.id,r); toast(s); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
 function openAdd() { const n=new Date(); form.value={name:'',guests:2,date:n.toISOString().slice(0,10),time:n.toTimeString().slice(0,5),tableNum:'',phone:''}; showModal.value=true }
-async function handleDelete(r) { if(!confirm('Cancel?'))return; try { await apiDelete('reservations/'+r.id); toast('Cancelled'); await loadData() } catch { toast('Failed','error') } }
+async function handleDelete(r) { if(!confirm('Cancel?'))return; try { await apiDelete('reservations/'+r.id); toast('Cancelled'); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
 </script>
+<style scoped>
+.input-error { border-color: var(--danger, #e74c3c) !important; }
+.field-error { display: block; color: var(--danger, #e74c3c); font-size: 0.75rem; margin-top: 2px; }
+</style>

@@ -17,7 +17,7 @@
  *      rewrite, the session would still never persist in the browser.
  *   3. Strips CORS headers — not needed for same-origin responses.
  */
-const WORKER_BASE = 'https://fufut-api.fufutcoffee.workers.dev';
+const DEFAULT_WORKER_BASE = 'https://fufut-api.fufutcoffee.workers.dev';
 
 const STRIP_REQUEST_HEADERS = new Set([
   'host',
@@ -106,9 +106,10 @@ function buildResponseHeaders(response) {
 }
 
 export async function onRequest(context) {
-  const { request } = context;
+  const { request, env } = context;
   const url = new URL(request.url);
-  const target = WORKER_BASE + url.pathname + url.search;
+  const workerBase = env.WORKER_BASE || DEFAULT_WORKER_BASE;
+  const target = workerBase + url.pathname + url.search;
 
   const isBodyMethod = !['GET', 'HEAD'].includes(request.method.toUpperCase());
 

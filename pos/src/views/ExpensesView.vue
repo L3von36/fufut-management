@@ -53,14 +53,15 @@
         <p class="modal-sub">{{ editing ? 'Update expense' : 'Record a new expense' }}</p>
         <div class="form-group">
           <label>Category</label>
-          <select v-model="form.category" class="select">
+          <select v-model="form.category" class="select" :class="{ 'input-error': vErrors.category }">
             <option value="">Select...</option>
             <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
           </select>
+          <span v-if="vErrors.category" class="field-error">{{ vErrors.category }}</span>
         </div>
-        <div class="form-group"><label>Description</label><input v-model="form.description" /></div>
+        <div class="form-group"><label>Description</label><input v-model="form.description" :class="{ 'input-error': vErrors.description }" /><span v-if="vErrors.description" class="field-error">{{ vErrors.description }}</span></div>
         <div class="form-row">
-          <div class="form-group"><label>Amount (ETB)</label><input v-model.number="form.amount" type="number" step="0.01" /></div>
+          <div class="form-group"><label>Amount (ETB)</label><input v-model.number="form.amount" type="number" step="0.01" :class="{ 'input-error': vErrors.amount }" /><span v-if="vErrors.amount" class="field-error">{{ vErrors.amount }}</span></div>
           <div class="form-group"><label>Date</label><input v-model="form.date" type="date" /></div>
         </div>
         <div class="modal-actions">
@@ -76,11 +77,18 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
+import { useFormValidation } from '../composables/useFormValidation'
 
 const { toast } = useToast()
 const expenses = ref([]); const filter = ref(''); const showModal = ref(false); const editing = ref(null)
 const form = ref({ category: '', description: '', amount: 0, date: '' })
 const categories = ['Rent','Utilities','Supplies','Equipment','Maintenance','Marketing','Other']
+const schema = {
+  category: { required: true, label: 'Category' },
+  description: { label: 'Description', max: 200 },
+  amount: { required: true, label: 'Amount', min: 0.01, maxVal: 9999999 }
+}
+const { errors: vErrors, validate } = useFormValidation(schema)
 const filteredExpenses = computed(() => !filter.value ? expenses.value : expenses.value.filter(e => e.category === filter.value))
 const categoryTotals = computed(() => { const m={}; for(const e of filteredExpenses.value){ m[e.category]=(m[e.category]||0)+parseFloat(e.amount||0) }; return Object.entries(m).map(([c,t])=>({category:c,total:t})) })
 const allTotal = computed(() => filteredExpenses.value.reduce((s,e)=>s+parseFloat(e.amount||0),0))
@@ -88,6 +96,10 @@ onMounted(()=>{form.value.date=new Date().toISOString().slice(0,10);loadData()})
 async function loadData() { try { expenses.value = await apiGet('expenses') } catch (e) { console.error(e) } }
 function openAdd() { editing.value=null; form.value={category:'',description:'',amount:0,date:new Date().toISOString().slice(0,10)}; showModal.value=true }
 function openEdit(e) { editing.value=e; form.value={...e}; showModal.value=true }
-async function saveItem() { try { if(editing.value){ await apiPut('expenses/'+editing.value.id,form.value); toast('Updated') } else { await apiPost('expenses',form.value); toast('Added') }; showModal.value=false; await loadData() } catch { toast('Failed','error') } }
-async function handleDelete(e) { if(!confirm('Delete?'))return; try { await apiDelete('expenses/'+e.id); toast('Deleted'); await loadData() } catch { toast('Failed','error') } }
+async function saveItem() { if (!validate(form.value)) { toast('Please fix the errors', 'error'); return } try { if(editing.value){ await apiPut('expenses/'+editing.value.id,form.value); toast('Updated') } else { await apiPost('expenses',form.value); toast('Added') }; showModal.value=false; await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
+async function handleDelete(e) { if(!confirm('Delete?'))return; try { await apiDelete('expenses/'+e.id); toast('Deleted'); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
 </script>
+<style scoped>
+.input-error { border-color: var(--danger) !important; }
+.field-error { display: block; font-size: 0.72rem; color: var(--danger); margin-top: 2px; }
+</style>

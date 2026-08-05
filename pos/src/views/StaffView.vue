@@ -26,13 +26,13 @@
       <div class="modal">
         <h3>{{ editing?'Edit':'Add' }} Staff</h3>
         <div class="form-row">
-          <div class="form-group"><label>First Name</label><input v-model="form.firstName" /></div>
-          <div class="form-group"><label>Last Name</label><input v-model="form.lastName" /></div>
+          <div class="form-group"><label>First Name</label><input v-model="form.firstName" :class="{ 'input-error': vErrors.firstName }" /><span v-if="vErrors.firstName" class="field-error">{{ vErrors.firstName }}</span></div>
+          <div class="form-group"><label>Last Name</label><input v-model="form.lastName" :class="{ 'input-error': vErrors.lastName }" /><span v-if="vErrors.lastName" class="field-error">{{ vErrors.lastName }}</span></div>
         </div>
         <div class="form-group"><label>Role</label><select v-model="form.role" class="select"><option>Manager</option><option>Head Chef</option><option>Assistant Chef</option><option>Head Waiter</option><option>Cashier</option><option>Delivery Staff</option><option>Cleaner</option></select></div>
-        <div class="form-group"><label>Phone</label><input v-model="form.phone" /></div>
+        <div class="form-group"><label>Phone</label><input v-model="form.phone" :class="{ 'input-error': vErrors.phone }" /><span v-if="vErrors.phone" class="field-error">{{ vErrors.phone }}</span></div>
         <div class="form-row">
-          <div class="form-group"><label>Wage (ETB)</label><input v-model.number="form.wage" type="number" /></div>
+          <div class="form-group"><label>Wage (ETB)</label><input v-model.number="form.wage" type="number" :class="{ 'input-error': vErrors.wage }" /><span v-if="vErrors.wage" class="field-error">{{ vErrors.wage }}</span></div>
           <div class="form-group"><label>Period</label><select v-model="form.wagePeriod" class="select"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
         </div>
         <div class="form-group"><label>Status</label><select v-model="form.active" class="select"><option :value="true">Active</option><option :value="false">Inactive</option></select></div>
@@ -45,13 +45,25 @@
 import { ref, onMounted } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
+import { useFormValidation } from '../composables/useFormValidation'
 const { toast } = useToast()
 const staff = ref([]); const showModal = ref(false); const editing = ref(null)
 const form = ref({ firstName:'', lastName:'', role:'Manager', phone:'', wage:0, wagePeriod:'monthly', active:true })
+const schema = {
+  firstName: { required: true, label: 'First Name', max: 50 },
+  lastName: { required: true, label: 'Last Name', max: 50 },
+  phone: { label: 'Phone', max: 20, pattern: /^[+]?[\d\s\-]{8,20}$/, message: 'Enter a valid phone number' },
+  wage: { required: true, label: 'Wage', min: 0, maxVal: 999999 }
+}
+const { errors: vErrors, validate } = useFormValidation(schema)
 onMounted(loadData)
 async function loadData() { try { staff.value = await apiGet('staff') } catch (e) { console.error(e) } }
 function openAdd() { editing.value=null; form.value={firstName:'',lastName:'',role:'Manager',phone:'',wage:0,wagePeriod:'monthly',active:true}; showModal.value=true }
 function openEdit(s) { editing.value=s; form.value={...s}; showModal.value=true }
-async function saveItem() { try { if(editing.value){ await apiPut('staff/'+editing.value.id,form.value); toast('Updated') } else { await apiPost('staff',form.value); toast('Added') }; showModal.value=false; await loadData() } catch { toast('Failed','error') } }
-async function handleDelete(s) { if(!confirm(`Delete ${s.firstName} ${s.lastName}?`))return; try { await apiDelete('staff/'+s.id); toast('Deleted'); await loadData() } catch { toast('Failed','error') } }
+async function saveItem() { if (!validate(form.value)) { toast('Please fix the errors', 'error'); return } try { if(editing.value){ await apiPut('staff/'+editing.value.id,form.value); toast('Updated') } else { await apiPost('staff',form.value); toast('Added') }; showModal.value=false; await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
+async function handleDelete(s) { if(!confirm(`Delete ${s.firstName} ${s.lastName}?`))return; try { await apiDelete('staff/'+s.id); toast('Deleted'); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
 </script>
+<style scoped>
+.input-error { border-color: var(--danger) !important; }
+.field-error { display: block; font-size: 0.72rem; color: var(--danger); margin-top: 2px; }
+</style>

@@ -73,12 +73,13 @@
         <p class="modal-sub">{{ editing ? 'Update stock item details' : 'Add a new stock item' }}</p>
         <div class="form-group">
           <label>Item Name</label>
-          <input v-model="form.name" placeholder="e.g. Espresso Beans" />
+          <input v-model="form.name" placeholder="e.g. Espresso Beans" :class="{ 'input-error': vErrors.name }" />
+          <span v-if="vErrors.name" class="field-error">{{ vErrors.name }}</span>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Category</label>
-            <select v-model="form.category" class="select">
+            <select v-model="form.category" class="select" :class="{ 'input-error': vErrors.category }">
               <option value="">Select...</option>
               <option value="Coffee">Coffee</option>
               <option value="Dairy">Dairy</option>
@@ -88,6 +89,7 @@
               <option value="Cleaning">Cleaning</option>
               <option value="Other">Other</option>
             </select>
+            <span v-if="vErrors.category" class="field-error">{{ vErrors.category }}</span>
           </div>
           <div class="form-group">
             <label>Unit</label>
@@ -104,7 +106,8 @@
         <div class="form-row">
           <div class="form-group">
             <label>Stock Quantity</label>
-            <input v-model.number="form.quantity" type="number" placeholder="0" />
+            <input v-model.number="form.quantity" type="number" placeholder="0" :class="{ 'input-error': vErrors.quantity }" />
+            <span v-if="vErrors.quantity" class="field-error">{{ vErrors.quantity }}</span>
           </div>
           <div class="form-group">
             <label>Minimum Level</label>
@@ -113,7 +116,8 @@
         </div>
         <div class="form-group">
           <label>Cost per Unit (ETB)</label>
-          <input v-model.number="form.cost" type="number" step="0.01" placeholder="0" />
+          <input v-model.number="form.cost" type="number" step="0.01" placeholder="0" :class="{ 'input-error': vErrors.cost }" />
+          <span v-if="vErrors.cost" class="field-error">{{ vErrors.cost }}</span>
         </div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="showModal=false">Cancel</button>
@@ -128,8 +132,16 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
+import { useFormValidation } from '../composables/useFormValidation'
 
 const { toast } = useToast()
+const schema = {
+  name: { required: true, label: 'Item Name', max: 100 },
+  category: { required: true, label: 'Category' },
+  quantity: { label: 'Stock Quantity', min: 0 },
+  cost: { label: 'Cost per Unit', min: 0 }
+}
+const { errors: vErrors, validate } = useFormValidation(schema)
 const items = ref([])
 const filter = ref('')
 const showModal = ref(false)
@@ -164,6 +176,7 @@ function openEdit(item) {
 }
 
 async function saveItem() {
+  if (!validate(form.value)) { toast('Please fix the errors', 'error'); return }
   try {
     if (editing.value) {
       await apiPut('inventory/' + editing.value.id, form.value)
@@ -174,7 +187,7 @@ async function saveItem() {
     }
     showModal.value = false
     await loadData()
-  } catch { toast('Failed to save', 'error') }
+  } catch (e) { console.error(e); toast('Failed to save', 'error') }
 }
 
 async function quickAdjust(item, delta) {
@@ -183,7 +196,7 @@ async function quickAdjust(item, delta) {
     await apiPut('inventory/' + item.id, { ...item, quantity: newQty })
     item.quantity = newQty
     toast(`${delta > 0 ? '+' : ''}${delta} ${item.name}`)
-  } catch { toast('Adjust failed', 'error') }
+  } catch (e) { console.error(e); toast('Adjust failed', 'error') }
 }
 
 async function handleDelete(item) {
@@ -192,6 +205,10 @@ async function handleDelete(item) {
     await apiDelete('inventory/' + item.id)
     toast('Item deleted')
     await loadData()
-  } catch { toast('Delete failed', 'error') }
+  } catch (e) { console.error(e); toast('Delete failed', 'error') }
 }
 </script>
+<style scoped>
+.input-error { border-color: var(--danger, #e74c3c) !important; }
+.field-error { display: block; color: var(--danger, #e74c3c); font-size: 0.75rem; margin-top: 2px; }
+</style>
