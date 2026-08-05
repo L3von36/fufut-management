@@ -135,7 +135,7 @@ async function loadData() {
     const res = await apiGet('cashdrawer')
     drawers.value = res.drawers || res.data || (Array.isArray(res) ? res : [])
     activeDrawer.value = res.active || drawers.value.find(d => d.status === 'open') || null
-  } catch {}
+  } catch (e) { console.error(e) }
 }
 
 async function handleOpenDrawer() {

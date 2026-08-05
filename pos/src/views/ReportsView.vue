@@ -82,7 +82,7 @@ const topProducts = computed(() => {
   }
   return Object.entries(counts).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count).slice(0,10)
 })
-onMounted(async () => { try { const [o,e]=await Promise.all([apiGet('orders'),apiGet('expenses')]); orders.value=o; expenses.value=e } catch {} })
+onMounted(async () => { try { const [o,e]=await Promise.all([apiGet('orders'),apiGet('expenses')]); orders.value=o; expenses.value=e } catch (e) { console.error(e) } })
 function toCSV(data, fn) {
   if (!data.length) return; const h=Object.keys(data[0]); const r=data.map(x=>h.map(k=>`"${(x[k]||'').toString().replace(/"/g,'""')}"`).join(',')); const csv=[h.join(','),...r].join('\n')
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=fn; a.click()

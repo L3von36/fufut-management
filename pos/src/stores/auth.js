@@ -46,15 +46,19 @@ export const useAuthStore = defineStore('auth', () => {
       const res = await apiGet('auth/me')
       if (res.ok) {
         user.value = res.user
-        roleKey.value = res.role
+        roleKey.value = (res.role || '').toLowerCase().replace(/\s+/g, '-')
         return true
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Session check failed:', e.message)
+    }
     return false
   }
 
   async function logout() {
-    try { await apiPost('auth/logout', {}) } catch {}
+    try { await apiPost('auth/logout', {}) } catch (e) {
+      console.warn('Logout request failed:', e.message)
+    }
     user.value = null
     roleKey.value = ''
   }

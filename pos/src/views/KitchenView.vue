@@ -60,7 +60,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { apiGet, apiPut } from '../api'
+import { apiGet, apiPut, getSSEUrl } from '../api'
 import { useToast } from '../composables/useToast'
 import { useAudioAlerts } from '../composables/useAudioAlerts'
 import { useButtonState } from '../composables/useButtonState'
@@ -87,23 +87,21 @@ onUnmounted(() => {
 })
 
 async function loadOrders() {
-  try { orders.value = await apiGet('orders') } catch {}
+  try { orders.value = await apiGet('orders') } catch (e) { console.error(e) }
 }
 
 function connectSSE() {
-  const proto = window.location.protocol === 'https:' ? 'https' : 'http'
-  sse = new EventSource(`${proto}://${window.location.host}/api/events/kitchen`)
+  sse = new EventSource(getSSEUrl('kitchen'))
   sse.addEventListener('new_order', (e) => {
-    try { const data = JSON.parse(e.data); loadOrders(); playNewOrder(); toast(`New order #${data.id?.slice(-4) || 'received'}`, 'info') } catch {}
+    try { const data = JSON.parse(e.data); loadOrders(); playNewOrder(); toast(`New order #${data.id?.slice(-4) || 'received'}`, 'info') } catch (e) { console.error(e) }
   })
   sse.addEventListener('order_update', (e) => {
     try {
       const data = JSON.parse(e.data); loadOrders()
       if (data.status === 'ready') { playOrderReady(); toast(`Order ${data.id?.slice(-4) || ''} is ready!`, 'success') }
       else { playOrderUpdate() }
-    } catch {}
+    } catch (e) { console.error(e) }
   })
-  sse.onmessage = (e) => { try { JSON.parse(e.data); loadOrders() } catch {} }
   sse.onerror = () => {}
 }
 

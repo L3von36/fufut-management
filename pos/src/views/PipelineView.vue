@@ -133,8 +133,7 @@ let timerInterval = null
 
 onMounted(() => {
   loadOrders()
-  // Connect SSE to backend directly (bypass Vite proxy for long-lived connections)
-  sse.connect('http://localhost:3000/api/events/kitchen')
+  sse.connect('kitchen')
   sse.on('new_order', (data) => {
     // Add to orders list
     orders.value.push({ ...data, timer: 0 })

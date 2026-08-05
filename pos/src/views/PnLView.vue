@@ -50,7 +50,7 @@ const net30 = computed(() => rev30.value - exp30.value)
 
 onMounted(loadData)
 async function loadData() {
-  try { const [o,e]=await Promise.all([apiGet('orders'),apiGet('expenses')]); orders.value=o; expenses.value=e; await nextTick(); await buildCharts() } catch {}
+  try { const [o,e]=await Promise.all([apiGet('orders'),apiGet('expenses')]); orders.value=o; expenses.value=e; await nextTick(); await buildCharts() } catch (e) { console.error(e) }
 }
 
 async function buildCharts() {

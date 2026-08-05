@@ -150,6 +150,19 @@ describe('Auth Store', () => {
       expect(auth.roleKey).toBe('manager')
     })
 
+    it('should normalize role names with spaces to kebab-case', async () => {
+      apiGet.mockResolvedValue({
+        ok: true,
+        user: { id: 'S-2' },
+        role: 'Head Chef'
+      })
+
+      const auth = useAuthStore()
+      const result = await auth.checkSession()
+      expect(result).toBe(true)
+      expect(auth.roleKey).toBe('head-chef')
+    })
+
     it('should return false when session is invalid', async () => {
       apiGet.mockResolvedValue({ ok: false })
 
@@ -164,6 +177,19 @@ describe('Auth Store', () => {
       const auth = useAuthStore()
       const result = await auth.checkSession()
       expect(result).toBe(false)
+    })
+
+    it('should handle missing role gracefully', async () => {
+      apiGet.mockResolvedValue({
+        ok: true,
+        user: { id: 'S-3' },
+        role: undefined
+      })
+
+      const auth = useAuthStore()
+      const result = await auth.checkSession()
+      expect(result).toBe(true)
+      expect(auth.roleKey).toBe('')
     })
   })
 

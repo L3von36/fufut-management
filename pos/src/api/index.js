@@ -31,10 +31,30 @@ if (typeof window !== 'undefined') {
   window.addEventListener('offline', () => setOnline(false))
 }
 
+// Default request timeout (10 seconds)
+const REQUEST_TIMEOUT_MS = 10000
+
 async function tryFetch(url, options) {
-  const r = await fetch(url, options)
-  if (!r.ok) throw new Error(`${options?.method || 'GET'} ${url} ${r.status}`)
-  return r.json()
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    const r = await fetch(url, { ...options, signal: controller.signal })
+    if (!r.ok) {
+      // Try to parse error body for a meaningful message
+      let errMsg = `${options?.method || 'GET'} ${url} ${r.status}`
+      try {
+        const ct = r.headers.get('content-type') || ''
+        if (ct.includes('application/json')) {
+          const errBody = await r.json()
+          if (errBody.error) errMsg = errBody.error
+        }
+      } catch { /* ignore parse failure */ }
+      throw new Error(errMsg)
+    }
+    return r.json()
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 // Offline-first GET: network first, fallback to IndexedDB cache
@@ -93,11 +113,14 @@ export async function apiPut(endpoint, data) {
 
 export async function apiDelete(endpoint, id) {
   const url = `${API}/api/${endpoint}`
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
     const r = await fetch(url, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
+      signal: controller.signal,
       body: JSON.stringify(id ? { id } : undefined)
     })
     if (!r.ok) throw new Error(`DELETE ${endpoint} ${r.status}`)
@@ -106,6 +129,8 @@ export async function apiDelete(endpoint, id) {
     const body = id ? { id } : undefined
     await queueMutation('DELETE', endpoint, body)
     return { ok: true, _offline: true }
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -153,3 +178,10 @@ export const NAV_ITEMS = [
 ]
 
 export const TODAY = () => new Date().toISOString().slice(0, 10)
+
+// Build an SSE URL that works in both dev and production.
+// Uses the same origin so the Cloudflare Pages Function proxy handles the connection.
+export function getSSEUrl(eventPath) {
+  const proto = window.location.protocol === 'https:' ? 'https' : 'http'
+  return `${proto}://${window.location.host}/api/events/${eventPath}`
+}

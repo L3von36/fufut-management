@@ -100,7 +100,7 @@ const filteredTables = computed(() => {
 onMounted(loadTables)
 
 async function loadTables() {
-  try { tables.value = await apiGet('tables') } catch {}
+  try { tables.value = await apiGet('tables') } catch (e) { console.error(e) }
 }
 
 function openEdit(t) {

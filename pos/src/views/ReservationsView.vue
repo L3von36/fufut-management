@@ -64,7 +64,7 @@ const reservations = ref([]); const statusFilter = ref(''); const showModal = re
 const form = ref({ name:'', guests:2, date:'', time:'', tableNum:'', phone:'' })
 const filteredReservations = computed(() => !statusFilter.value ? reservations.value : reservations.value.filter(r=>r.status===statusFilter.value))
 onMounted(()=>{const n=new Date(); form.value.date=n.toISOString().slice(0,10); form.value.time=n.toTimeString().slice(0,5); loadData()})
-async function loadData() { try { reservations.value = await apiGet('reservations') } catch {} }
+async function loadData() { try { reservations.value = await apiGet('reservations') } catch (e) { console.error(e) } }
 async function saveItem() { try { await apiPost('reservations',{...form.value,status:'new'}); toast('Created'); showModal.value=false; await loadData() } catch { toast('Failed','error') } }
 async function updateStatus(r,s) { r.status=s; try { await apiPut('reservations/'+r.id,r); toast(s); await loadData() } catch { toast('Failed','error') } }
 function openAdd() { const n=new Date(); form.value={name:'',guests:2,date:n.toISOString().slice(0,10),time:n.toTimeString().slice(0,5),tableNum:'',phone:''}; showModal.value=true }

@@ -55,7 +55,7 @@ const shifts = ref([]); const filter = ref(''); const showModal = ref(false); co
 const form = ref({ staffName:'', shift:'morning', date:'', start:'09:00', end:'17:00' })
 const filteredShifts = computed(()=>!filter.value?shifts.value:shifts.value.filter(s=>(s.shift||s.type)===filter.value))
 onMounted(()=>{form.value.date=new Date().toISOString().slice(0,10); loadData()})
-async function loadData() { try { shifts.value = await apiGet('shifts') } catch {} }
+async function loadData() { try { shifts.value = await apiGet('shifts') } catch (e) { console.error(e) } }
 function openAdd() { editing.value=null; form.value={staffName:'',shift:'morning',date:new Date().toISOString().slice(0,10),start:'09:00',end:'17:00'}; showModal.value=true }
 function openEdit(s) { editing.value=s; form.value={...s}; showModal.value=true }
 async function saveItem() { try { if(editing.value){ await apiPut('shifts/'+editing.value.id,form.value); toast('Updated') } else { await apiPost('shifts',form.value); toast('Added') }; showModal.value=false; await loadData() } catch { toast('Failed','error') } }

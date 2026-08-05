@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { apiGet, apiPost, apiPut, apiDelete, isOnline, onOnlineChange, ROLE_PERMISSIONS, ROLE_DEFAULT_VIEW, NAV_ITEMS, TODAY } from '../../src/api'
+import { apiGet, apiPost, apiPut, apiDelete, isOnline, onOnlineChange, ROLE_PERMISSIONS, ROLE_DEFAULT_VIEW, NAV_ITEMS, TODAY, getSSEUrl } from '../../src/api'
 
 // Mock the db module
 vi.mock('../../src/db', () => ({
@@ -31,7 +31,7 @@ describe('API Client', () => {
 
       const result = await apiGet('orders')
       expect(result).toEqual(mockData)
-      expect(fetch).toHaveBeenCalledWith('/api/orders', { credentials: 'include' })
+      expect(fetch).toHaveBeenCalledWith('/api/orders', expect.objectContaining({ credentials: 'include' }))
     })
 
     it('should cache array responses to IndexedDB', async () => {
@@ -99,12 +99,12 @@ describe('API Client', () => {
       const body = { items: 'Espresso', total: 50 }
       const result = await apiPost('orders', body)
       expect(result).toEqual(mockResponse)
-      expect(fetch).toHaveBeenCalledWith('/api/orders', {
+      expect(fetch).toHaveBeenCalledWith('/api/orders', expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(body)
-      })
+      }))
     })
 
     it('should queue non-auth mutations when offline', async () => {
@@ -137,12 +137,12 @@ describe('API Client', () => {
 
       const result = await apiPut('orders/O-1', { status: 'preparing' })
       expect(result).toEqual(mockResponse)
-      expect(fetch).toHaveBeenCalledWith('/api/orders/O-1', {
+      expect(fetch).toHaveBeenCalledWith('/api/orders/O-1', expect.objectContaining({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ status: 'preparing' })
-      })
+      }))
     })
 
     it('should queue mutations when offline', async () => {
@@ -165,12 +165,12 @@ describe('API Client', () => {
       })
 
       const result = await apiDelete('orders', 'O-1')
-      expect(fetch).toHaveBeenCalledWith('/api/orders', {
+      expect(fetch).toHaveBeenCalledWith('/api/orders', expect.objectContaining({
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ id: 'O-1' })
-      })
+      }))
     })
 
     it('should queue delete mutations when offline', async () => {
@@ -190,12 +190,12 @@ describe('API Client', () => {
       })
 
       await apiDelete('orders')
-      expect(fetch).toHaveBeenCalledWith('/api/orders', {
+      expect(fetch).toHaveBeenCalledWith('/api/orders', expect.objectContaining({
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(undefined)
-      })
+      }))
     })
   })
 
@@ -271,6 +271,52 @@ describe('API Client', () => {
       expect(parseInt(parts[0])).toBe(date.getFullYear())
       expect(parseInt(parts[1]) - 1).toBe(date.getMonth())
       expect(parseInt(parts[2])).toBe(date.getDate())
+    })
+
+    it('getSSEUrl should build a same-origin URL with the correct protocol', () => {
+      const url = getSSEUrl('kitchen')
+      expect(url).toContain(window.location.host)
+      expect(url).toContain('/api/events/kitchen')
+      const expectedProto = window.location.protocol === 'https:' ? 'https' : 'http'
+      expect(url).toMatch(new RegExp(`^${expectedProto}://`))
+    })
+  })
+
+  describe('Request timeouts', () => {
+    it('should pass AbortSignal to fetch calls', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([])
+      })
+
+      await apiGet('orders')
+      const callArgs = fetch.mock.calls[0][1]
+      expect(callArgs.signal).toBeDefined()
+      expect(callArgs.signal instanceof AbortSignal).toBe(true)
+    })
+
+    it('should include signal in POST requests', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ok: true })
+      })
+
+      await apiPost('orders', { items: 'Espresso' })
+      const callArgs = fetch.mock.calls[0][1]
+      expect(callArgs.signal).toBeDefined()
+      expect(callArgs.signal instanceof AbortSignal).toBe(true)
+    })
+
+    it('should include signal in DELETE requests', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ok: true })
+      })
+
+      await apiDelete('orders', 'O-1')
+      const callArgs = fetch.mock.calls[0][1]
+      expect(callArgs.signal).toBeDefined()
+      expect(callArgs.signal instanceof AbortSignal).toBe(true)
     })
   })
 })

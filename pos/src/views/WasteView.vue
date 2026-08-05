@@ -61,7 +61,7 @@ const form = ref({ name:'', category:'', quantity:1, reason:'', cost:0, date:'' 
 const filteredWaste = computed(()=>!filter.value?wasteItems.value:wasteItems.value.filter(w=>w.category===filter.value))
 const totalWasteCost = computed(()=>wasteItems.value.reduce((s,w)=>s+parseFloat(w.cost||0),0))
 onMounted(()=>{form.value.date=new Date().toISOString().slice(0,10); loadData()})
-async function loadData() { try { wasteItems.value = await apiGet('waste') } catch {} }
+async function loadData() { try { wasteItems.value = await apiGet('waste') } catch (e) { console.error(e) } }
 function openAdd() { form.value={name:'',category:'',quantity:1,reason:'',cost:0,date:new Date().toISOString().slice(0,10)}; showModal.value=true }
 async function saveItem() { try { await apiPost('waste',form.value); toast('Logged'); showModal.value=false; await loadData() } catch { toast('Failed','error') } }
 async function handleDelete(w) { if(!confirm('Delete?'))return; try { await apiDelete('waste/'+w.id); toast('Deleted'); await loadData() } catch { toast('Failed','error') } }

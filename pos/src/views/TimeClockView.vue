@@ -38,5 +38,5 @@ const entries = ref([]); const staffList = ref([]); const staffFilter = ref('')
 const clockedIn = computed(()=>entries.value.filter(e=>!e.clockOut))
 const filteredEntries = computed(()=>!staffFilter.value?entries.value:entries.value.filter(e=>e.staffId===staffFilter.value||e.name===staffFilter.value))
 function formatDuration(e) { if(!e.clockIn)return'—'; const start=new Date(e.clockIn); const end=e.clockOut?new Date(e.clockOut):new Date(); const ms=end-start; const h=Math.floor(ms/3600000); const m=Math.floor((ms%3600000)/60000); return `${h}h ${m}m` }
-onMounted(async()=>{ try { const [t,s]=await Promise.all([apiGet('timeclock'),apiGet('staff')]); entries.value=t; staffList.value=s } catch {} })
+onMounted(async()=>{ try { const [t,s]=await Promise.all([apiGet('timeclock'),apiGet('staff')]); entries.value=t; staffList.value=s } catch (e) { console.error(e) } })
 </script>

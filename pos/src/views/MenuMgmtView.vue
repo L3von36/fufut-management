@@ -136,7 +136,7 @@ function marginClass(item) {
 onMounted(loadData)
 
 async function loadData() {
-  try { items.value = await apiGet('menu') } catch {}
+  try { items.value = await apiGet('menu') } catch (e) { console.error(e) }
 }
 
 function openAdd() {

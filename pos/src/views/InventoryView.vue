@@ -148,7 +148,7 @@ function isLow(i) { return parseInt(i.quantity||0) <= parseInt(i.minLevel||0) }
 onMounted(loadData)
 
 async function loadData() {
-  try { items.value = await apiGet('inventory') } catch {}
+  try { items.value = await apiGet('inventory') } catch (e) { console.error(e) }
 }
 
 function openAdd() {

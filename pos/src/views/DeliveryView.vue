@@ -48,6 +48,6 @@ const inTransit = computed(()=>deliveries.value.filter(d=>d.status==='in-transit
 const delivered = computed(()=>deliveries.value.filter(d=>d.status==='delivered'))
 const filteredDeliveries = computed(()=>!statusFilter.value?deliveries.value:deliveries.value.filter(d=>d.status===statusFilter.value))
 onMounted(loadData)
-async function loadData() { try { deliveries.value = await apiGet('delivery') } catch {} }
+async function loadData() { try { deliveries.value = await apiGet('delivery') } catch (e) { console.error(e) } }
 async function updateStatus(d,s) { d.status=s; try { await apiPut('delivery/'+d.id,d); toast(s); await loadData() } catch { toast('Failed','error') } }
 </script>

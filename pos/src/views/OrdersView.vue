@@ -201,11 +201,11 @@ onMounted(async () => {
 })
 
 async function loadOrders() {
-  try { orders.value = await apiGet('orders') } catch {}
+  try { orders.value = await apiGet('orders') } catch (e) { console.error(e) }
 }
 
 async function loadMenu() {
-  try { menuItems.value = await apiGet('menu') } catch {}
+  try { menuItems.value = await apiGet('menu') } catch (e) { console.error(e) }
 }
 
 function openNewOrder() {
@@ -257,23 +257,30 @@ async function updateStatus(order, status) {
   } catch { toast('Failed to update', 'error') }
 }
 
+function escapeHtml(str) {
+  const s = String(str ?? '')
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 function printReceipt(order) {
   const w = window.open('', '_blank')
   if (!w) return
-  w.document.write(`
-    <html><head><title>Receipt #${order.id}</title>
+  const safeId = escapeHtml(order.id)
+  const safeItems = escapeHtml(order.items)
+  const safePayment = escapeHtml(order.payment)
+  const safeTotal = escapeHtml(parseFloat(order.total||0).toFixed(0))
+  w.document.write(`<html><head><title>Receipt #${safeId}</title>
     <style>body{font-family:monospace;padding:20px;max-width:300px;margin:0 auto}
     h2{text-align:center}table{width:100%}th,td{text-align:left;padding:4px 0}
     .total{font-weight:700;border-top:2px solid #000;padding-top:8px}
     </style></head><body>
     <h2>FU FUT Café</h2>
-    <p style="text-align:center">Receipt #${order.id}<br>${new Date().toLocaleString()}</p>
-    <hr><p><strong>Items:</strong> ${order.items}</p>
-    <hr><p><strong>Total:</strong> ETB ${parseFloat(order.total||0).toFixed(0)}</p>
-    <p><strong>Payment:</strong> ${order.payment||'—'}</p>
+    <p style="text-align:center">Receipt #${safeId}<br>${new Date().toLocaleString()}</p>
+    <hr><p><strong>Items:</strong> ${safeItems}</p>
+    <hr><p><strong>Total:</strong> ETB ${safeTotal}</p>
+    <p><strong>Payment:</strong> ${safePayment}</p>
     <hr><p style="text-align:center">Thank you!</p>
-    </body></html>
-  `)
+    </body></html>`)
   w.document.close()
   w.print()
 }

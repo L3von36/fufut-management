@@ -8,7 +8,8 @@ const mockApiGet = vi.fn()
 const mockApiPut = vi.fn()
 vi.mock('../../../src/api', () => ({
   apiGet: (...args) => mockApiGet(...args),
-  apiPut: (...args) => mockApiPut(...args)
+  apiPut: (...args) => mockApiPut(...args),
+  getSSEUrl: (eventPath) => `http://localhost:1234/api/events/${eventPath}`
 }))
 
 // Mock useAudioAlerts

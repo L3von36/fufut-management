@@ -5,7 +5,8 @@ import { useToast } from '../../src/composables/useToast'
 // Mock API for useSync
 vi.mock('../../src/api', () => ({
   isOnline: vi.fn(() => true),
-  onOnlineChange: vi.fn(() => vi.fn())
+  onOnlineChange: vi.fn(() => vi.fn()),
+  getSSEUrl: vi.fn((eventPath) => `http://localhost:1234/api/events/${eventPath}`)
 }))
 
 // Mock DB for useSync

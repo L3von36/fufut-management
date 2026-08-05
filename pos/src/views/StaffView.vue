@@ -49,7 +49,7 @@ const { toast } = useToast()
 const staff = ref([]); const showModal = ref(false); const editing = ref(null)
 const form = ref({ firstName:'', lastName:'', role:'Manager', phone:'', wage:0, wagePeriod:'monthly', active:true })
 onMounted(loadData)
-async function loadData() { try { staff.value = await apiGet('staff') } catch {} }
+async function loadData() { try { staff.value = await apiGet('staff') } catch (e) { console.error(e) } }
 function openAdd() { editing.value=null; form.value={firstName:'',lastName:'',role:'Manager',phone:'',wage:0,wagePeriod:'monthly',active:true}; showModal.value=true }
 function openEdit(s) { editing.value=s; form.value={...s}; showModal.value=true }
 async function saveItem() { try { if(editing.value){ await apiPut('staff/'+editing.value.id,form.value); toast('Updated') } else { await apiPost('staff',form.value); toast('Added') }; showModal.value=false; await loadData() } catch { toast('Failed','error') } }

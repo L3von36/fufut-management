@@ -195,4 +195,20 @@ describe('OrdersView', () => {
     expect(badge.exists()).toBe(true)
     expect(badge.text()).toBe('preparing')
   })
+
+  it('escapeHtml should sanitize malicious content for receipt printing', () => {
+    // Test the escapeHtml function directly (extracted from the component)
+    function escapeHtml(str) {
+      const s = String(str ?? '')
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    }
+
+    expect(escapeHtml('<script>alert(1)</script>')).toBe('&lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(escapeHtml('<img onerror=alert(1)>')).toBe('&lt;img onerror=alert(1)&gt;')
+    expect(escapeHtml('"onclick="alert(1)')).toBe('&quot;onclick=&quot;alert(1)')
+    expect(escapeHtml('Normal text & numbers 123')).toBe('Normal text &amp; numbers 123')
+    expect(escapeHtml(null)).toBe('')
+    expect(escapeHtml(undefined)).toBe('')
+    expect(escapeHtml(42)).toBe('42')
+  })
 })

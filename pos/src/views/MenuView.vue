@@ -252,7 +252,7 @@ async function loadData() {
     const catSet = new Set()
     items.value.forEach(i => { if (i.category) catSet.add(i.category) })
     categories.value = Array.from(catSet)
-  } catch {}
+  } catch (e) { console.error(e) }
 }
 </script>
 
