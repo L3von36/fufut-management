@@ -83,13 +83,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../composables/useToast'
 import { useButtonState } from '../composables/useButtonState'
 import { useFormValidation } from '../composables/useFormValidation'
 
-const { toast } = useToast()
+const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const btnState = useButtonState({ successDuration: 2000 })
 const schema = {
   name: { required: true, label: 'Item Name', max: 100 },
@@ -169,7 +169,7 @@ async function saveItem() {
 }
 
 async function handleDelete(item) {
-  if (!confirm(`Delete "${item.name}"?`)) return
+  if (!await confirmDelete(`Delete "${item.name}"?`)) return
   try { await apiDelete('menu/' + item.id); toast('Deleted'); await loadData() } catch (e) { toast(e.message, 'error') }
 }
 </script>

@@ -1,5 +1,7 @@
 <template>
   <div class="tm-page" style="position:relative">
+    <!-- Reactive tick for timer updates -->
+    <span style="display:none">{{ tick }}</span>
     <!-- Loading -->
     <div v-if="loading" class="loading-overlay"><div class="spinner"></div></div>
 
@@ -14,7 +16,7 @@
           <span class="tm-sse-dot" :class="{ active: sseConnected }"></span>
           <span>{{ sseConnected ? 'Live' : 'Go Live' }}</span>
         </button>
-        <button v-if="authStore?.role === 'manager'" class="btn btn-primary btn-sm" @click="openAddTable">
+        <button v-if="authStore?.roleKey === 'manager'" class="btn btn-primary btn-sm" @click="openAddTable">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Table
         </button>
@@ -206,7 +208,7 @@
             Go to Checkout
           </button>
           <div class="tm-actions-spacer"></div>
-          <button v-if="authStore?.role === 'manager'" class="btn btn-danger btn-sm" @click="deleteTable">
+          <button v-if="authStore?.roleKey === 'manager'" class="btn btn-danger btn-sm" @click="deleteTable">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             Delete
           </button>
@@ -264,16 +266,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted , inject} from 'vue'
 import { useRouter } from 'vue-router'
 import { apiGet, apiPut, apiPost, apiDelete } from '../api'
-import { useToast } from '../composables/useToast'
 import { useSSE } from '../composables/useSSE'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
 
-const { toast } = useToast()
+const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const authStore = useAuthStore()
 const { connected: sseConnected, connect: sseConnect, disconnect: sseDisconnect, on: sseOn } = useSSE()
 
@@ -288,6 +290,7 @@ const detailOrders = ref([])
 const showAddModal = ref(false)
 const statuses = ['available', 'occupied', 'reserved', 'cleaning']
 let timerInterval = null
+const tick = ref(0) // Reactive trigger for timer updates
 
 const newTable = ref({ number: '', name: '', capacity: 4, section: 'Main Hall', shape: 'square' })
 
@@ -323,7 +326,7 @@ const occupiedGuests = computed(() => tables.value.filter(t => t.status === 'occ
 
 const tableOrderCounts = computed(() => {
   const map = {}
-  const active = orders.value.filter(o => !['completed', 'cancelled'].includes(o.status))
+  const active = orders.value.filter(o => !['completed', 'cancelled', 'fulfilled'].includes(o.status))
   for (const o of active) {
     const tn = o.table_number || o.tableNum || ''
     if (!tn) continue
@@ -336,7 +339,7 @@ const tableOrderCounts = computed(() => {
 
 const tableOrderTotals = computed(() => {
   const map = {}
-  const active = orders.value.filter(o => !['completed', 'cancelled'].includes(o.status))
+  const active = orders.value.filter(o => !['completed', 'cancelled', 'fulfilled'].includes(o.status))
   for (const o of active) {
     const tn = o.table_number || o.tableNum || ''
     if (!tn) continue
@@ -426,7 +429,7 @@ async function openDetail(t) {
   const tn = String(t.number)
   try {
     detailOrders.value = await apiGet(`orders?table_number=${tn}`) || []
-    detailOrders.value = detailOrders.value.filter(o => !['completed', 'cancelled'].includes(o.status))
+    detailOrders.value = detailOrders.value.filter(o => !['completed', 'cancelled', 'fulfilled'].includes(o.status))
   } catch {
     detailOrders.value = []
   }
@@ -465,7 +468,7 @@ async function saveDetail() {
 
 async function deleteTable() {
   if (!detailTable.value) return
-  if (!confirm(`Delete Table ${detailTable.value.number}? This cannot be undone.`)) return
+  if (!await confirmDelete(`Delete Table ${detailTable.value.number}? This cannot be undone.`)) return
   try {
     await apiDelete('tables', detailTable.value.id)
     toast('Table deleted')
@@ -478,8 +481,9 @@ async function deleteTable() {
 
 function newOrderForTable() {
   if (!detailTable.value) return
+  const tableNum = detailTable.value.number
   closeDetail()
- router.push('/app/menu-view?table=' + detailTable.value.number)
+  router.push('/app/menu-view?table=' + tableNum)
 }
 
 function goToCheckout() {
@@ -516,8 +520,8 @@ onMounted(async () => {
   loading.value = false
   setupSSE()
   timerInterval = setInterval(() => {
-    // Force reactivity update for timers
-    tables.value = [...tables.value]
+    // Trigger reactive update for occupancy timers without full re-render
+    tick.value++
   }, 10000)
 })
 

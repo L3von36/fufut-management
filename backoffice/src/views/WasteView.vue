@@ -80,6 +80,7 @@ async function _loadChart() {
 }
 
 const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const btnState = useButtonState({ successDuration: 2000 })
 const wasteChart = ref(null)
 const items = ref([])
@@ -121,5 +122,5 @@ async function saveItem() {
     btnState.setSuccess()
   } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
 }
-async function deleteItem(id) { if (!confirm('Delete?')) return; try { await apiDelete('waste', id); toast('Deleted'); await loadWaste() } catch (e) { toast(e.message, 'error') } }
+async function deleteItem(id) { if (!await confirmDelete('Delete this waste entry?')) return; try { await apiDelete('waste', id); toast('Deleted'); await loadWaste() } catch (e) { toast(e.message, 'error') } }
 </script>

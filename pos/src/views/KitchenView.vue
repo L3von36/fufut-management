@@ -169,18 +169,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { apiGet, apiPut, getSSEUrl } from '../api'
-import { useToast } from '../composables/useToast'
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
+import { apiGet, apiPut } from '../api'
 import { useAudioAlerts } from '../composables/useAudioAlerts'
 import { useButtonState } from '../composables/useButtonState'
 import { useAuthStore } from '../stores/auth'
+import { useSSE } from '../composables/useSSE'
 
-const { toast } = useToast()
+const toast = inject('toast')
 const auth = useAuthStore()
 const { muted, enabled, playNewOrder, playOrderReady, playOrderUpdate, toggleMute } = useAudioAlerts()
+const sse = useSSE()
 const orders = ref([])
-let sse = null
 let timer = null
 let clockTimer = null
 const now = ref(Date.now())
@@ -209,7 +209,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (sse) sse.close()
+  sse.disconnect()
   if (timer) clearInterval(timer)
   if (clockTimer) clearInterval(clockTimer)
 })
@@ -221,28 +221,21 @@ async function loadOrders() {
 }
 
 function connectSSE() {
-  sse = new EventSource(getSSEUrl('kitchen'))
-  sse.addEventListener('new_order', (e) => {
-    try {
-      const data = JSON.parse(e.data)
-      loadOrders()
-      playNewOrder()
-      toast(`New order #${data.id?.slice(-4) || 'received'}`, 'info')
-    } catch (e) { console.error(e) }
+  sse.connect('kitchen')
+  sse.on('new_order', (data) => {
+    loadOrders()
+    playNewOrder()
+    toast(`New order #${data.id?.slice(-4) || 'received'}`, 'info')
   })
-  sse.addEventListener('order_update', (e) => {
-    try {
-      const data = JSON.parse(e.data)
-      loadOrders()
-      if (data.status === 'ready') {
-        playOrderReady()
-        toast(`Order ${data.id?.slice(-4) || ''} is ready!`, 'success')
-      } else {
-        playOrderUpdate()
-      }
-    } catch (e) { console.error(e) }
+  sse.on('order_update', (data) => {
+    loadOrders()
+    if (data.status === 'ready') {
+      playOrderReady()
+      toast(`Order ${data.id?.slice(-4) || ''} is ready!`, 'success')
+    } else {
+      playOrderUpdate()
+    }
   })
-  sse.onerror = () => {}
 }
 
 async function updateStatus(id, status) {

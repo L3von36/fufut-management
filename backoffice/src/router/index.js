@@ -57,8 +57,21 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+// Track whether we have attempted session restoration this page load
+let sessionChecked = false
+
+router.beforeEach(async (to, from, next) => {
   const auth = useAuthStore()
+
+  // On first navigation, try to restore session from server cookie
+  if (!sessionChecked && to.meta.requiresAuth) {
+    sessionChecked = true
+    if (!auth.isAuthenticated) {
+      const restored = await auth.checkSession()
+      if (restored) return next(to.fullPath)
+    }
+  }
+
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return next('/login')
   }

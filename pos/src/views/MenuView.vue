@@ -46,7 +46,7 @@
             <p v-if="item.description" class="menu-desc">{{ item.description }}</p>
             <div class="menu-meta">
               <span class="menu-category-tag">{{ item.category }}</span>
-              <span v-if="item.cost && parseFloat(item.cost) > 0" class="menu-cost-badge">Gross {{ ((parseFloat(item.price)-parseFloat(item.cost))/parseFloat(item.price)*100).toFixed(0) }}%</span>
+              <span v-if="item.cost && parseFloat(item.cost) > 0 && parseFloat(item.price) > 0" class="menu-cost-badge">Gross {{ ((parseFloat(item.price)-parseFloat(item.cost))/parseFloat(item.price)*100).toFixed(0) }}%</span>
             </div>
             <div v-if="hasModifiers(item)" class="menu-modifiers">
               <span v-for="mod in getModifierList(item).slice(0, 3)" :key="mod" class="mod-tag">{{ formatModName(mod) }}</span>

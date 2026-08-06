@@ -133,13 +133,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../composables/useToast'
 import { useFormValidation } from '../composables/useFormValidation'
 import { useAuthStore } from '../stores/auth'
 
-const { toast } = useToast()
+const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const auth = useAuthStore()
 const schema = {
   name: { required: true, label: 'Item Name', max: 100 },
@@ -206,7 +206,7 @@ async function quickAdjust(item, delta) {
 }
 
 async function handleDelete(item) {
-  if (!confirm(`Delete ${item.name}?`)) return
+  if (!await confirmDelete(`Delete ${item.name}?`)) return
   try {
     await apiDelete('inventory/' + item.id)
     toast('Item deleted')

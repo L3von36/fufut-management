@@ -42,11 +42,11 @@
   </div>
 </template>
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted , inject} from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../composables/useToast'
 import { useFormValidation } from '../composables/useFormValidation'
-const { toast } = useToast()
+const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const staff = ref([]); const showModal = ref(false); const editing = ref(null)
 const form = ref({ firstName:'', lastName:'', role:'Manager', phone:'', wage:0, wagePeriod:'monthly', active:true })
 const schema = {
@@ -61,7 +61,7 @@ async function loadData() { try { staff.value = await apiGet('staff') } catch (e
 function openAdd() { editing.value=null; form.value={firstName:'',lastName:'',role:'Manager',phone:'',wage:0,wagePeriod:'monthly',active:true}; showModal.value=true }
 function openEdit(s) { editing.value=s; form.value={...s}; showModal.value=true }
 async function saveItem() { if (!validate(form.value)) { toast('Please fix the errors', 'error'); return } try { if(editing.value){ await apiPut('staff/'+editing.value.id,form.value); toast('Updated') } else { await apiPost('staff',form.value); toast('Added') }; showModal.value=false; await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
-async function handleDelete(s) { if(!confirm(`Delete ${s.firstName} ${s.lastName}?`))return; try { await apiDelete('staff/'+s.id); toast('Deleted'); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
+async function handleDelete(s) { if(!await confirmDelete(`Delete ${s.firstName} ${s.lastName}?`))return; try { await apiDelete('staff/'+s.id); toast('Deleted'); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
 </script>
 <style scoped>
 .input-error { border-color: var(--danger) !important; }

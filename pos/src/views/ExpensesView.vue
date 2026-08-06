@@ -74,12 +74,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../composables/useToast'
 import { useFormValidation } from '../composables/useFormValidation'
 
-const { toast } = useToast()
+const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const expenses = ref([]); const filter = ref(''); const showModal = ref(false); const editing = ref(null)
 const form = ref({ category: '', description: '', amount: 0, date: '' })
 const categories = ['Rent','Utilities','Supplies','Equipment','Maintenance','Marketing','Other']
@@ -97,7 +97,7 @@ async function loadData() { try { expenses.value = await apiGet('expenses') } ca
 function openAdd() { editing.value=null; form.value={category:'',description:'',amount:0,date:new Date().toISOString().slice(0,10)}; showModal.value=true }
 function openEdit(e) { editing.value=e; form.value={...e}; showModal.value=true }
 async function saveItem() { if (!validate(form.value)) { toast('Please fix the errors', 'error'); return } try { if(editing.value){ await apiPut('expenses/'+editing.value.id,form.value); toast('Updated') } else { await apiPost('expenses',form.value); toast('Added') }; showModal.value=false; await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
-async function handleDelete(e) { if(!confirm('Delete?'))return; try { await apiDelete('expenses/'+e.id); toast('Deleted'); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
+async function handleDelete(e) { if(!await confirmDelete('Delete?'))return; try { await apiDelete('expenses/'+e.id); toast('Deleted'); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
 </script>
 <style scoped>
 .input-error { border-color: var(--danger) !important; }

@@ -69,6 +69,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const btnState = useButtonState({ successDuration: 2000 })
 const items = ref([])
 const search = ref('')
@@ -97,5 +98,5 @@ async function saveItem() {
   } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
 }
 
-async function deleteItem(id) { if (!confirm('Delete this item?')) return; try { await apiDelete('inventory', id); toast('Deleted'); await loadItems() } catch (e) { toast(e.message, 'error') } }
+async function deleteItem(id) { if (!await confirmDelete('Delete this item?')) return; try { await apiDelete('inventory', id); toast('Deleted'); await loadItems() } catch (e) { toast(e.message, 'error') } }
 </script>

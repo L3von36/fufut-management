@@ -60,6 +60,7 @@ import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
 import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const btnState = useButtonState({ successDuration: 2000 })
 const shifts = ref([])
 const dateFrom = ref(TODAY())
@@ -85,5 +86,5 @@ async function saveShift() {
   } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
 }
 
-async function handleDelete(id) { if (!confirm('Delete shift?')) return; try { await apiDelete('shifts', id); toast('Deleted'); await loadShifts() } catch (e) { toast(e.message, 'error') } }
+async function handleDelete(id) { if (!await confirmDelete('Delete this shift?')) return; try { await apiDelete('shifts', id); toast('Deleted'); await loadShifts() } catch (e) { toast(e.message, 'error') } }
 </script>

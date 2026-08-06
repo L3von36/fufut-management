@@ -56,11 +56,10 @@
   </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPut } from '../api'
-import { useToast } from '../composables/useToast'
 
-const { toast } = useToast()
+const toast = inject('toast')
 const deliveries = ref([])
 const statusFilter = ref('')
 const search = ref('')

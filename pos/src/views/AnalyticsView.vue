@@ -15,7 +15,7 @@
         <span v-if="preset==='custom'" style="color:var(--text-muted)">to</span>
         <input v-if="preset==='custom'" type="date" v-model="dateTo" class="input input-sm" style="width:auto" />
         <button v-if="preset==='custom'" class="btn btn-primary btn-sm" @click="loadData">Apply</button>
-        <button class="btn btn-outline btn-sm" @click="exportReport">Export PDF</button>
+        <button class="btn btn-outline btn-sm" @click="exportReport">Export JSON</button>
       </div>
     </div>
 
@@ -227,10 +227,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch , inject} from 'vue'
 import { apiGet, TODAY } from '../api'
-import { useToast } from '../composables/useToast'
-const { toast } = useToast()
+const toast = inject('toast')
 
 // ─── Chart.js lazy loader ───
 let _Chart = null

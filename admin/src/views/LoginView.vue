@@ -59,12 +59,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { API } from '../api'
 import { useButtonState } from '../composables/useButtonState'
 
 const router = useRouter()
+const toast = inject('toast')
 const password = ref('')
 const error = ref('')
 const btnState = useButtonState({ successDuration: 2000 })
@@ -88,6 +89,7 @@ async function login() {
     if (data.ok) {
       sessionStorage.setItem('admin_auth', '1')
       btnState.setSuccess()
+      toast('Welcome back, Admin', 'success')
       setTimeout(() => router.push('/app/menu'), 800)
     } else {
       error.value = data.error || 'Invalid password'

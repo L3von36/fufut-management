@@ -7,7 +7,7 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div class="card">
         <h3 style="font-size:.9rem;color:var(--text-heading);margin-bottom:16px;font-weight:600">Profile</h3>
-        <div class="form-group"><label>Full Name</label><input v-model="profile.firstName" placeholder="First Name" style="margin-bottom:8px" /><input v-model="profile.lastName" placeholder="Last Name" /></div>
+        <div class="form-group"><label>Full Name</label><input :value="profile.firstName" placeholder="First Name" readonly style="margin-bottom:8px" /><input :value="profile.lastName" placeholder="Last Name" readonly /></div>
         <div class="form-group"><label>Role</label><input :value="profile.role" disabled style="opacity:.6" /></div>
         <div class="form-group"><label>Staff ID</label><input :value="profile.id" disabled style="opacity:.6" /></div>
       </div>

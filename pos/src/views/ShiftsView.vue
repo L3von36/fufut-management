@@ -68,13 +68,13 @@
   </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../composables/useToast'
 import { useFormValidation } from '../composables/useFormValidation'
 import { useAuthStore } from '../stores/auth'
 
-const { toast } = useToast()
+const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const auth = useAuthStore()
 const schema = {
   staffName: { required: true, label: 'Staff Name', max: 100 },
@@ -141,7 +141,7 @@ async function saveItem() {
 }
 
 async function handleDelete(s) {
-  if (!confirm('Delete this shift?')) return
+  if (!await confirmDelete('Delete this shift?')) return
   try { await apiDelete('shifts/' + s.id); toast('Deleted'); await loadData() } catch (e) { console.error(e); toast('Failed', 'error') }
 }
 </script>

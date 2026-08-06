@@ -71,6 +71,7 @@ import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
 import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const btnState = useButtonState({ successDuration: 2000 })
 const expenses = ref([])
 const dateFrom = ref(TODAY())
@@ -111,7 +112,7 @@ async function saveExpense() {
 }
 
 async function deleteExpense(id) {
-  if (!confirm('Delete this expense?')) return
+  if (!await confirmDelete('Delete this expense?')) return
   try { await apiDelete('expenses', id); toast('Expense deleted'); await loadExpenses() } catch (e) { toast(e.message, 'error') }
 }
 

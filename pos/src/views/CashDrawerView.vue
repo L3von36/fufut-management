@@ -94,12 +94,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPost } from '../api'
-import { useToast } from '../composables/useToast'
 import { useButtonState } from '../composables/useButtonState'
 
-const { toast } = useToast()
+const toast = inject('toast')
 const btnState = useButtonState({ successDuration: 2000 })
 const drawers = ref([])
 const activeDrawer = ref(null)

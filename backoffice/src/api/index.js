@@ -71,11 +71,23 @@ export async function apiDelete(endpoint, id) {
 }
 
 export const ROLE_PERMISSIONS = {
-  manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'pipeline', 'tables']
+  manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'pipeline', 'tables'],
+  'head-chef': ['dashboard', 'orders', 'inventory', 'waste', 'reports', 'pipeline'],
+  'assistant-chef': ['dashboard', 'orders', 'inventory'],
+  'head-waiter': ['dashboard', 'orders', 'tables', 'reservations', 'delivery', 'reports', 'pipeline'],
+  cashier: ['dashboard', 'orders', 'tables', 'reports', 'timeclock', 'reservations', 'revenue'],
+  'delivery-staff': ['dashboard', 'delivery'],
+  cleaner: ['dashboard', 'waste']
 }
 
 export const ROLE_DEFAULT_VIEW = {
-  manager: 'dashboard'
+  manager: 'dashboard',
+  'head-chef': 'orders',
+  'assistant-chef': 'orders',
+  'head-waiter': 'tables',
+  cashier: 'orders',
+  'delivery-staff': 'delivery',
+  cleaner: 'waste'
 }
 
 export const NAV_ITEMS = [

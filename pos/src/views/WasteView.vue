@@ -52,12 +52,12 @@
   </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPost, apiDelete } from '../api'
-import { useToast } from '../composables/useToast'
 import { useFormValidation } from '../composables/useFormValidation'
 import { useAuthStore } from '../stores/auth'
-const { toast } = useToast()
+const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const auth = useAuthStore()
 const schema = {
   name: { required: true, label: 'Item', max: 100 },
@@ -73,7 +73,7 @@ onMounted(()=>{form.value.date=new Date().toISOString().slice(0,10); loadData()}
 async function loadData() { try { wasteItems.value = await apiGet('waste') } catch (e) { console.error(e) } }
 function openAdd() { form.value={name:'',category:'',quantity:1,reason:'',cost:0,date:new Date().toISOString().slice(0,10)}; showModal.value=true }
 async function saveItem() { if (!validate(form.value)) { toast('Please fix the errors', 'error'); return } try { await apiPost('waste',form.value); toast('Logged'); showModal.value=false; await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
-async function handleDelete(w) { if(!confirm('Delete?'))return; try { await apiDelete('waste/'+w.id); toast('Deleted'); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
+async function handleDelete(w) { if(!await confirmDelete('Delete?'))return; try { await apiDelete('waste/'+w.id); toast('Deleted'); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
 </script>
 <style scoped>
 .input-error { border-color: var(--danger, #e74c3c) !important; }

@@ -115,12 +115,18 @@ export function useToast() {
     return { id: toastId, element: toastEl, type }
   }
 
-  function showToast(type, message, options = {}) {
+  function showToast(message, type, options = {}) {
     const container = ensureContainer()
-    const title = options.title || DEFAULT_TITLES[type] || 'Notification'
+    // Normalize: if message looks like a valid type and type looks like a message string, swap
+    const VALID = new Set(['success', 'error', 'info', 'warning'])
+    if (VALID.has(message) && typeof type === 'string' && type.length > 0) {
+      const tmp = message; message = type; type = tmp
+    }
+    const toastType = VALID.has(type) ? type : 'info'
+    const title = options.title || DEFAULT_TITLES[toastType] || 'Notification'
     const duration = options.duration !== undefined ? options.duration : 4000
     
-    const toast = createToast(type, message, title, duration)
+    const toast = createToast(toastType, message, title, duration)
     toasts.value.push(toast)
     container.appendChild(toast.element)
     
@@ -161,10 +167,10 @@ export function useToast() {
   return {
     toasts,
     toast: showToast,
-    success: (msg, opts) => showToast('success', msg, opts),
-    error: (msg, opts) => showToast('error', msg, opts),
-    info: (msg, opts) => showToast('info', msg, opts),
-    warning: (msg, opts) => showToast('warning', msg, opts),
+    success: (msg, opts) => showToast(msg, 'success', opts),
+    error: (msg, opts) => showToast(msg, 'error', opts),
+    info: (msg, opts) => showToast(msg, 'info', opts),
+    warning: (msg, opts) => showToast(msg, 'warning', opts),
     dismiss: dismissToast,
     dismissAll
   }

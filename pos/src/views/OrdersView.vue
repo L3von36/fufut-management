@@ -76,8 +76,8 @@
               <td data-label="Date">{{ o.created ? new Date(o.created).toLocaleString() : '—' }}</td>
               <td data-label="Actions">
                 <div style="display:flex;gap:4px;flex-wrap:wrap">
-                  <base-button v-if="o.status==='new'" text="Start Prep" variant="btn-sm btn-primary" :on-click="() => updateStatus(o,'preparing')" loading-label="Starting..." success-label="Started" />
-                  <base-button v-if="o.status==='preparing'" text="Ready" variant="btn-sm btn-success" :on-click="() => updateStatus(o,'ready')" loading-label="Updating..." success-label="Ready" />
+                  <base-button v-if="o.status==='new' && (auth.roleKey==='head-chef' || auth.roleKey==='assistant-chef')" text="Start Prep" variant="btn-sm btn-primary" :on-click="() => updateStatus(o,'preparing')" loading-label="Starting..." success-label="Started" />
+                  <base-button v-if="o.status==='preparing' && (auth.roleKey==='head-chef' || auth.roleKey==='assistant-chef')" text="Ready" variant="btn-sm btn-success" :on-click="() => updateStatus(o,'ready')" loading-label="Updating..." success-label="Ready" />
                   <base-button v-if="o.status==='ready'" text="Complete" variant="btn-sm btn-primary" :on-click="() => updateStatus(o,'fulfilled')" loading-label="Completing..." success-label="Completed" />
                   <button v-if="o.status==='fulfilled'" class="btn btn-sm btn-outline" @click="printReceipt(o)">Receipt</button>
                 </div>
@@ -213,16 +213,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPut, apiPost } from '../api'
-import { useToast } from '../composables/useToast'
 import { useOrderStore } from '../stores/order'
 import { useButtonState } from '../composables/useButtonState'
 import { useAuthStore } from '../stores/auth'
 import BaseButton from '../components/BaseButton.vue'
 import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
 
-const { toast } = useToast()
+const toast = inject('toast')
 const auth = useAuthStore()
 const orderStore = useOrderStore()
 const orders = ref([])

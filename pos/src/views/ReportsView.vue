@@ -41,11 +41,10 @@
   </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, TODAY } from '../api'
-import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/auth'
-const { toast } = useToast()
+const toast = inject('toast')
 const auth = useAuthStore()
 const orders = ref([]); const expenses = ref([])
 const todayData = computed(() => orders.value.filter(o => (o.created||'').slice(0,10) === TODAY()))

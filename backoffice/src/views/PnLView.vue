@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { apiGet, TODAY } from '../api'
 import BaseButton from '../components/BaseButton.vue'
 let _Chart = null
@@ -91,6 +91,11 @@ const dateTo = ref(TODAY())
 
 let charts = {}
 
+onUnmounted(() => {
+  Object.values(charts).forEach(c => { if (c) c.destroy() })
+  charts = {}
+})
+
 onMounted(() => {
   const d = new Date()
   d.setDate(d.getDate() - 30)
@@ -108,8 +113,28 @@ async function loadPnL() {
     const filteredExpenses = expenses.filter(e => e.date && e.date >= dateFrom.value && e.date <= dateTo.value)
 
     revenue.value = filteredOrders.reduce((s, o) => s + parseFloat(o.total||0), 0)
-    const totCog = menu.reduce((s, m) => s + parseFloat(m.cost||0), 0)
-    cog.value = totCog * filteredOrders.length * 0.3 // estimated COG
+    // Calculate COG from actual menu item costs matched to order items
+    const menuCostMap = {}
+    menu.forEach(m => { menuCostMap[m.name?.toLowerCase()] = parseFloat(m.cost || 0) })
+    cog.value = 0
+    filteredOrders.forEach(o => {
+      const structured = o.order_items || o.orderItems
+      if (Array.isArray(structured) && structured.length) {
+        structured.forEach(item => {
+          const cost = menuCostMap[item.name?.toLowerCase()] || 0
+          cog.value += cost * (item.qty || 1)
+        })
+      } else if (o.items && typeof o.items === 'string') {
+        const parts = o.items.split(/,(?=\s*\d+x)/)
+        parts.forEach(part => {
+          const qtyMatch = part.trim().match(/^(\d+)x\s*(.*)/)
+          if (qtyMatch) {
+            const name = qtyMatch[2].trim().split('[')[0].split('(')[0].trim().toLowerCase()
+            cog.value += (menuCostMap[name] || 0) * parseInt(qtyMatch[1], 10)
+          }
+        })
+      }
+    })
     grossProfit.value = revenue.value - cog.value
     margin.value = revenue.value ? ((grossProfit.value/revenue.value)*100).toFixed(1) : 0
     cogPct.value = revenue.value ? ((cog.value/revenue.value)*100).toFixed(1) : 0

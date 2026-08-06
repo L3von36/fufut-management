@@ -39,7 +39,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { apiGet, TODAY } from '../api'
 import BaseButton from '../components/BaseButton.vue'
 let _Chart = null
@@ -55,10 +55,16 @@ async function _loadChart() {
 const revChart = ref(null)
 const paymentChart = ref(null)
 const orders = ref([])
+const expenses = ref([])
 const dateFrom = ref(TODAY())
 const dateTo = ref(TODAY())
 const dailyBreakdown = ref([])
 let charts = {}
+
+onUnmounted(() => {
+  Object.values(charts).forEach(c => { if (c) c.destroy() })
+  charts = {}
+})
 
 const totalRev = computed(() => orders.value.reduce((s, o) => s + parseFloat(o.total||0), 0))
 const avgOrder = computed(() => orders.value.length ? totalRev.value / orders.value.length : 0)
@@ -71,7 +77,9 @@ onMounted(() => { const d = new Date(); d.setDate(d.getDate()-14); dateFrom.valu
 
 async function loadRevenue() {
   try {
-    orders.value = await apiGet('orders')
+    const [o, ex] = await Promise.all([apiGet('orders'), apiGet('expenses')])
+    orders.value = o
+    expenses.value = ex
     buildDailyBreakdown()
     await nextTick()
     await buildCharts()
@@ -99,10 +107,20 @@ async function buildCharts() {
   charts = {}
 
   if (revChart.value) {
+    // Build expense map by date
+    const expByDate = {}
+    expenses.value.forEach(e => {
+      if (e.date && e.date >= dateFrom.value && e.date <= dateTo.value) {
+        expByDate[e.date] = (expByDate[e.date] || 0) + parseFloat(e.amount || 0)
+      }
+    })
     charts.rev = new Chart(revChart.value, {
       type: 'bar',
-      data: { labels: dailyBreakdown.value.map(d => d.date.slice(5)), datasets: [{ label: 'Revenue', data: dailyBreakdown.value.map(d => d.revenue), backgroundColor: 'rgba(15,123,120,.6)' }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      data: { labels: dailyBreakdown.value.map(d => d.date.slice(5)), datasets: [
+        { label: 'Revenue', data: dailyBreakdown.value.map(d => d.revenue), backgroundColor: 'rgba(15,123,120,.6)' },
+        { label: 'Expenses', data: dailyBreakdown.value.map(d => expByDate[d.date] || 0), backgroundColor: 'rgba(217,119,6,.5)' }
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
     })
   }
   if (paymentChart.value) {

@@ -229,7 +229,7 @@ async function onDrop(e, targetStatus) {
   if (order.status === targetStatus) { dragOrder.value = null; return }
   dragOrder.value = null
   try {
-    await apiPut('orders', { id: order.id, status: targetStatus })
+    await apiPut('orders/' + order.id, { id: order.id, status: targetStatus })
     order.status = targetStatus
     toast(`Order #${order.id} → ${targetStatus}`)
   } catch (err) {
@@ -242,7 +242,7 @@ function selectOrder(order) { selectedOrder.value = order }
 async function updateStatus(status) {
   if (!selectedOrder.value) return
   try {
-    await apiPut('orders', { id: selectedOrder.value.id, status })
+    await apiPut('orders/' + selectedOrder.value.id, { id: selectedOrder.value.id, status })
     selectedOrder.value.status = status
     toast(`Order #${selectedOrder.value.id} → ${status}`)
   } catch (err) {

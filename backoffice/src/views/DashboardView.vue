@@ -93,6 +93,7 @@ async function _loadChart() {
 }
 
 const peakChart = ref(null)
+const kpiRefs = ref([])
 const orders = ref([])
 const todayOrders = ref([])
 const todayExpenses = ref([])

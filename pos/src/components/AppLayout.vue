@@ -195,7 +195,7 @@ const pageTitle = computed(() => {
   return item?.label || currentView.value
 })
 
-const today = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+const today = ref(new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }))
 
 watch(() => route.name, (name) => {
   currentView.value = name || 'dashboard'
@@ -209,6 +209,10 @@ onMounted(() => {
   if (!auth.isAuthenticated) {
     router.push('/login')
   }
+  // Update date at midnight boundary
+  const dateTimer = setInterval(() => {
+    today.value = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+  }, 60000)
 })
 
 const unsub = onOnlineChange((v) => { online.value = v })

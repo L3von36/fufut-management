@@ -39,18 +39,24 @@ export function useToast() {
     return d.innerHTML
   }
 
-  function showToast(type, message, options = {}) {
+  function showToast(message, type, options = {}) {
     const container = getContainer()
-    const title = options.title || DEFAULT_TITLES[type] || ''
+    // Normalize: if message looks like a valid type and type is a message string, swap
+    const VALID = new Set(['success', 'error', 'info', 'warning'])
+    if (VALID.has(message) && typeof type === 'string' && type.length > 0) {
+      const tmp = message; message = type; type = tmp
+    }
+    const toastType = VALID.has(type) ? type : 'info'
+    const title = options.title || DEFAULT_TITLES[toastType] || ''
     const duration = options.duration !== undefined ? options.duration : 3500
     const id = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6)
 
     const el = document.createElement('div')
     el.id = id
-    el.className = 'toast-notification toast-' + type
+    el.className = 'toast-notification toast-' + toastType
     el.setAttribute('role', 'alert')
 
-    const icon = TOAST_ICONS[type] || TOAST_ICONS.info
+    const icon = TOAST_ICONS[toastType] || TOAST_ICONS.info
     const titleHtml = title ? '<div class="toast-title">' + escapeHtml(title) + '</div>' : ''
 
     el.innerHTML =
@@ -100,10 +106,10 @@ export function useToast() {
   return {
     toasts,
     toast: showToast,
-    success: (msg, opts) => showToast('success', msg, opts),
-    error: (msg, opts) => showToast('error', msg, opts),
-    info: (msg, opts) => showToast('info', msg, opts),
-    warning: (msg, opts) => showToast('warning', msg, opts),
+    success: (msg, opts) => showToast(msg, 'success', opts),
+    error: (msg, opts) => showToast(msg, 'error', opts),
+    info: (msg, opts) => showToast(msg, 'info', opts),
+    warning: (msg, opts) => showToast(msg, 'warning', opts),
     dismiss,
     dismissAll
   }

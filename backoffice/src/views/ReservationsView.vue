@@ -74,6 +74,7 @@ import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
 import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const btnState = useButtonState({ successDuration: 2000 })
 const reservations = ref([])
 const dateFilter = ref(TODAY())
@@ -102,5 +103,5 @@ async function saveRes() {
     btnState.setSuccess()
   } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
 }
-async function deleteRes(id) { if (!confirm('Delete?')) return; try { await apiDelete('reservations', id); toast('Deleted'); await loadReservations() } catch (e) { toast(e.message, 'error') } }
+async function deleteRes(id) { if (!await confirmDelete('Delete this reservation?')) return; try { await apiDelete('reservations', id); toast('Deleted'); await loadReservations() } catch (e) { toast(e.message, 'error') } }
 </script>

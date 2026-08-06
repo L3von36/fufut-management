@@ -43,7 +43,7 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </div>
                 <div class="rv-empty-text">{{ search ? 'No reservations match your search' : 'No reservations' }}</div>
-                <div class="rv-empty-hint">{{ search ? 'Try a different name or clear search.' : 'Create a new reservation to get started.' }}</div>
+                <div class="rv-empty-hint">{{ search ? 'Try a different name or clear search.' : 'Reservations will appear here once created by a manager.' }}</div>
               </div>
             </td></tr>
           </tbody>
@@ -74,13 +74,13 @@
   </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
-import { useToast } from '../composables/useToast'
 import { useFormValidation } from '../composables/useFormValidation'
 import { useAuthStore } from '../stores/auth'
 
-const { toast } = useToast()
+const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const auth = useAuthStore()
 const schema = {
   name: { required: true, label: 'Guest Name', max: 100 },
@@ -143,7 +143,7 @@ function openAdd() {
 }
 
 async function handleDelete(r) {
-  if (!confirm('Cancel this reservation?')) return
+  if (!await confirmDelete('Cancel this reservation?')) return
   try { await apiDelete('reservations/' + r.id); toast('Cancelled'); await loadData() } catch (e) { console.error(e); toast('Failed', 'error') }
 }
 </script>

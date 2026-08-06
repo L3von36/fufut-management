@@ -385,7 +385,6 @@ import { ref, computed, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiPost } from '../api'
 import { useOrderStore } from '../stores/order'
-import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/auth'
 import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
 
@@ -478,6 +477,11 @@ function newOrder() {
   router.push('/app/menu-view')
 }
 
+function escapeHtml(s) {
+  if (!s) return ''
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
 function printReceipt() {
   const p = lastPayload.value
   const w = window.open('', '_blank')
@@ -485,7 +489,7 @@ function printReceipt() {
   const id = store.lastOrderId || '—'
   const date = new Date().toLocaleString()
   const lines = store.items.map(i =>
-    `${i.qty}x ${i.name}${(i.selectedModifiers||[]).length ? ' ['+i.selectedModifiers.map(m=>m.name).join(', ')+']' : ''}  ETB ${(store.lineTotal(i)*i.qty).toFixed(0)}`
+    `${i.qty}x ${escapeHtml(i.name)}${(i.selectedModifiers||[]).length ? ' ['+i.selectedModifiers.map(m=>escapeHtml(m.name)).join(', ')+']' : ''}  ETB ${(store.lineTotal(i)*i.qty).toFixed(0)}`
   ).join('<br>')
   
   // Discount line
@@ -504,14 +508,14 @@ function printReceipt() {
   let paymentLines = ''
   if (p.paymentBreakdown && p.paymentBreakdown.length > 0) {
     for (const pb of p.paymentBreakdown) {
-      paymentLines += `<div class="line"><span>${pb.method.charAt(0).toUpperCase()+pb.method.slice(1)}</span><span>ETB ${pb.amount.toFixed(0)}</span></div>`
+      paymentLines += `<div class="line"><span>${escapeHtml(pb.method.charAt(0).toUpperCase()+pb.method.slice(1))}</span><span>ETB ${pb.amount.toFixed(0)}</span></div>`
       if (pb.tendered !== undefined) {
         paymentLines += `<div class="line" style="font-size:11px;color:#666"><span>Tendered</span><span>ETB ${pb.tendered.toFixed(0)}</span></div>`
         paymentLines += `<div class="line" style="font-size:11px;color:#666"><span>Change</span><span>ETB ${pb.change.toFixed(0)}</span></div>`
       }
     }
   } else {
-    paymentLines = `<div class="line"><span>Payment</span><span>${p.payment || ''}</span></div>`
+    paymentLines = `<div class="line"><span>Payment</span><span>${escapeHtml(p.payment)}</span></div>`
   }
 
   w.document.write(`<html><head><title>Receipt #${id}</title>
@@ -524,8 +528,8 @@ function printReceipt() {
     <h2>FU FUT Caf\u00e9</h2>
     <p class="center">Receipt #${id}<br>${date}</p>
     <hr>
-    <p>Type: ${p.type || ''} ${p.tableNum ? '· Table '+p.tableNum : ''}<br>
-    Customer: ${p.customer || 'Walk-in'}</p>
+    <p>Type: ${escapeHtml(p.type)} ${p.tableNum ? '· Table '+escapeHtml(p.tableNum) : ''}<br>
+    Customer: ${escapeHtml(p.customer) || 'Walk-in'}</p>
     <hr>
     ${lines}
     <hr>

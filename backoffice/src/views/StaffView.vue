@@ -74,7 +74,7 @@ const staff = ref([])
 const search = ref('')
 const showForm = ref(false)
 const editing = ref(null)
-const form = ref({ firstName: '', lastName: '', role: 'waiter', phone: '' })
+const form = ref({ firstName: '', lastName: '', role: 'cashier', phone: '' })
 
 const filtered = computed(() => staff.value.filter(s => !search.value || s.firstName?.toLowerCase().includes(search.value.toLowerCase()) || s.lastName?.toLowerCase().includes(search.value.toLowerCase())))
 const activeStaff = computed(() => staff.value.filter(s => s.active !== false))
@@ -94,7 +94,7 @@ async function saveStaff() {
   try {
     if (editing.value) { await apiPut('staff', { ...form.value, id: editing.value.id }); toast('Staff updated') }
     else { await apiPost('staff', form.value); toast('Staff added') }
-    showForm.value = false; editing.value = null; form.value = { firstName: '', lastName: '', role: 'waiter', phone: '' }
+    showForm.value = false; editing.value = null; form.value = { firstName: '', lastName: '', role: 'cashier', phone: '' }
     await loadStaff()
     btnState.setSuccess()
   } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
