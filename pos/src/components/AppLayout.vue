@@ -182,8 +182,9 @@ const navSections = computed(() => {
 const BOTTOM_PRIORITY = ['tables', 'orders', 'menu-view', 'checkout', 'dashboard']
 
 const bottomItems = computed(() => {
-  const priority = BOTTOM_PRIORITY.filter(v => allowedItems.value.some(i => i.view === v))
-  const rest = allowedItems.value.filter(i => !priority.includes(i.view))
+  const priorityViews = BOTTOM_PRIORITY.filter(v => allowedItems.value.some(i => i.view === v))
+  const priority = priorityViews.map(v => allowedItems.value.find(i => i.view === v))
+  const rest = allowedItems.value.filter(i => !priorityViews.includes(i.view))
   const items = [...priority, ...rest].slice(0, 5)
   while (items.length < 5) items.push(null)
   return items
