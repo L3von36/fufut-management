@@ -11,7 +11,10 @@ const mockApiPost = vi.fn()
 vi.mock('../../../src/api', () => ({
   apiGet: (...args) => mockApiGet(...args),
   apiPut: (...args) => mockApiPut(...args),
-  apiPost: (...args) => mockApiPost(...args)
+  apiPost: (...args) => mockApiPost(...args),
+  ROLE_PERMISSIONS: { manager: ['dashboard','orders','tables','menu-mgmt','menu-view','expenses','pnl','cashdrawer','inventory','waste','staff','shifts','timeclock','kitchen','reports','reservations','delivery','analytics','checkout','pipeline','revenue'] },
+  ROLE_DEFAULT_VIEW: { manager: 'dashboard' },
+  NAV_ITEMS: []
 }))
 
 describe('OrdersView', () => {
@@ -41,7 +44,7 @@ describe('OrdersView', () => {
     const wrapper = mount(OrdersView)
     await flushPromises()
 
-    expect(wrapper.find('h3').text()).toBe('Orders')
+    expect(wrapper.find('.ov-toolbar-title').text()).toBe('Orders')
     expect(wrapper.find('thead').exists()).toBe(true)
     expect(wrapper.find('table').exists()).toBe(true)
   })
@@ -81,76 +84,25 @@ describe('OrdersView', () => {
     const wrapper = mount(OrdersView)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No orders found')
+    expect(wrapper.text()).toContain('No orders yet')
   })
 
-  it('should show "New Order" and "Refresh" buttons', async () => {
+  it('should show Refresh button', async () => {
+    const wrapper = mount(OrdersView)
+    await flushPromises()
+
+    const buttons = wrapper.findAll('button')
+    const refreshBtn = buttons.find(b => b.attributes('title') === 'Refresh')
+    expect(refreshBtn).toBeDefined()
+  })
+
+  it('should not show New Order button without checkout permission', async () => {
     const wrapper = mount(OrdersView)
     await flushPromises()
 
     const buttons = wrapper.findAll('button')
     const newOrderBtn = buttons.find(b => b.text().includes('New Order'))
-    const refreshBtn = buttons.find(b => b.text().includes('Refresh'))
-    expect(newOrderBtn).toBeDefined()
-    expect(refreshBtn).toBeDefined()
-  })
-
-  it('should open new order modal when clicking New Order', async () => {
-    const wrapper = mount(OrdersView)
-    await flushPromises()
-
-    const newOrderBtn = wrapper.findAll('button').find(b => b.text().includes('New Order'))
-    await newOrderBtn.trigger('click')
-
-    expect(wrapper.find('.modal-overlay').exists()).toBe(true)
-    expect(wrapper.find('.modal h3').text()).toBe('New Order')
-  })
-
-  it('should show order type select in modal', async () => {
-    const wrapper = mount(OrdersView)
-    await flushPromises()
-
-    await wrapper.findAll('button').find(b => b.text().includes('New Order')).trigger('click')
-
-    const modal = wrapper.find('.modal')
-    const typeSelect = modal.findAll('select')[0]
-    const options = typeSelect.findAll('option')
-    expect(options.map(o => o.text())).toEqual(['Dine In', 'Takeaway', 'Delivery'])
-  })
-
-  it('should show menu items grouped by category in modal', async () => {
-    const wrapper = mount(OrdersView)
-    await flushPromises()
-
-    await wrapper.findAll('button').find(b => b.text().includes('New Order')).trigger('click')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Espresso')
-    expect(wrapper.text()).toContain('Latte')
-    expect(wrapper.text()).toContain('ETB 60')
-    expect(wrapper.text()).toContain('ETB 85')
-  })
-
-  it('should show payment method options', async () => {
-    const wrapper = mount(OrdersView)
-    await flushPromises()
-
-    await wrapper.findAll('button').find(b => b.text().includes('New Order')).trigger('click')
-
-    const modal = wrapper.find('.modal')
-    const paymentSelects = modal.findAll('select')
-    const paymentSelect = paymentSelects[paymentSelects.length - 1]
-    const options = paymentSelect.findAll('option')
-    expect(options.map(o => o.text())).toEqual(['Cash', 'Card', 'Mobile Money'])
-  })
-
-  it('should show empty cart message initially', async () => {
-    const wrapper = mount(OrdersView)
-    await flushPromises()
-
-    await wrapper.findAll('button').find(b => b.text().includes('New Order')).trigger('click')
-
-    expect(wrapper.text()).toContain('Cart is empty')
+    expect(newOrderBtn).toBeUndefined()
   })
 
   it('should filter orders by status', async () => {

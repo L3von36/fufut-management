@@ -230,10 +230,9 @@ describe('API Client', () => {
     })
 
     it('manager should have most permissions', () => {
-      // Manager has all permissions except pipeline and revenue
       const allViews = NAV_ITEMS.map(n => n.view)
       const nonManagerViews = allViews.filter(v => !ROLE_PERMISSIONS.manager.includes(v))
-      // These views exist in NAV_ITEMS but are not in manager permissions
+      // pipeline and revenue are not in manager permissions
       expect(nonManagerViews.sort()).toEqual(['pipeline', 'revenue'].sort())
     })
 
@@ -251,8 +250,8 @@ describe('API Client', () => {
       })
     })
 
-    it('NAV_ITEMS should have 19 items across defined sections', () => {
-      expect(NAV_ITEMS.length).toBe(19)
+    it('NAV_ITEMS should have 21 items across defined sections', () => {
+      expect(NAV_ITEMS.length).toBe(21)
       const sections = [...new Set(NAV_ITEMS.map(n => n.section))]
       expect(sections).toContain('Overview')
       expect(sections).toContain('Sales')

@@ -8,11 +8,11 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
 
   const isAuthenticated = computed(() => !!user.value)
-  const permissions = computed(() => ROLE_PERMISSIONS[roleKey.value] || [])
-  const defaultView = computed(() => ROLE_DEFAULT_VIEW[roleKey.value] || 'dashboard')
+  const permissions = computed(() => (ROLE_PERMISSIONS && ROLE_PERMISSIONS[roleKey.value]) || [])
+  const defaultView = computed(() => (ROLE_DEFAULT_VIEW && ROLE_DEFAULT_VIEW[roleKey.value]) || 'dashboard')
 
   function hasPermission(view) {
-    return permissions.value.includes(view)
+    return Array.isArray(permissions.value) && permissions.value.includes(view)
   }
 
   async function login(staffId, password) {
