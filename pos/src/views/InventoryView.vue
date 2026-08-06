@@ -12,7 +12,7 @@
           <option value="">All Items</option>
           <option value="low">Low Stock Only</option>
         </select>
-        <button class="btn btn-primary" @click="openAdd">+ Add Item</button>
+        <button v-if="auth.roleKey === 'manager'" class="btn btn-primary" @click="openAdd">+ Add Item</button>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
       </div>
     </div>
@@ -45,16 +45,20 @@
                 <span class="badge" :class="isLow(i) ? 'badge-low' : 'badge-ok'">{{ isLow(i) ? 'Low Stock' : 'In Stock' }}</span>
               </td>
               <td data-label="Adjust">
-                <div style="display:flex;gap:4px">
+                <div v-if="auth.roleKey === 'manager'" style="display:flex;gap:4px">
                   <button class="btn btn-sm btn-outline" @click="quickAdjust(i, 1)">+1</button>
                   <button class="btn btn-sm btn-outline" @click="quickAdjust(i, -1)">−1</button>
                 </div>
+                <span v-else style="color:var(--text-muted);font-size:.78rem">—</span>
               </td>
               <td data-label="Actions">
-                <div style="display:flex;gap:4px">
-                  <button class="btn btn-sm btn-ghost" @click="openEdit(i)">Edit</button>
-                  <button class="btn btn-sm btn-ghost danger" @click="handleDelete(i)">Delete</button>
-                </div>
+                <template v-if="auth.roleKey === 'manager'">
+                  <div style="display:flex;gap:4px">
+                    <button class="btn btn-sm btn-ghost" @click="openEdit(i)">Edit</button>
+                    <button class="btn btn-sm btn-ghost danger" @click="handleDelete(i)">Delete</button>
+                  </div>
+                </template>
+                <span v-else style="color:var(--text-muted);font-size:.78rem">View only</span>
               </td>
             </tr>
             <tr v-if="!filteredItems.length">
@@ -133,8 +137,10 @@ import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
 import { useFormValidation } from '../composables/useFormValidation'
+import { useAuthStore } from '../stores/auth'
 
 const { toast } = useToast()
+const auth = useAuthStore()
 const schema = {
   name: { required: true, label: 'Item Name', max: 100 },
   category: { required: true, label: 'Category' },

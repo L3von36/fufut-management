@@ -12,7 +12,7 @@
           <button v-if="search" class="sv-search-clear" @click="search=''" aria-label="Clear search">&times;</button>
         </div>
         <select v-model="filter" class="select"><option value="">All</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option></select>
-        <button class="btn btn-primary" @click="openAdd">+ Add</button>
+        <button v-if="auth.roleKey === 'manager'" class="btn btn-primary" @click="openAdd">+ Add</button>
         <button class="btn btn-ghost btn-sm" @click="loadData" title="Refresh">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
@@ -30,7 +30,7 @@
               <td data-label="Date">{{ s.date||'—' }}</td>
               <td data-label="Start">{{ s.start||'—' }}</td>
               <td data-label="End">{{ s.end||'—' }}</td>
-              <td data-label="Actions"><button class="btn btn-sm btn-ghost" @click="openEdit(s)">Edit</button><button class="btn btn-sm btn-ghost danger" @click="handleDelete(s)">Delete</button></td>
+              <td data-label="Actions"><template v-if="auth.roleKey === 'manager'"><button class="btn btn-sm btn-ghost" @click="openEdit(s)">Edit</button><button class="btn btn-sm btn-ghost danger" @click="handleDelete(s)">Delete</button></template><span v-else style="color:var(--text-muted);font-size:.78rem">View only</span></td>
             </tr>
             <tr v-if="!filteredShifts.length"><td colspan="7">
               <div class="sv-empty">
@@ -72,8 +72,10 @@ import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useToast } from '../composables/useToast'
 import { useFormValidation } from '../composables/useFormValidation'
+import { useAuthStore } from '../stores/auth'
 
 const { toast } = useToast()
+const auth = useAuthStore()
 const schema = {
   staffName: { required: true, label: 'Staff Name', max: 100 },
   shift: { required: true, label: 'Shift Type' },
