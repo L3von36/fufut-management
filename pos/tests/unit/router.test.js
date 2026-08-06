@@ -65,15 +65,15 @@ describe('Router Configuration', () => {
       'dashboard', 'orders', 'menu-mgmt', 'menu-view', 'tables',
       'reservations', 'delivery', 'kitchen', 'expenses', 'pnl',
       'cashdrawer', 'inventory', 'waste', 'staff', 'shifts',
-      'timeclock', 'reports', 'pipeline', 'revenue'
+      'timeclock', 'reports', 'pipeline', 'revenue', 'checkout', 'analytics'
     ]
 
     const ROLE_PERMISSIONS = {
-      manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery'],
+      manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout'],
       'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline'],
       'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory'],
-      'head-waiter': ['tables', 'orders', 'dashboard', 'reservations', 'delivery', 'shifts', 'timeclock', 'inventory', 'waste', 'kitchen', 'reports', 'pipeline', 'menu-view'],
-      cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view'],
+      'head-waiter': ['tables', 'orders', 'dashboard', 'menu-view', 'reservations', 'checkout'],
+      cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout'],
       'delivery-staff': ['delivery', 'dashboard'],
       cleaner: ['waste', 'dashboard']
     }
@@ -95,7 +95,6 @@ describe('Router Configuration', () => {
         perms.forEach(p => allPerms.add(p))
       })
 
-      // menu-view is now in some role permissions, pipeline and revenue remain absent for manager
       const allowedMissing = ['pipeline', 'revenue']
       routeNames.forEach(name => {
         if (allowedMissing.includes(name)) return
