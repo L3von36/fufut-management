@@ -4,15 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0F7B78" />
-    <link rel="icon" href="/pos/favicon.ico" sizes="any">
-    <link rel="manifest" href="/pos/manifest.json" />
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="manifest" href="/manifest.json" />
     <title>FU FUT COFFEE — POS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Great+Vibes&family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<<<<<<< HEAD
     <script type="module" crossorigin src="/pos/assets/index-St68Olqp.js"></script>
     <link rel="modulepreload" crossorigin href="/pos/assets/api-C_dLVb3z.js">
     <link rel="stylesheet" crossorigin href="/pos/assets/index-CS5dtq2B.css">
+=======
+    <script type="module" crossorigin src="/assets/index-IlDf8iTt.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/api-C_dLVb3z.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-CS5dtq2B.css">
+>>>>>>> b1b5be25deae903ae459e8afe0469151e624aad1
   </head>
   <body>
     <div id="app"></div>
