@@ -38,10 +38,22 @@
             {{ error }}
           </p>
           <button type="submit" class="login-submit" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
-            <span v-if="btnState.isBusy()" class="spinner"></span>
-            <svg v-else-if="btnState.isSuccess()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><polyline points="20 6 9 17 4 12"/></svg>
-            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-            {{ btnState.isBusy() ? 'Signing in...' : btnState.isSuccess() ? 'Signed In ✓' : btnState.isError() ? 'Try Again' : 'Sign In' }}
+            <template v-if="btnState.isBusy()">
+              <span class="spinner" aria-hidden="true"></span>
+              <span>Signing in...</span>
+            </template>
+            <template v-else-if="btnState.isSuccess()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Signed In</span>
+            </template>
+            <template v-else-if="btnState.isError()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Try Again</span>
+            </template>
+            <template v-else>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+              <span>Sign In</span>
+            </template>
           </button>
         </form>
         <div class="form-footer">
@@ -72,7 +84,10 @@ async function handleLogin() {
   btnState.setLoading()
   try {
     await auth.loginWithEmail(email.value, password.value)
-    toast('Welcome, ' + (auth.user?.firstName || ''), 'success')
+    btnState.setSuccess()
+    toast('Welcome back, ' + (auth.user?.firstName || ''), 'success')
+    // Brief pause so the success state is visible before navigating
+    await new Promise(r => setTimeout(r, 600))
     router.push('/app/' + auth.defaultView)
   } catch (e) {
     error.value = e.message || 'Login failed'
@@ -117,8 +132,8 @@ async function handleLogin() {
 .login-submit svg{width:18px;height:18px}
 .login-submit:disabled{opacity:.6;cursor:not-allowed;transform:none}
 
-@keyframes spin{to{transform:rotate(360deg)}}
-.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes loginSpin{to{transform:rotate(360deg)}}
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:loginSpin .6s linear infinite}
 
 .form-footer{margin-top:24px;font-size:.7rem;color:var(--text-muted);text-align:center;letter-spacing:.04em}
 .form-footer strong{color:var(--text-heading);font-weight:600}
