@@ -34,7 +34,7 @@
         <div style="display:flex;flex-direction:column;gap:8px">
           <button class="btn btn-sm btn-outline" @click="exportCSV('today')">Today's Orders (CSV)</button>
           <button class="btn btn-sm btn-outline" @click="exportCSV('month')">This Month (CSV)</button>
-          <button class="btn btn-sm btn-outline" @click="exportJSON">All Data (JSON)</button>
+          <button v-if="auth.roleKey === 'manager'" class="btn btn-sm btn-outline" @click="exportJSON">All Data (JSON)</button>
         </div>
       </div>
     </div>
@@ -44,7 +44,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, TODAY } from '../api'
 import { useToast } from '../composables/useToast'
+import { useAuthStore } from '../stores/auth'
 const { toast } = useToast()
+const auth = useAuthStore()
 const orders = ref([]); const expenses = ref([])
 const todayData = computed(() => orders.value.filter(o => (o.created||'').slice(0,10) === TODAY()))
 const monthData = computed(() => orders.value.filter(o => (o.created||'').slice(0,7) === TODAY().slice(0,7)))

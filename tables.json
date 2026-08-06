@@ -1,152 +1,18 @@
+ 
 [
-  {
-    "id": "T001",
-    "number": 1,
-    "capacity": 2,
-    "section": "Patio",
-    "status": "occupied",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T002",
-    "number": 2,
-    "capacity": 2,
-    "section": "Patio",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T003",
-    "number": 3,
-    "capacity": 4,
-    "section": "Patio",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T004",
-    "number": 4,
-    "capacity": 4,
-    "section": "Main Hall",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T005",
-    "number": 5,
-    "capacity": 4,
-    "section": "Main Hall",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T006",
-    "number": 6,
-    "capacity": 6,
-    "section": "Main Hall",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T007",
-    "number": 7,
-    "capacity": 6,
-    "section": "Main Hall",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T008",
-    "number": 8,
-    "capacity": 8,
-    "section": "Main Hall",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T009",
-    "number": 9,
-    "capacity": 2,
-    "section": "Window",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T010",
-    "number": 10,
-    "capacity": 2,
-    "section": "Window",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T011",
-    "number": 11,
-    "capacity": 4,
-    "section": "Window",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T012",
-    "number": 12,
-    "capacity": 4,
-    "section": "VIP Room",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T013",
-    "number": 13,
-    "capacity": 6,
-    "section": "VIP Room",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T014",
-    "number": 14,
-    "capacity": 8,
-    "section": "VIP Room",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  },
-  {
-    "id": "T015",
-    "number": 15,
-    "capacity": 4,
-    "section": "Bar",
-    "status": "available",
-    "server": "",
-    "guests": 0,
-    "created": "2026-07-21T00:00:00"
-  }
+  {"id": "T001", "number": 1, "name": "Patio 1", "capacity": 2, "section": "Patio", "shape": "round", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T002", "number": 2, "name": "Patio 2", "capacity": 2, "section": "Patio", "shape": "round", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T003", "number": 3, "name": "Patio 3", "capacity": 4, "section": "Patio", "shape": "square", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T004", "number": 4, "name": "Hall 1", "capacity": 4, "section": "Main Hall", "shape": "square", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T005", "number": 5, "name": "Hall 2", "capacity": 4, "section": "Main Hall", "shape": "square", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T006", "number": 6, "name": "Hall 3", "capacity": 6, "section": "Main Hall", "shape": "round", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T007", "number": 7, "name": "Hall 4", "capacity": 6, "section": "Main Hall", "shape": "round", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T008", "number": 8, "name": "Hall 5", "capacity": 8, "section": "Main Hall", "shape": "long", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T009", "number": 9, "name": "Window 1", "capacity": 2, "section": "Window", "shape": "round", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T010", "number": 10, "name": "Window 2", "capacity": 2, "section": "Window", "shape": "round", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T011", "number": 11, "name": "Window 3", "capacity": 4, "section": "Window", "shape": "square", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T012", "number": 12, "name": "VIP 1", "capacity": 4, "section": "VIP Room", "shape": "round", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T013", "number": 13, "name": "VIP 2", "capacity": 6, "section": "VIP Room", "shape": "square", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T014", "number": 14, "name": "VIP 3", "capacity": 8, "section": "VIP Room", "shape": "long", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"},
+  {"id": "T015", "number": 15, "name": "Bar 1", "capacity": 4, "section": "Bar", "shape": "long", "status": "available", "server": "", "guests": 0, "seated_at": "", "notes": "", "created": "2026-07-21T00:00:00"}
 ]

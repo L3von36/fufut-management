@@ -28,7 +28,7 @@
         <div class="card-header"><h3>Recent Orders</h3></div>
         <div v-if="recentOrders.length">
           <div v-for="o in recentOrders.slice(0,5)" :key="o.id" class="queue-item">
-            <span>#{{ o.id }} — <strong>{{ o.items }}</strong></span>
+            <span>#{{ shortId(o.id) }} — <strong>{{ orderSummary(o) }}</strong></span>
             <span><span class="badge" :class="'badge-'+o.status">{{ o.status }}</span> ETB {{ parseFloat(o.total||0).toFixed(0) }}</span>
           </div>
         </div>
@@ -77,6 +77,21 @@ const lowStockItems = ref([])
 let charts = {}
 let interval = null
 
+function shortId(id) { return id ? id.slice(-5).toUpperCase() : '?' }
+function orderSummary(o) {
+  const lines = o.order_items || o.orderItems
+  if (Array.isArray(lines) && lines.length) {
+    return lines.slice(0, 3).map(l => `${l.qty}x ${l.name}`).join(', ') + (lines.length > 3 ? '...' : '')
+  }
+  if (typeof o.items === 'string' && o.items.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(o.items)
+      if (Array.isArray(parsed)) return parsed.slice(0, 3).map(i => typeof i === 'string' ? i : `${i.name || i}`).join(', ')
+    } catch {}
+  }
+  return typeof o.items === 'string' ? o.items.slice(0, 50) : 'Order'
+}
+
 function isToday(d) {
   if (!d) return false
   return d.slice(0, 10) === TODAY()
@@ -97,14 +112,29 @@ onUnmounted(() => {
 
 async function loadDashboard() {
   try {
-    const [orders, expenses, inventory] = await Promise.all([
-      apiGet('orders'), apiGet('expenses'), apiGet('inventory')
-    ])
+    // Only fetch data the current role is authorized to access
+    const fetches = []
+    if (auth.hasPermission('orders')) {
+      fetches.push(apiGet('orders').then(d => { orders.value = d }).catch(() => { orders.value = [] }))
+    } else {
+      orders.value = []
+    }
+    if (auth.hasPermission('expenses')) {
+      fetches.push(apiGet('expenses').then(d => { expenses.value = d }).catch(() => { expenses.value = [] }))
+    } else {
+      expenses.value = []
+    }
+    if (auth.hasPermission('inventory')) {
+      fetches.push(apiGet('inventory').then(d => { inventory.value = d }).catch(() => { inventory.value = [] }))
+    } else {
+      inventory.value = []
+    }
+    await Promise.allSettled(fetches)
 
-    todayOrders.value = orders.filter(o => isToday(o.created))
-    todayExpenses.value = expenses.filter(e => isToday(e.date))
+    todayOrders.value = orders.value.filter(o => isToday(o.created))
+    todayExpenses.value = expenses.value.filter(e => isToday(e.date))
     recentOrders.value = todayOrders.value.slice(0, 10)
-    lowStockItems.value = inventory.filter(i => parseInt(i.quantity||0) <= parseInt(i.minLevel||0))
+    lowStockItems.value = inventory.value.filter(i => parseInt(i.quantity||0) <= parseInt(i.minLevel||0))
 
     buildKpis()
     buildCharts()
@@ -197,6 +227,10 @@ function buildKpis() {
 }
 
 async function buildCharts() {
+  // Only build charts for roles with financial data access
+  if (!auth.hasPermission('orders') && !auth.hasPermission('expenses')) return
+  if (!showCharts.value) return
+
   const Chart = await _loadChart()
   await nextTick()
   if (!revenueChart.value || !expenseChart.value) return
@@ -205,19 +239,17 @@ async function buildCharts() {
   Object.values(charts).forEach(c => c.destroy())
   charts = {}
 
-  // Revenue chart - last 7 days
+  // Revenue chart - last 7 days (use already-fetched data)
   const days = []
   const revData = []
   const expData = []
-  const orders = await apiGet('orders')
-  const expenses = await apiGet('expenses')
   for (let i = 6; i >= 0; i--) {
     const d = new Date()
     d.setDate(d.getDate() - i)
     const ds = d.toISOString().slice(0, 10)
     days.push(d.toLocaleDateString('en', { weekday: 'short' }))
-    revData.push(orders.filter(o => (o.created||'').slice(0,10) === ds).reduce((s,o) => s + parseFloat(o.total||0), 0))
-    expData.push(expenses.filter(e => e.date === ds).reduce((s,e) => s + parseFloat(e.amount||0), 0))
+    revData.push(orders.value.filter(o => (o.created||'').slice(0,10) === ds).reduce((s,o) => s + parseFloat(o.total||0), 0))
+    expData.push(expenses.value.filter(e => e.date === ds).reduce((s,e) => s + parseFloat(e.amount||0), 0))
   }
 
   charts.revenue = new Chart(revenueChart.value, {
@@ -232,9 +264,10 @@ async function buildCharts() {
     options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
   })
 
-  // Expense breakdown pie
+  // Expense breakdown pie (use already-fetched data)
+  if (!expenses.value.length) return
   const catMap = {}
-  expenses.forEach(e => { catMap[e.category] = (catMap[e.category] || 0) + parseFloat(e.amount||0) })
+  expenses.value.forEach(e => { catMap[e.category] = (catMap[e.category] || 0) + parseFloat(e.amount||0) })
   const catLabels = Object.keys(catMap)
   const catValues = Object.values(catMap)
   if (catLabels.length) {

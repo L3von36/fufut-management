@@ -34,7 +34,16 @@
         </template>
       </nav>
       <div class="sidebar-footer" v-show="!sidebarCollapsed">
-        <base-button text="Sign Out" variant="btn-ghost" extra-class="btn-sm" :on-click="handleLogout" />
+        <button class="sidebar-logout-btn" @click="handleLogout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign Out
+        </button>
+      </div>
+      <!-- Collapsed logout icon -->
+      <div v-show="sidebarCollapsed" class="sidebar-collapsed-footer">
+        <button class="nav-item icon-only sidebar-collapsed-logout" @click="handleLogout" title="Sign Out" aria-label="Sign Out">
+          <span class="nav-icon" v-html="icons['log-out']"></span>
+        </button>
       </div>
     </aside>
     <div class="sidebar-overlay" @click="sidebarOpen = false"></div>
@@ -77,7 +86,7 @@
           v-if="item"
           class="bn-item"
           :class="{ active: currentView === item.view }"
-          @click="navigate(item.view)"
+          @click="navigate(item.view); sidebarOpen = false"
         >
           <span v-html="icons[item.icon]"></span>
           <span>{{ item.label }}</span>
@@ -137,12 +146,19 @@ const icons = {
   'more-horizontal': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
   'log-out': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
   'git-branch': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>',
-  'trending-up': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>'
+  'trending-up': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+  'bar-chart-2': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  'credit-card': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>'
+}
+
+function formatRole(role) {
+  if (!role) return ''
+  return role.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
 const userDisplay = computed(() => {
   if (!auth.user) return 'Manager'
-  return `${auth.user.firstName} • ${auth.user.role}`
+  return `${auth.user.firstName} • ${formatRole(auth.user.role)}`
 })
 
 const allowedItems = computed(() => {
@@ -162,8 +178,13 @@ const navSections = computed(() => {
   return sections
 })
 
+// Priority views for bottom nav (most-used by any role)
+const BOTTOM_PRIORITY = ['tables', 'orders', 'menu-view', 'checkout', 'dashboard']
+
 const bottomItems = computed(() => {
-  const items = allowedItems.value.slice(0, 5)
+  const priority = BOTTOM_PRIORITY.filter(v => allowedItems.value.some(i => i.view === v))
+  const rest = allowedItems.value.filter(i => !priority.includes(i.view))
+  const items = [...priority, ...rest].slice(0, 5)
   while (items.length < 5) items.push(null)
   return items
 })

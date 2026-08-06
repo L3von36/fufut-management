@@ -18,6 +18,8 @@ import json
 import os
 import sqlite3
 import uuid
+import hashlib
+import http.cookies
 from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qs
 
@@ -44,6 +46,119 @@ VERSIONS_FILE = os.path.join(ROOT, 'content-versions.json')
 
 # SQLite database (mirrors D1 in production)
 DB_PATH = os.path.join(ROOT, 'fufut.db')
+
+# ===== DEV AUTH (local only — production uses Cloudflare Worker/D1) =====
+
+# Simple in-memory sessions: { session_id: { email, role, user, expires } }
+_dev_sessions = {}
+
+# Default passwords for local dev (email -> password)
+_DEV_PASSWORDS = {
+    'amanuel@fufut.coffee':  'manager123',
+    'selam@fufut.coffee':     'chef123',
+    'yonas@fufut.coffee':     'waiter123',
+    'bethel@fufut.coffee':    'cashier123',
+    'tigist@fufut.coffee':    'chef123',
+    'gebremedhin@fufut.coffee': 'delivery123',
+    'asnegash@fufut.coffee':  'cleaner123',
+}
+
+SESSION_COOKIE = 'fufut_session'
+SESSION_MAX_AGE = 86400  # 24 hours
+
+def _make_session_id():
+    return hashlib.sha256(uuid.uuid4().bytes + os.urandom(8)).hexdigest()[:32]
+
+def _get_cookie(self):
+    """Parse session cookie from request."""
+    hdr = self.headers.get('Cookie', '')
+    c = http.cookies.SimpleCookie(hdr)
+    return c.get(SESSION_COOKIE)
+
+def _get_session(self):
+    """Return session dict or None."""
+    morsel = _get_cookie(self)
+    if not morsel:
+        return None
+    sid = morsel.value
+    sess = _dev_sessions.get(sid)
+    if not sess:
+        return None
+    # Check expiry
+    if datetime.now(timezone.utc).timestamp() > sess.get('expires', 0):
+        del _dev_sessions[sid]
+        return None
+    return sess
+
+def _set_session_cookie(self, sid):
+    self.send_header('Set-Cookie', f'{SESSION_COOKIE}={sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age={SESSION_MAX_AGE}')
+
+def _clear_session_cookie(self):
+    self.send_header('Set-Cookie', f'{SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0')
+
+# ===== RBAC CONFIG =====
+
+def _normalize_role(role):
+    """Normalize role name to kebab-case for permission lookup."""
+    if not role:
+        return ''
+    return role.lower().replace(' ', '-')
+
+# Role -> permission sets (mirrors frontend ROLE_PERMISSIONS in api/index.js)
+_ROLE_PERMS = {
+    'manager': {'dashboard','orders','tables','menu-mgmt','menu-view','expenses','pnl',
+                'cashdrawer','inventory','waste','staff','shifts','timeclock','kitchen',
+                'reports','reservations','delivery','analytics','checkout','revenue','pipeline'},
+    'head-chef': {'kitchen','orders','dashboard','inventory','waste','reports','pipeline'},
+    'assistant-chef': {'kitchen','orders','dashboard','inventory'},
+    'head-waiter': {'tables','orders','dashboard','reservations','delivery','shifts',
+                    'timeclock','inventory','waste','kitchen','reports','pipeline',
+                    'menu-view','checkout'},
+    'cashier': {'cashdrawer','orders','dashboard','tables','reports','timeclock',
+                'reservations','revenue','menu-view','analytics','checkout'},
+    'delivery-staff': {'delivery','dashboard'},
+    'cleaner': {'waste','dashboard'},
+}
+
+# API collection -> permissions that grant read access
+_READ_PERMS = {
+    'orders': {'orders','kitchen','pipeline','checkout','reports','analytics','revenue','pnl'},
+    'reservations': {'reservations'},
+    'expenses': {'expenses','pnl'},
+    'inventory': {'inventory'},
+    'waste': {'waste'},
+    'staff': {'staff'},
+    'shifts': {'shifts'},
+    'timeclock': {'timeclock'},
+    'menu': {'menu-mgmt','menu-view'},
+    'tables': {'tables','dashboard'},
+    'cashdrawers': {'cashdrawer'},
+    'delivery': {'delivery'},
+    'reviews': set(),  # No role has reviews permission — fully restricted
+}
+
+# API collection -> permissions that grant write access (POST/PUT/DELETE)
+_WRITE_PERMS = {
+    'orders': {'orders','kitchen','pipeline','checkout'},
+    'reservations': {'reservations'},
+    'expenses': {'expenses'},
+    'inventory': {'inventory'},
+    'waste': {'waste'},
+    'staff': {'staff'},
+    'shifts': {'shifts'},
+    'timeclock': {'timeclock'},
+    'menu': {'menu-mgmt'},
+    'tables': {'tables'},
+    'cashdrawers': {'cashdrawer'},
+    'delivery': {'delivery'},
+    'reviews': set(),
+}
+
+def _role_has_perm(role_key, collection, write=False):
+    """Check if a normalized role has permission for a collection."""
+    role_perms = _ROLE_PERMS.get(role_key, set())
+    required = (_WRITE_PERMS if write else _READ_PERMS).get(collection, set())
+    return bool(role_perms & required)
 
 # ===== JSON HELPERS =====
 
@@ -132,14 +247,41 @@ def get_db():
         CREATE INDEX IF NOT EXISTS idx_reservations_date ON reservations(date);
         CREATE INDEX IF NOT EXISTS idx_reviews_status ON reviews(status);
     ''')
+    # Phase 2: Add new columns if they don't exist (safe migration)
+    new_cols = [
+        ('orders', 'subtotal', 'REAL NOT NULL DEFAULT 0'),
+        ('orders', 'tip', 'REAL NOT NULL DEFAULT 0'),
+        ('orders', 'tip_type', 'TEXT NOT NULL DEFAULT \'none\''),
+        ('orders', 'discount', 'REAL NOT NULL DEFAULT 0'),
+        ('orders', 'discount_type', 'TEXT NOT NULL DEFAULT \'none\''),
+        ('orders', 'discount_reason', 'TEXT NOT NULL DEFAULT \'\''),
+        ('orders', 'payment_method', 'TEXT NOT NULL DEFAULT \'cash\''),
+        ('orders', 'payment_breakdown', 'TEXT NOT NULL DEFAULT \'\''),
+        ('orders', 'order_items', 'TEXT NOT NULL DEFAULT \'\''),
+        ('orders', 'customer', 'TEXT NOT NULL DEFAULT \'\''),
+    ]
+    for table, col, coldef in new_cols:
+        try:
+            conn.execute(f'ALTER TABLE {table} ADD COLUMN {col} {coldef}')
+        except Exception:
+            pass  # Column already exists
     conn.commit()
     return conn
 
 def row_to_dict(row):
-    """Convert sqlite3.Row to dict."""
+    """Convert sqlite3.Row to dict. Auto-parses JSON fields."""
     if row is None:
         return None
-    return dict(row)
+    d = dict(row)
+    # Auto-parse known JSON columns for orders
+    for key in ('items', 'payment_breakdown', 'order_items'):
+        val = d.get(key)
+        if isinstance(val, str) and val.strip().startswith('['):
+            try:
+                d[key] = json.loads(val)
+            except (json.JSONDecodeError, ValueError):
+                pass
+    return d
 
 def migrate_json_to_sqlite():
     """One-time migration: read existing JSON files and insert into SQLite.
@@ -296,6 +438,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         path, params = self._parse_path()
 
+        # === AUTH ENDPOINTS ===
+        if path == '/api/auth/me':
+            sess = _get_session(self)
+            if not sess:
+                send_json(self, 200, {"ok": False})
+            else:
+                send_json(self, 200, {"ok": True, "user": sess['user'], "role": sess['role']})
+            return
+
         # === CMS CONTENT ENDPOINTS ===
         if path == '/api/content':
             is_draft = params.get('draft') == 'true' or params.get('preview') == 'true'
@@ -340,11 +491,35 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             send_json(self, 200, result)
             return
 
+        # === AUTH + RBAC CHECK FOR DATA ENDPOINTS ===
+        sess = _get_session(self)
+        if not sess:
+            send_json(self, 401, {"ok": False, "error": "Authentication required"})
+            return
+        role_key = _normalize_role(sess.get('role', ''))
+
         # === SQLITE COLLECTIONS: orders, reservations, reviews ===
         coll = self._is_sqlite_collection(path)
         if coll and path == f'/api/{coll}':
+            if not _role_has_perm(role_key, coll, write=False):
+                send_json(self, 403, {"ok": False, "error": "Access denied"})
+                return
             conn = get_db()
-            rows = conn.execute(f'SELECT * FROM {coll} ORDER BY created DESC').fetchall()
+            query = f'SELECT * FROM {coll}'
+            where_clauses = []
+            query_params = []
+            # Phase 4: filter orders by table_number
+            if coll == 'orders' and params.get('table_number'):
+                where_clauses.append('table_number = ?')
+                query_params.append(params['table_number'])
+            # Phase 4: filter orders by status
+            if coll == 'orders' and params.get('status'):
+                where_clauses.append('status = ?')
+                query_params.append(params['status'])
+            if where_clauses:
+                query += ' WHERE ' + ' AND '.join(where_clauses)
+            query += f' ORDER BY created DESC'
+            rows = conn.execute(query, query_params).fetchall()
             conn.close()
             send_json(self, 200, [row_to_dict(r) for r in rows])
             return
@@ -352,6 +527,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # === JSON COLLECTIONS (everything else) ===
         name = self._api_route()
         if name:
+            if not _role_has_perm(role_key, name, write=False):
+                send_json(self, 403, {"ok": False, "error": "Access denied"})
+                return
             send_json(self, 200, load_json(FILES[name]))
             return
         super().do_GET()
@@ -369,6 +547,49 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             data = json.loads(body)
             if not isinstance(data, dict):
                 raise ValueError("Expected JSON object")
+
+            # === AUTH ENDPOINTS ===
+            if path == '/api/auth/login':
+                email = (data.get('email') or '').strip().lower()
+                password = data.get('password', '')
+                staff = load_json(FILES['staff'])
+                user = next((s for s in staff if s.get('email', '').lower() == email), None)
+                if not user or _DEV_PASSWORDS.get(email) != password:
+                    send_json(self, 401, {"ok": False, "error": "Invalid email or password"})
+                    return
+                # Create session
+                sid = _make_session_id()
+                role = user.get('role', 'staff')
+                _dev_sessions[sid] = {
+                    'email': email, 'role': role, 'user': {**user},
+                    'expires': datetime.now(timezone.utc).timestamp() + SESSION_MAX_AGE,
+                }
+                # Build response manually so we can set cookie before end_headers
+                resp = json.dumps({"ok": True, "user": user, "role": role}).encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                _set_session_cookie(self, sid)
+                self.end_headers()
+                self.wfile.write(resp)
+                print(f"[AUTH LOGIN] {email} ({role})")
+                return
+
+            if path == '/api/auth/logout':
+                sess = _get_session(self)
+                if sess:
+                    morsel = _get_cookie(self)
+                    if morsel:
+                        _dev_sessions.pop(morsel.value, None)
+                    print(f"[AUTH LOGOUT] {sess.get('email', '?')}")
+                resp = json.dumps({"ok": True}).encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                _clear_session_cookie(self)
+                self.end_headers()
+                self.wfile.write(resp)
+                return
 
             # === CMS CONTENT ENDPOINTS ===
             if path == '/api/save-content' or path == '/save-content':
@@ -454,9 +675,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 print(f"[SAVE+PUBLISH] content.json — version {vid}")
                 return
 
+            # === AUTH + RBAC CHECK FOR DATA ENDPOINTS ===
+            sess = _get_session(self)
+            if not sess:
+                send_json(self, 401, {"ok": False, "error": "Authentication required"})
+                return
+            role_key = _normalize_role(sess.get('role', ''))
+
             # === SQLITE COLLECTIONS: orders, reservations, reviews ===
             coll = self._is_sqlite_collection(path)
             if coll and path == f'/api/{coll}':
+                if not _role_has_perm(role_key, coll, write=True):
+                    send_json(self, 403, {"ok": False, "error": "Access denied"})
+                    return
                 conn = get_db()
                 oid = data.get('id') or (coll[0].upper() + str(uuid.uuid4())[:7])
                 created = data.get('created', now_iso())
@@ -465,13 +696,33 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     items = data.get('items', [])
                     if not isinstance(items, str):
                         items = json.dumps(items)
+                    # Phase 2: serialize structured order items
+                    order_items = data.get('orderItems')
+                    if order_items and not isinstance(order_items, str):
+                        order_items = json.dumps(order_items)
+                    # Phase 2: serialize payment breakdown
+                    payment_breakdown = data.get('paymentBreakdown')
+                    if payment_breakdown and not isinstance(payment_breakdown, str):
+                        payment_breakdown = json.dumps(payment_breakdown)
                     conn.execute('''
-                        INSERT INTO orders (id, items, total, status, name, phone, email, order_type, table_number, notes, created, updated)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO orders (id, items, total, status, name, phone, email, order_type, table_number, notes, created, updated,
+                            subtotal, tip, tip_type, discount, discount_type, discount_reason,
+                            payment_method, payment_breakdown, order_items, customer)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (oid, items, data.get('total', 0), data.get('status', 'new'),
                           data.get('name', ''), data.get('phone', ''), data.get('email', ''),
                           data.get('order_type', ''), data.get('table_number', ''), data.get('notes', ''),
-                          created, created))
+                          created, created,
+                          data.get('subtotal', 0),
+                          data.get('tip', 0),
+                          data.get('tipType', 'none'),
+                          data.get('discount', 0),
+                          data.get('discountType', 'none'),
+                          data.get('discountReason', ''),
+                          data.get('payment', 'cash'),
+                          payment_breakdown or '',
+                          order_items or '',
+                          data.get('customer', '')))
                 elif coll == 'reservations':
                     conn.execute('''
                         INSERT INTO reservations (id, name, phone, email, date, time, guests, tableId, status, notes, created, updated)
@@ -496,6 +747,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             # === JSON COLLECTIONS (everything else) ===
             name = self._api_route()
             if name:
+                if not _role_has_perm(role_key, name, write=True):
+                    send_json(self, 403, {"ok": False, "error": "Access denied"})
+                    return
                 items = load_json(FILES[name])
                 prefix = PREFIXES[name]
                 entry = dict(data)
@@ -520,9 +774,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_PUT(self):
         path, _ = self._parse_path()
 
+        # Auth + RBAC check
+        sess = _get_session(self)
+        if not sess:
+            send_json(self, 401, {"ok": False, "error": "Authentication required"})
+            return
+        role_key = _normalize_role(sess.get('role', ''))
+
         # Check SQLite collections first
         coll = self._is_sqlite_collection(path)
         if coll and '/' in path.split('/api/')[1]:
+            if not _role_has_perm(role_key, coll, write=True):
+                send_json(self, 403, {"ok": False, "error": "Access denied"})
+                return
             item_id = path.split('/')[-1]
             try:
                 data = self._read_json_body()
@@ -532,14 +796,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 fields = []
                 values = []
                 updateable = {
-                    'orders': ['status', 'items', 'total', 'name', 'phone', 'email', 'order_type', 'table_number', 'notes'],
+                    'orders': ['status', 'items', 'total', 'name', 'phone', 'email', 'order_type', 'table_number', 'notes',
+                               'subtotal', 'tip', 'tip_type', 'discount', 'discount_type', 'discount_reason',
+                               'payment_method', 'payment_breakdown', 'order_items', 'customer'],
                     'reservations': ['status', 'name', 'phone', 'email', 'date', 'time', 'guests', 'tableId', 'notes'],
                     'reviews': ['status', 'author', 'text', 'rating'],
                 }
+                json_fields = {'items', 'payment_breakdown', 'order_items'}
                 for field in updateable.get(coll, []):
                     if field in data:
                         val = data[field]
-                        if field == 'items' and not isinstance(val, str):
+                        if field in json_fields and not isinstance(val, str):
                             val = json.dumps(val)
                         fields.append(f"{field} = ?")
                         values.append(val)
@@ -573,6 +840,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if not name:
             send_json(self, 404, {"ok": False, "error": "not found"})
             return
+        if not _role_has_perm(role_key, name, write=True):
+            send_json(self, 403, {"ok": False, "error": "Access denied"})
+            return
         try:
             data = self._read_json_body()
             item_id = data.get("id")
@@ -602,9 +872,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_DELETE(self):
         path, _ = self._parse_path()
 
+        # Auth + RBAC check
+        sess = _get_session(self)
+        if not sess:
+            send_json(self, 401, {"ok": False, "error": "Authentication required"})
+            return
+        role_key = _normalize_role(sess.get('role', ''))
+
         # Check SQLite collections first
         coll = self._is_sqlite_collection(path)
         if coll and '/' in path.split('/api/')[1]:
+            if not _role_has_perm(role_key, coll, write=True):
+                send_json(self, 403, {"ok": False, "error": "Access denied"})
+                return
             item_id = path.split('/')[-1]
             try:
                 data = self._read_json_body()
@@ -626,6 +906,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         name = self._api_route()
         if not name:
             send_json(self, 404, {"ok": False, "error": "not found"})
+            return
+        if not _role_has_perm(role_key, name, write=True):
+            send_json(self, 403, {"ok": False, "error": "Access denied"})
             return
         try:
             data = self._read_json_body()

@@ -4,7 +4,7 @@
       <!-- Left: Brand Panel -->
       <div class="login-brand">
         <div class="brand-circle">
-          <img src="/assets/logo.webp" alt="FU FUT" />
+          <img :src="'/pos/assets/logo.webp'" alt="FU FUT" />
         </div>
         <h1 class="brand-title">FU FUT</h1>
         <p class="brand-sub">COFFEE · POS</p>

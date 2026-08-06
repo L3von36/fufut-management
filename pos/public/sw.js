@@ -1,5 +1,5 @@
 // Service Worker for FU FUT POS — offline-first with sync queue
-const CACHE = 'fufut-pos-v1'
+const CACHE = 'fufut-pos-v2'
 const STATIC_ASSETS = [
   '/pos/',
   '/pos/index.html',

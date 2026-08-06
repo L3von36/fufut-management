@@ -33,7 +33,16 @@
                 <span class="order-time">{{ order.created ? order.created.slice(11, 19) : '' }}</span>
               </div>
               <div class="order-table">Table {{ order.tableId || '—' }}</div>
-              <div class="order-items">{{ order.items }}</div>
+              <div class="order-items">
+                <template v-if="getStructuredLines(order).length">
+                  <div v-for="(line, li) in getStructuredLines(order)" :key="li" class="oc-line">
+                    <span class="oc-qty">{{ line.qty }}x</span>
+                    <span>{{ line.name }}</span>
+                    <span v-if="line.modifiers.length" class="oc-mods">[{{ line.modifiers.join(', ') }}]</span>
+                  </div>
+                </template>
+                <span v-else>{{ order.items }}</span>
+              </div>
               <div v-if="order.timer" class="order-timer" :class="{ urgent: order.timer > 600 }">
                 ⏱ {{ formatTimer(order.timer) }}
               </div>
@@ -168,6 +177,41 @@ function formatTimer(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+function formatModName(mod) {
+  return String(mod).split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+/**
+ * Parse order into structured lines for PipelineView.
+ * Uses order_items (structured JSON) when available, falls back to flat string.
+ */
+function getStructuredLines(order) {
+  const structured = order.order_items || order.orderItems
+  if (Array.isArray(structured) && structured.length > 0) {
+    return structured.map(item => ({
+      qty: item.qty || 1,
+      name: item.name || 'Unknown',
+      modifiers: (item.modifiers || []).map(m => formatModName(m.name || m))
+    }))
+  }
+  // Fallback: parse flat string
+  const flat = order.items
+  if (!flat || typeof flat !== 'string') return []
+  const lines = []
+  const parts = flat.split(/,(?=\s*\d+x)/)
+  for (const part of parts) {
+    const trimmed = part.trim()
+    const qtyMatch = trimmed.match(/^(\d+)x\s*(.*)/)
+    if (!qtyMatch) continue
+    let rest = qtyMatch[2].trim()
+    const modMatch = rest.match(/\[([^\]]*)\]/)
+    const mods = modMatch ? modMatch[1].split(',').map(m => formatModName(m.trim())).filter(Boolean) : []
+    const name = rest.replace(/\[[^\]]*\]/, '').replace(/\([^)]*\)/, '').trim()
+    if (name) lines.push({ qty: parseInt(qtyMatch[1], 10), name, modifiers: mods })
+  }
+  return lines
+}
+
 async function loadOrders() {
   try { orders.value = (await apiGet('orders')).filter(o => o.status !== 'fulfilled' && o.status !== 'cancelled') } catch (e) { console.error(e) }
 }
@@ -229,6 +273,9 @@ async function updateStatus(status) {
 .order-time{font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono)}
 .order-table{font-size:.72rem;color:var(--primary);font-weight:500;margin-bottom:2px}
 .order-items{font-size:.78rem;color:var(--text-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
+.oc-line{display:flex;gap:4px;align-items:baseline;line-height:1.5}
+.oc-qty{font-family:var(--font-mono);font-weight:700;color:var(--primary);font-size:.72rem;min-width:22px}
+.oc-mods{font-size:.65rem;color:var(--text-muted);font-style:italic}
 .order-timer{font-size:.7rem;font-weight:600;color:var(--warning);font-family:var(--font-mono);margin-bottom:2px}
 .order-timer.urgent{color:var(--danger);animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}

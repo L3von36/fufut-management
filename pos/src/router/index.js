@@ -22,6 +22,8 @@ const TimeClockView = () => import('../views/TimeClockView.vue')
 const ReportsView = () => import('../views/ReportsView.vue')
 const PipelineView = () => import('../views/PipelineView.vue')
 const RevenueView = () => import('../views/RevenueView.vue')
+const AnalyticsView = () => import('../views/AnalyticsView.vue')
+const CheckoutView = () => import('../views/CheckoutView.vue')
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -50,7 +52,9 @@ const routes = [
       { path: 'timeclock', name: 'timeclock', component: TimeClockView },
       { path: 'reports', name: 'reports', component: ReportsView },
       { path: 'pipeline', name: 'pipeline', component: PipelineView },
-      { path: 'revenue', name: 'revenue', component: RevenueView }
+      { path: 'revenue', name: 'revenue', component: RevenueView },
+      { path: 'analytics', name: 'analytics', component: AnalyticsView },
+      { path: 'checkout', name: 'checkout', component: CheckoutView }
     ]
   }
 ]

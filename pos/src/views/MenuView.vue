@@ -30,13 +30,13 @@
       <div class="menu-grid">
         <div v-for="item in filteredItems" :key="item.id"
           class="menu-card"
-          :class="{ unavailable: item.available === false, 'in-cart': cartCount(item.id) > 0 }"
-          @click="addItem(item)"
+          :class="{ unavailable: item.available === false, 'in-cart': storeCartCount(item.id) > 0 }"
+          @click="handleItemClick(item)"
         >
           <div class="menu-img">
             <img :src="item.image || getPlaceholder(item)" :alt="item.name" loading="lazy" />
             <div v-if="item.available === false" class="menu-img-overlay">Unavailable</div>
-            <div v-if="cartCount(item.id) > 0" class="menu-badge">{{ cartCount(item.id) }}</div>
+            <div v-if="storeCartCount(item.id) > 0" class="menu-badge">{{ storeCartCount(item.id) }}</div>
           </div>
           <div class="menu-info">
             <div class="menu-name-row">
@@ -48,12 +48,12 @@
               <span class="menu-category-tag">{{ item.category }}</span>
               <span v-if="item.cost && parseFloat(item.cost) > 0" class="menu-cost-badge">Gross {{ ((parseFloat(item.price)-parseFloat(item.cost))/parseFloat(item.price)*100).toFixed(0) }}%</span>
             </div>
-            <div v-if="item.modifiers?.length" class="menu-modifiers">
-              <span v-for="mod in (typeof item.modifiers === 'string' ? item.modifiers.split(',') : item.modifiers).slice(0, 3)" :key="mod" class="mod-tag">{{ mod.trim() }}</span>
-              <span v-if="(typeof item.modifiers === 'string' ? item.modifiers.split(',') : item.modifiers).length > 3" class="mod-tag mod-more">+{{ (typeof item.modifiers === 'string' ? item.modifiers.split(',') : item.modifiers).length - 3 }} more</span>
+            <div v-if="hasModifiers(item)" class="menu-modifiers">
+              <span v-for="mod in getModifierList(item).slice(0, 3)" :key="mod" class="mod-tag">{{ formatModName(mod) }}</span>
+              <span v-if="getModifierList(item).length > 3" class="mod-tag mod-more">+{{ getModifierList(item).length - 3 }} more</span>
             </div>
           </div>
-          <button class="menu-add-btn" @click.stop="addItem(item)">
+          <button class="menu-add-btn" @click.stop="handleItemClick(item)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
         </div>
@@ -66,14 +66,14 @@
     </div>
 
     <!-- Floating Cart -->
-    <div v-if="cartTotal > 0" class="floating-cart" @click="showCart = !showCart">
+    <div v-if="orderStore.cartTotal > 0" class="floating-cart" @click="showCart = !showCart">
       <div class="fc-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-        <span class="fc-badge">{{ cartItemCount }}</span>
+        <span class="fc-badge">{{ orderStore.cartItemCount }}</span>
       </div>
       <div class="fc-details">
-        <span class="fc-count">{{ cartItemCount }} item{{ cartItemCount !== 1 ? 's' : '' }}</span>
-        <span class="fc-total">ETB {{ cartTotal.toFixed(0) }}</span>
+        <span class="fc-count">{{ orderStore.cartItemCount }} item{{ orderStore.cartItemCount !== 1 ? 's' : '' }}</span>
+        <span class="fc-total">ETB {{ orderStore.grandTotal.toFixed(0) }}</span>
       </div>
       <div class="fc-chevron">
         <svg :class="{ rotated: showCart }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -86,58 +86,66 @@
         <div class="cart-sheet" @click.stop>
           <div class="cart-header">
             <h3>Current Order</h3>
-            <button class="btn btn-sm btn-ghost" @click="clearCart">Clear All</button>
+            <button class="btn btn-sm btn-ghost" @click="orderStore.clearCart(); showCart=false">Clear All</button>
           </div>
           <div class="cart-items">
-            <div v-for="(entry, idx) in cart" :key="entry.id + '-' + idx" class="cart-item">
+            <div v-for="entry in orderStore.items" :key="entry.uid" class="cart-item">
               <div class="cart-item-info">
-                <div class="cart-item-name">{{ entry.name }}</div>
-                <div class="cart-item-price">ETB {{ (parseFloat(entry.price||0) * entry.quantity).toFixed(0) }}</div>
+                <div class="cart-item-name">{{ orderStore.lineSummary(entry) }}</div>
+                <div class="cart-item-price">ETB {{ (orderStore.lineTotal(entry) * entry.qty).toFixed(0) }}</div>
               </div>
               <div class="cart-qty">
-                <button class="qty-btn" @click="decrementQty(idx)">−</button>
-                <span class="qty-value">{{ entry.quantity }}</span>
-                <button class="qty-btn" @click="incrementQty(idx)">+</button>
+                <button class="qty-btn" @click="orderStore.decrementQty(entry.uid)">−</button>
+                <span class="qty-value">{{ entry.qty }}</span>
+                <button class="qty-btn" @click="orderStore.incrementQty(entry.uid)">+</button>
               </div>
-              <button class="cart-remove" @click="removeItem(idx)">✕</button>
+              <button class="cart-remove" @click="orderStore.removeItem(entry.uid); if (!orderStore.items.length) showCart=false">✕</button>
             </div>
           </div>
           <div class="cart-footer">
             <div class="cart-total-row">
               <span>Subtotal</span>
-              <span>ETB {{ cartTotal.toFixed(0) }}</span>
+              <span>ETB {{ orderStore.cartTotal.toFixed(0) }}</span>
             </div>
             <div class="cart-total-row cart-grand-total">
               <span>Total</span>
-              <span>ETB {{ cartTotal.toFixed(0) }}</span>
+              <span>ETB {{ orderStore.cartTotal.toFixed(0) }}</span>
             </div>
-            <button class="btn btn-primary cart-checkout" @click="placeOrder" :disabled="orderBtnState.isBusy()" :aria-busy="orderBtnState.isBusy() ? 'true' : undefined">
-              <span v-if="orderBtnState.isBusy()" class="btn-spinner" aria-hidden="true"></span>
-              <span v-else-if="orderBtnState.isSuccess()" class="btn-check" aria-hidden="true">✓</span>
-              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-              {{ orderBtnState.isBusy() ? 'Sending...' : orderBtnState.isSuccess() ? 'Sent ✓' : orderBtnState.isError() ? 'Failed' : 'Send to Kitchen' }}
+            <button class="btn btn-primary cart-checkout" @click="goToCheckout">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+              Proceed to Checkout
             </button>
           </div>
         </div>
       </div>
     </transition>
+
+    <!-- Modifier Selection Sheet -->
+    <ModifierSelectionSheet
+      :visible="showModifierSheet"
+      :menu-item="modifierTarget"
+      @confirm="onModifierConfirm"
+      @cancel="showModifierSheet = false"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
-import { apiGet, apiPost } from '../api'
-import { useButtonState } from '../composables/useButtonState'
+import { useRouter } from 'vue-router'
+import { apiGet } from '../api'
+import { useOrderStore } from '../stores/order'
+import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
 
+const router = useRouter()
 const toast = inject('toast')
+const orderStore = useOrderStore()
 const items = ref([])
 const activeCategory = ref('')
 const search = ref('')
-const cart = ref([])
 const showCart = ref(false)
-const orderSent = ref(false)
-const orderBtnState = useButtonState()
-
+const showModifierSheet = ref(false)
+const modifierTarget = ref({})
 const categories = ref([])
 
 const categoryIcons = {
@@ -153,7 +161,15 @@ const categoryIcons = {
   'Hot Drink / ትኩስ መጠጦች': '☕',
   'Seasonal Juice / የፍራፍሬ ጭማቂዎች': '🧃',
   'Soft Drink / ቀዝቃዛ መጠጦች': '🥤',
-  'Extra / ጭማሪዎች': '➕'
+  'Extra / ጭማሪዎች': '➕',
+  'Coffee': '☕',
+  'Drinks': '🥤',
+  'Pastries': '🥐',
+  'Breakfast': '🍳',
+  'Appetizers': '🍟',
+  'Salads': '🥗',
+  'Mains': '🍽️',
+  'Desserts': '🍰'
 }
 
 const foodImages = [
@@ -165,6 +181,71 @@ const foodImages = [
   '/assets/menu-1608039829572.jpg','/assets/menu-1627308595229.jpg'
 ]
 
+// ─── Helpers ───
+function getModifierList(item) {
+  const raw = item.modifiers
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') return raw.split(',').map(s => s.trim()).filter(Boolean)
+  return []
+}
+
+function hasModifiers(item) {
+  return getModifierList(item).length > 0
+}
+
+function formatModName(mod) {
+  return String(mod).split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+function getPlaceholder(item) {
+  const idx = items.value.findIndex(i => i.id === item.id)
+  return foodImages[((idx >= 0 ? idx : Math.abs(hashCode(item.name || ''))) % foodImages.length)]
+}
+
+function hashCode(s) {
+  let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i) | 0
+  return h
+}
+
+// Cart count for badge (aggregates all cart lines matching this menu item id)
+function storeCartCount(menuItemId) {
+  return orderStore.items
+    .filter(i => i.menuItemId === menuItemId)
+    .reduce((s, i) => s + i.qty, 0)
+}
+
+// ─── Item click → modifier sheet or direct add ───
+function handleItemClick(item) {
+  if (item.available === false) return
+  if (hasModifiers(item)) {
+    modifierTarget.value = item
+    showModifierSheet.value = true
+  } else {
+    // No modifiers — add directly with qty 1
+    orderStore.addItem({
+      menuItemId: item.id,
+      name: item.name,
+      basePrice: parseFloat(item.price || 0)
+    })
+  }
+}
+
+function onModifierConfirm(selection) {
+  showModifierSheet.value = false
+  orderStore.addItem(selection)
+}
+
+// ─── Navigate to checkout ───
+function goToCheckout() {
+  if (orderStore.isEmpty) return
+  orderStore.resetCheckout()
+ orderStore.checkoutStep = 'cart'
+ showCart.value = false
+  router.push('/app/checkout')
+}
+
+// ─── Category / search ───
 const categoryCounts = computed(() => {
   const c = {}
   items.value.forEach(i => { c[i.category] = (c[i.category] || 0) + 1 })
@@ -181,74 +262,11 @@ const filteredItems = computed(() => {
   return result
 })
 
-const cartItemCount = computed(() => cart.value.reduce((s, e) => s + e.quantity, 0))
-const cartTotal = computed(() => cart.value.reduce((s, e) => s + parseFloat(e.price||0) * e.quantity, 0))
-
-function getPlaceholder(item) {
-  const idx = items.value.findIndex(i => i.id === item.id)
-  return foodImages[((idx >= 0 ? idx : Math.abs(hashCode(item.name || ''))) % foodImages.length)]
-}
-
-function hashCode(s) {
-  let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i) | 0
-  return h
-}
-
-function cartCount(id) {
-  const entry = cart.value.find(e => e.id === id)
-  return entry ? entry.quantity : 0
-}
-
-function addItem(item) {
-  if (item.available === false) return
-  const existing = cart.value.find(e => e.id === item.id)
-  if (existing) {
-    existing.quantity++
-  } else {
-    cart.value.push({ ...item, quantity: 1, modifiers: item.modifiers || [] })
-  }
-  // Brief pulse feedback
-  const el = document.querySelector(`.menu-card[data-id="${item.id}"]`)
-  if (el) { el.classList.add('pulse-add'); setTimeout(() => el.classList.remove('pulse-add'), 400) }
-}
-
-function incrementQty(idx) { cart.value[idx].quantity++ }
-function decrementQty(idx) {
-  if (cart.value[idx].quantity <= 1) { cart.value.splice(idx, 1); if (!cart.value.length) showCart.value = false }
-  else cart.value[idx].quantity--
-}
-function removeItem(idx) { cart.value.splice(idx, 1); if (!cart.value.length) showCart.value = false }
-function clearCart() { cart.value = []; showCart.value = false }
-
-async function placeOrder() {
-  if (!cart.value.length || orderBtnState.isBusy()) return
-  orderBtnState.setLoading()
-  const orderItems = cart.value.map(i => `${i.name} x${i.quantity}`).join(', ')
-  const total = cartTotal.value
-
-  try {
-    await apiPost('orders', {
-      items: orderItems,
-      total,
-      status: 'new',
-      payment: 'unpaid',
-      created: new Date().toISOString()
-    })
-    orderBtnState.setSuccess()
-    toast('Order sent to kitchen!')
-    cart.value = []
-    showCart.value = false
-  } catch (e) {
-    orderBtnState.setError('Failed to place order')
-    toast('Failed to place order', 'error')
-  }
-}
-
+// ─── Init ───
 onMounted(loadData)
 async function loadData() {
   try {
     items.value = await apiGet('menu')
-    // Derive categories from actual data, preserving order of first appearance
     const catSet = new Set()
     items.value.forEach(i => { if (i.category) catSet.add(i.category) })
     categories.value = Array.from(catSet)
@@ -277,7 +295,7 @@ async function loadData() {
 .menu-search-input::placeholder{color:var(--neutral-400)}
 .search-clear{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.9rem;padding:2px 6px}
 
-/* Grid — LARGER CARDS */
+/* Grid */
 .menu-grid-wrapper{flex:1;overflow-y:auto;padding-bottom:80px}
 .menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
 
@@ -296,13 +314,11 @@ async function loadData() {
 .menu-badge{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(15,123,120,.3);animation:badge-pop .3s var(--ease-out)}
 @keyframes badge-pop{0%{transform:scale(0)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
 
-/* Card info — BIGGER TEXT & PADDING */
 .menu-info{padding:14px 16px 16px}
 .menu-name-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
 .menu-info h3{font-size:1.05rem;font-weight:700;color:var(--text-heading);line-height:1.3}
 .menu-price{font-size:1.05rem;font-weight:700;color:var(--primary);font-family:var(--font-mono);white-space:nowrap;flex-shrink:0}
 
-/* Description — NEW */
 .menu-desc{font-size:.82rem;color:var(--text-muted);line-height:1.45;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
 .menu-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
@@ -312,7 +328,6 @@ async function loadData() {
 .mod-tag{font-size:.65rem;color:var(--text-muted);background:var(--neutral-50);padding:2px 8px;border-radius:4px;border:1px solid var(--border)}
 .mod-more{color:var(--primary);background:var(--teal-50);border-color:var(--teal-200)}
 
-/* Add button — BIGGER */
 .menu-add-btn{position:absolute;bottom:14px;right:14px;width:40px;height:40px;border-radius:50%;border:none;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:all var(--duration-base) var(--ease-out);box-shadow:var(--shadow-primary)}
 .menu-card:hover .menu-add-btn{opacity:1;transform:translateY(0)}
 .menu-add-btn:hover{background:var(--primary-hover);transform:scale(1.1)!important}

@@ -1,10 +1,20 @@
 <template>
   <div>
-    <div class="table-toolbar">
-      <h3>Delivery</h3>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <div class="dv-toolbar">
+      <div class="dv-toolbar-left">
+        <span class="dv-toolbar-title">Delivery</span>
+        <span class="dv-toolbar-count">{{ filteredDeliveries.length }} result{{ filteredDeliveries.length !== 1 ? 's' : '' }}</span>
+      </div>
+      <div class="dv-toolbar-actions">
+        <div class="dv-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;flex-shrink:0;color:var(--text-muted)"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input v-model="search" type="text" placeholder="Search customer or address..." class="dv-search-input" />
+          <button v-if="search" class="dv-search-clear" @click="search=''" aria-label="Clear search">&times;</button>
+        </div>
         <select v-model="statusFilter" class="select"><option value="">All</option><option value="pending">Pending</option><option value="in-transit">In Transit</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select>
-        <button class="btn btn-outline" @click="loadData">Refresh</button>
+        <button class="btn btn-ghost btn-sm" @click="loadData" title="Refresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
       </div>
     </div>
     <div class="summary-grid">
@@ -29,7 +39,15 @@
                 <button v-if="d.status==='pending'" class="btn btn-sm btn-ghost danger" @click="updateStatus(d,'cancelled')">Cancel</button>
               </td>
             </tr>
-            <tr v-if="!filteredDeliveries.length"><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">No deliveries</td></tr>
+            <tr v-if="!filteredDeliveries.length"><td colspan="6">
+              <div class="dv-empty">
+                <div class="dv-empty-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                </div>
+                <div class="dv-empty-text">{{ search ? 'No deliveries match your search' : 'No deliveries' }}</div>
+                <div class="dv-empty-hint">{{ search ? 'Try a different keyword.' : 'Delivery orders will appear here.' }}</div>
+              </div>
+            </td></tr>
           </tbody>
         </table>
       </div>
@@ -41,13 +59,79 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { useToast } from '../composables/useToast'
+
 const { toast } = useToast()
-const deliveries = ref([]); const statusFilter = ref('')
-const pending = computed(()=>deliveries.value.filter(d=>d.status==='pending'))
-const inTransit = computed(()=>deliveries.value.filter(d=>d.status==='in-transit'))
-const delivered = computed(()=>deliveries.value.filter(d=>d.status==='delivered'))
-const filteredDeliveries = computed(()=>!statusFilter.value?deliveries.value:deliveries.value.filter(d=>d.status===statusFilter.value))
+const deliveries = ref([])
+const statusFilter = ref('')
+const search = ref('')
+
+const pending = computed(() => deliveries.value.filter(d => d.status === 'pending'))
+const inTransit = computed(() => deliveries.value.filter(d => d.status === 'in-transit'))
+const delivered = computed(() => deliveries.value.filter(d => d.status === 'delivered'))
+
+const filteredDeliveries = computed(() => {
+  let result = !statusFilter.value ? deliveries.value : deliveries.value.filter(d => d.status === statusFilter.value)
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    result = result.filter(d =>
+      (d.customer && d.customer.toLowerCase().includes(q)) ||
+      (d.name && d.name.toLowerCase().includes(q)) ||
+      (d.address && d.address.toLowerCase().includes(q))
+    )
+  }
+  return result
+})
+
 onMounted(loadData)
-async function loadData() { try { deliveries.value = await apiGet('delivery') } catch (e) { console.error(e) } }
-async function updateStatus(d,s) { d.status=s; try { await apiPut('delivery/'+d.id,d); toast(s); await loadData() } catch { toast('Failed','error') } }
+
+async function loadData() {
+  try { deliveries.value = await apiGet('delivery') } catch (e) { console.error(e) }
+}
+
+async function updateStatus(d, s) {
+  d.status = s
+  try { await apiPut('delivery/' + d.id, d); toast(s); await loadData() } catch { toast('Failed', 'error') }
+}
 </script>
+<style scoped>
+.dv-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.dv-toolbar-left { display: flex; align-items: baseline; gap: 10px; }
+.dv-toolbar-title { font-size: 1.15rem; font-weight: 700; color: var(--text-heading); }
+.dv-toolbar-count { font-size: .78rem; color: var(--text-muted); }
+.dv-toolbar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.dv-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  transition: border-color var(--duration-fast) var(--ease);
+  min-width: 220px;
+}
+.dv-search:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(15,123,120,.1); }
+.dv-search-input { border: none; background: transparent; padding: 7px 0; font-size: .82rem; color: var(--text-heading); width: 100%; outline: none; font-family: inherit; }
+.dv-search-input::placeholder { color: var(--neutral-400); }
+.dv-search-clear { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; padding: 0 2px; line-height: 1; }
+.dv-search-clear:hover { color: var(--text-heading); }
+
+.dv-empty { display: flex; flex-direction: column; align-items: center; padding: 40px 20px; text-align: center; }
+.dv-empty-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--neutral-50); display: flex; align-items: center; justify-content: center; color: var(--neutral-400); margin-bottom: 12px; }
+.dv-empty-text { font-size: .88rem; font-weight: 600; color: var(--text-heading); }
+.dv-empty-hint { font-size: .78rem; color: var(--text-muted); margin-top: 4px; }
+
+@media (max-width: 768px) {
+  .dv-toolbar { flex-direction: column; align-items: stretch; }
+  .dv-toolbar-left { margin-bottom: 4px; }
+  .dv-search { min-width: 0; }
+}
+</style>

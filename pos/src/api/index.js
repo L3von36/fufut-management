@@ -166,11 +166,11 @@ export async function apiDelete(endpoint, id) {
 
 // Role permissions (unchanged)
 export const ROLE_PERMISSIONS = {
-  manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery'],
+  manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout'],
   'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline'],
   'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory'],
-  'head-waiter': ['tables', 'orders', 'dashboard', 'reservations', 'delivery', 'shifts', 'timeclock', 'inventory', 'waste', 'kitchen', 'reports', 'pipeline', 'menu-view'],
-  cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view'],
+  'head-waiter': ['tables', 'orders', 'dashboard', 'reservations', 'delivery', 'shifts', 'timeclock', 'inventory', 'waste', 'kitchen', 'reports', 'pipeline', 'menu-view', 'checkout'],
+  cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout'],
   'delivery-staff': ['delivery', 'dashboard'],
   cleaner: ['waste', 'dashboard']
 }
@@ -203,6 +203,8 @@ export const NAV_ITEMS = [
   { view: 'shifts', label: 'Shifts', icon: 'clock', section: 'HR' },
   { view: 'timeclock', label: 'Time Clock', icon: 'fingerprint', section: 'HR' },
   { view: 'reports', label: 'Reports', icon: 'file-text', section: 'Analytics' },
+  { view: 'analytics', label: 'Analytics', icon: 'bar-chart-2', section: 'Analytics' },
+  { view: 'checkout', label: 'Checkout', icon: 'credit-card', section: 'Sales' },
   { view: 'pipeline', label: 'Pipeline', icon: 'git-branch', section: 'Operations' },
   { view: 'revenue', label: 'Revenue', icon: 'trending-up', section: 'Finance' }
 ]
