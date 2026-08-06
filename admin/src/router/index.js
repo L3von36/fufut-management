@@ -24,7 +24,7 @@ const routes = [
   ]}
 ]
 
-const router = createRouter({ history: createWebHistory('/admin/'), routes })
+const router = createRouter({ history: createWebHistory('/'), routes })
 
 router.beforeEach((to, from, next) => {
   const stored = sessionStorage.getItem('admin_auth')

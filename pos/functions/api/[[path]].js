@@ -109,7 +109,11 @@ export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const workerBase = env.WORKER_BASE || DEFAULT_WORKER_BASE;
-  const target = workerBase + url.pathname + url.search;
+
+  // Strip the app's base path (e.g. /pos) so the Worker receives /api/* not /pos/api/*
+  const basePath = url.pathname.split('/').filter(Boolean)[0] || '';
+  const strippedPath = basePath ? url.pathname.replace(new RegExp("^/" + basePath + "/"), "/") : url.pathname;
+  const target = workerBase + strippedPath + url.search;
 
   const isBodyMethod = !['GET', 'HEAD'].includes(request.method.toUpperCase());
 

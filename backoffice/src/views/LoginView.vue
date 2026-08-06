@@ -38,10 +38,22 @@
             {{ error }}
           </p>
           <button type="submit" class="login-submit" :disabled="btnState.isBusy()" :aria-busy="btnState.isBusy() ? 'true' : undefined">
-            <span v-if="btnState.isBusy()" class="spinner"></span>
-            <svg v-else-if="btnState.isSuccess()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><polyline points="20 6 9 17 4 12"/></svg>
-            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-            {{ btnState.isBusy() ? 'Signing in...' : btnState.isSuccess() ? 'Signed In ✓' : 'Sign In' }}
+            <template v-if="btnState.isBusy()">
+              <span class="spinner" aria-hidden="true"></span>
+              <span>Signing in...</span>
+            </template>
+            <template v-else-if="btnState.isSuccess()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Signed In</span>
+            </template>
+            <template v-else-if="btnState.isError()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Try Again</span>
+            </template>
+            <template v-else>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+              <span>Sign In</span>
+            </template>
           </button>
         </form>
         <div class="form-footer">
