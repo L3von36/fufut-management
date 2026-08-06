@@ -71,10 +71,9 @@ async function handleLogin() {
   error.value = ''
   btnState.setLoading()
   try {
-    const res = await auth.loginWithEmail(email.value, password.value)
-    btnState.setSuccess()
-    toast('Welcome, ' + (auth.user?.firstName || ''))
-    setTimeout(() => router.push('/app/' + auth.defaultView), 800)
+    await auth.loginWithEmail(email.value, password.value)
+    toast.success('Welcome, ' + (auth.user?.firstName || ''))
+    router.push('/app/' + auth.defaultView)
   } catch (e) {
     error.value = e.message || 'Login failed'
     btnState.setError(e.message || 'Login failed')

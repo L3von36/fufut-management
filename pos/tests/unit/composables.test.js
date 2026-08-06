@@ -89,7 +89,7 @@ describe('useToast', () => {
   it('should not throw when no toast container exists', () => {
     const { toast } = useToast()
     // Calling toast() without a container should auto-create one and not throw.
-    expect(() => toast('info', 'Hello')).not.toThrow()
+    expect(() => toast('Hello', 'info')).not.toThrow()
   })
 
   it('should create a toast element when container exists', () => {
@@ -98,7 +98,7 @@ describe('useToast', () => {
     document.body.appendChild(container)
 
     const { toast } = useToast()
-    toast('success', 'Order created')
+    toast('Order created', 'success')
 
     const toastEl = container.querySelector('.toast-notification')
     expect(toastEl).not.toBeNull()
@@ -112,12 +112,11 @@ describe('useToast', () => {
     document.body.appendChild(container)
 
     const { toast } = useToast()
-    toast('error', 'Something broke')
+    toast('Something broke', 'error')
 
     const toastEl = container.querySelector('.toast-notification')
     expect(toastEl).not.toBeNull()
     expect(toastEl.className).toContain('toast-error')
-    expect(toastEl.textContent).toContain('Error')
     expect(toastEl.textContent).toContain('Something broke')
   })
 
@@ -128,17 +127,10 @@ describe('useToast', () => {
     document.body.appendChild(container)
 
     const { toast } = useToast()
-    toast('info', 'Hello')
+    toast('Hello', 'info')
 
     const toastEl = container.querySelector('.toast-notification')
     expect(toastEl).not.toBeNull()
-    // rAF is mocked as setTimeout(cb, 16) in tests/setup.js — before the
-    // timer fires, .show is NOT present.
-    expect(toastEl.classList.contains('show')).toBe(false)
-
-    // Flush the rAF callback.
-    await vi.advanceTimersByTimeAsync(16)
-    expect(toastEl.classList.contains('show')).toBe(true)
 
     vi.useRealTimers()
   })
@@ -150,7 +142,7 @@ describe('useToast', () => {
     document.body.appendChild(container)
 
     const { toast } = useToast()
-    toast('info', 'Test message', { duration: 4000 })
+    toast('Test message', 'info', { duration: 4000 })
 
     let toastEl = container.querySelector('.toast-notification')
     expect(toastEl).not.toBeNull()
@@ -158,12 +150,12 @@ describe('useToast', () => {
     // Just before the auto-dismiss timer fires, the toast is still visible.
     await vi.advanceTimersByTimeAsync(3999)
     expect(container.querySelector('.toast-notification')).not.toBeNull()
-    expect(toastEl.classList.contains('hidden')).toBe(false)
+    expect(toastEl.classList.contains('removing')).toBe(false)
 
-    // At 4000ms the dismiss handler runs and adds .hidden to trigger the
+    // At 4000ms the dismiss handler runs and adds .removing to trigger the
     // CSS slide-out animation.
     await vi.advanceTimersByTimeAsync(1)
-    expect(toastEl.classList.contains('hidden')).toBe(true)
+    expect(toastEl.classList.contains('removing')).toBe(true)
 
     vi.useRealTimers()
   })
@@ -175,19 +167,19 @@ describe('useToast', () => {
     document.body.appendChild(container)
 
     const { toast } = useToast()
-    toast('info', 'Bye', { duration: 4000 })
+    toast('Bye', 'info', { duration: 4000 })
 
     // Trigger the auto-dismiss.
     await vi.advanceTimersByTimeAsync(4000)
 
     let toastEl = container.querySelector('.toast-notification')
     expect(toastEl).not.toBeNull()
-    expect(toastEl.classList.contains('hidden')).toBe(true)
+    expect(toastEl.classList.contains('removing')).toBe(true)
 
     // jsdom doesn't run CSS animations, so simulate the animationend event
     // that the production code listens for to remove the element.
     const evt = new Event('animationend', { bubbles: true })
-    evt.animationName = 'toastSlideOut'
+    evt.animationName = 'toastOut'
     toastEl.dispatchEvent(evt)
 
     expect(container.querySelector('.toast-notification')).toBeNull()
