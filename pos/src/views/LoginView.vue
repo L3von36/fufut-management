@@ -72,7 +72,7 @@ async function handleLogin() {
   btnState.setLoading()
   try {
     await auth.loginWithEmail(email.value, password.value)
-    toast.success('Welcome, ' + (auth.user?.firstName || ''))
+    toast('Welcome, ' + (auth.user?.firstName || ''), 'success')
     router.push('/app/' + auth.defaultView)
   } catch (e) {
     error.value = e.message || 'Login failed'
