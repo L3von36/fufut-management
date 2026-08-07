@@ -51,7 +51,7 @@
               <td data-label="Items">{{ o.items }}</td>
               <td data-label="Total">
                 <span style="font-family:var(--font-mono);font-weight:600">ETB {{ parseFloat(o.total||0).toFixed(0) }}</span>
-                <div v-if="o.subtotal && parseFloat(o.subtotal) !== parseFloat(o.total)" style="font-size:.68rem;color:var(--text-muted);text-decoration:line-through">
+                <div v-if="o.subtotal && parseFloat(o.subtotal) !== parseFloat(o.total)" style="font-size:.72rem;color:var(--text-muted);text-decoration:line-through">
                   ETB {{ parseFloat(o.subtotal).toFixed(0) }}
                 </div>
               </td>
@@ -445,7 +445,7 @@ function printReceipt(order) {
 }
 .order-cat-group { margin-bottom: 12px; }
 .order-cat-title {
-  font-size: .68rem;
+  font-size: .72rem;
   text-transform: uppercase;
   letter-spacing: .06em;
   color: var(--text-muted);
@@ -555,7 +555,7 @@ function printReceipt(order) {
   font-weight: 500;
 }
 .split-indicator {
-  font-size: .65rem;
+  font-size: .72rem;
   color: var(--primary);
   margin-top: 2px;
 }

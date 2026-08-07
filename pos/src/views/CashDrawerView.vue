@@ -13,10 +13,10 @@
     <div class="card" v-if="activeDrawer" style="margin-bottom:16px;border-color:var(--teal-200);background:var(--teal-50)">
       <div class="card-header"><h3>🟢 Active Drawer</h3></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px">
-        <div><div style="font-size:.68rem;text-transform:uppercase;color:var(--text-muted)">Opened</div><div style="font-weight:600">{{ new Date(activeDrawer.opened).toLocaleString() }}</div></div>
-        <div><div style="font-size:.68rem;text-transform:uppercase;color:var(--text-muted)">Opening Bal</div><div style="font-weight:600;font-family:var(--font-mono)">ETB {{ parseFloat(activeDrawer.openingBal||0).toFixed(0) }}</div></div>
-        <div><div style="font-size:.68rem;text-transform:uppercase;color:var(--text-muted)">Cash Sales</div><div style="font-weight:600;font-family:var(--font-mono)">ETB {{ cashSales }}</div></div>
-        <div><div style="font-size:.68rem;text-transform:uppercase;color:var(--text-muted)">Expected Close</div><div style="font-weight:600;font-family:var(--font-mono)">ETB {{ expectedClose }}</div></div>
+        <div><div style="font-size:.72rem;text-transform:uppercase;color:var(--text-muted)">Opened</div><div style="font-weight:600">{{ new Date(activeDrawer.opened).toLocaleString() }}</div></div>
+        <div><div style="font-size:.72rem;text-transform:uppercase;color:var(--text-muted)">Opening Bal</div><div style="font-weight:600;font-family:var(--font-mono)">ETB {{ parseFloat(activeDrawer.openingBal||0).toFixed(0) }}</div></div>
+        <div><div style="font-size:.72rem;text-transform:uppercase;color:var(--text-muted)">Cash Sales</div><div style="font-weight:600;font-family:var(--font-mono)">ETB {{ cashSales }}</div></div>
+        <div><div style="font-size:.72rem;text-transform:uppercase;color:var(--text-muted)">Expected Close</div><div style="font-weight:600;font-family:var(--font-mono)">ETB {{ expectedClose }}</div></div>
       </div>
     </div>
     <div class="card" v-else style="margin-bottom:16px">

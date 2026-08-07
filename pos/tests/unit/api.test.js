@@ -272,6 +272,37 @@ describe('API Client', () => {
       expect(parseInt(parts[2])).toBe(date.getDate())
     })
 
+    // Regression: TODAY() used toISOString(), which is UTC. Addis Ababa is
+    // UTC+3, so from 00:00-03:00 local the UTC date is still yesterday and
+    // every post-midnight order landed on the previous business day.
+    it('TODAY should use the local date, not UTC, just after local midnight', () => {
+      vi.useFakeTimers()
+      try {
+        // 00:30 on 8 Aug in UTC+3 is still 21:30 on 7 Aug in UTC.
+        vi.setSystemTime(new Date('2026-08-07T21:30:00Z'))
+        const utcDate = new Date().toISOString().slice(0, 10)
+        const localDay = new Date().getDate()
+
+        // Only meaningful when the runner's zone actually straddles midnight.
+        if (localDay !== new Date('2026-08-07T21:30:00Z').getUTCDate()) {
+          expect(TODAY()).not.toBe(utcDate)
+        }
+        expect(parseInt(TODAY().split('-')[2])).toBe(localDay)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('TODAY should zero-pad single-digit months and days', () => {
+      vi.useFakeTimers()
+      try {
+        vi.setSystemTime(new Date(2026, 0, 5, 12, 0, 0)) // 5 Jan 2026, local
+        expect(TODAY()).toBe('2026-01-05')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
     it('getSSEUrl should build a same-origin URL with the correct protocol', () => {
       const url = getSSEUrl('kitchen')
       expect(url).toContain(window.location.host)

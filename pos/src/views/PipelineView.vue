@@ -272,12 +272,12 @@ async function updateStatus(status) {
 .order-card:active{cursor:grabbing}
 .order-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .order-id{font-weight:700;font-size:.85rem;color:var(--text-heading);font-family:var(--font-mono)}
-.order-time{font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono)}
+.order-time{font-size:.72rem;color:var(--text-muted);font-family:var(--font-mono)}
 .order-table{font-size:.72rem;color:var(--primary);font-weight:500;margin-bottom:2px}
 .order-items{font-size:.78rem;color:var(--text-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
 .oc-line{display:flex;gap:4px;align-items:baseline;line-height:1.5}
 .oc-qty{font-family:var(--font-mono);font-weight:700;color:var(--primary);font-size:.72rem;min-width:22px}
-.oc-mods{font-size:.65rem;color:var(--text-muted);font-style:italic}
+.oc-mods{font-size:.72rem;color:var(--text-muted);font-style:italic}
 .order-timer{font-size:.7rem;font-weight:600;color:var(--warning);font-family:var(--font-mono);margin-bottom:2px}
 .order-timer.urgent{color:var(--danger);animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}

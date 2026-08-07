@@ -209,7 +209,20 @@ export const NAV_ITEMS = [
   { view: 'revenue', label: 'Revenue', icon: 'trending-up', section: 'Finance' }
 ]
 
-export const TODAY = () => new Date().toISOString().slice(0, 10)
+/**
+ * Today's date as YYYY-MM-DD in the **restaurant's local timezone**.
+ *
+ * Must not use toISOString(), which is UTC: Addis Ababa is UTC+3, so between
+ * 00:00 and 03:00 local the UTC date is still yesterday. That silently filed
+ * every post-midnight order, expense and reservation under the previous
+ * business day — and order `created` stamps are local ("2026-08-06 01:55:46"),
+ * so comparing them against a UTC date never lined up either.
+ */
+export const TODAY = () => {
+  const d = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
 
 // Build an SSE URL that works in both dev and production.
 // Uses the same origin so the Cloudflare Pages Function proxy handles the connection.

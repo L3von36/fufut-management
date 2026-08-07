@@ -505,7 +505,7 @@ function refresh() { loadOrders() }
 .ko-type-badge {
   padding: 2px 8px;
   border-radius: 99px;
-  font-size: .62rem;
+  font-size: .72rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .04em;
@@ -518,7 +518,7 @@ function refresh() { loadOrders() }
   border-radius: 99px;
   background: var(--neutral-100);
   color: var(--text-heading);
-  font-size: .68rem;
+  font-size: .72rem;
   font-weight: 700;
   font-family: var(--font-mono);
 }
@@ -579,7 +579,7 @@ function refresh() { loadOrders() }
   border-radius: 4px;
   background: var(--teal-50);
   color: var(--primary);
-  font-size: .68rem;
+  font-size: .72rem;
   font-weight: 500;
   border: 1px solid var(--teal-200, #99F6E4);
 }

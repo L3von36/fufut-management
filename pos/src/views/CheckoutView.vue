@@ -728,7 +728,7 @@ onMounted(() => {
   color: var(--text-heading);
 }
 .sc-badge {
-  font-size: .68rem;
+  font-size: .72rem;
   font-weight: 600;
   background: var(--teal-50);
   color: var(--primary);
