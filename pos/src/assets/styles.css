@@ -279,8 +279,10 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .alert-banner.success{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
 
 /* EMPTY STATE */
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;text-align:center;color:var(--text-muted)}
-.empty-state-icon{width:56px;height:56px;border-radius:50%;background:var(--neutral-50);display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:1.5rem;color:var(--neutral-300)}
+/* Kept compact: "nothing here" is a one-line message, and 48px of padding
+   around it pushed real content below the fold on a tablet. */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;text-align:center;color:var(--text-muted)}
+.empty-state-icon{width:40px;height:40px;border-radius:50%;background:var(--neutral-50);display:flex;align-items:center;justify-content:center;margin-bottom:10px;font-size:1.15rem;color:var(--neutral-300)}
 
 /* LOADING */
 .loading-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:10;border-radius:var(--radius-md)}
@@ -455,7 +457,10 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 }
 
 @media(max-width:480px){
-  .kpi-grid{grid-template-columns:1fr;gap:8px}
+  /* Stay 2-up: a label + number + sub-line reads fine at ~185px, and going
+     single-column pushed four tiles over the whole first screen, leaving a
+     waiter no actionable content above the fold. */
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:8px}
   .kpi-value{font-size:1.2rem}
   .table-grid{grid-template-columns:1fr}
   .login-box{padding:28px 16px;margin:12px}
