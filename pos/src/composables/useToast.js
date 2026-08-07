@@ -27,14 +27,16 @@ export function useToast() {
 
   function ensureContainer() {
     let container = document.getElementById('toastContainer')
-    if (container) return container
-
-    container = document.createElement('div')
-    container.id = 'toastContainer'
-    container.className = 'toast-container'
+    if (!container) {
+      container = document.createElement('div')
+      container.id = 'toastContainer'
+      container.className = 'toast-container'
+      document.body.appendChild(container)
+    }
+    // App.vue renders a static #toastContainer, so these must be applied to
+    // whichever container we ended up with — not only a freshly created one.
     container.setAttribute('aria-live', 'polite')
     container.setAttribute('aria-atomic', 'true')
-    document.body.appendChild(container)
 
     if (!document.querySelector('style[data-toast-styles]')) {
       const style = document.createElement('style')

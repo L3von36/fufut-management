@@ -20,7 +20,10 @@ app.mount('#app')
 // Register service worker for offline support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/pos/sw.js').catch((err) => {
+    // Built with `--base /`, so public assets are served from the site root.
+    // '/pos/' is the vue-router base only — requesting /pos/sw.js hits the SPA
+    // fallback and returns HTML, which the browser rejects as a script.
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
       console.warn('Service worker registration failed:', err.message)
     })
   })

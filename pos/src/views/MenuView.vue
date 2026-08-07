@@ -1,5 +1,14 @@
 <template>
   <div class="menu-view-shell">
+    <!-- Active table context — which table this order is being built for -->
+    <div v-if="activeTable" class="table-context-bar">
+      <span class="tcb-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      </span>
+      <span class="tcb-label">Ordering for <strong>Table {{ activeTable }}</strong></span>
+      <button class="tcb-clear" @click="clearTable" title="Not for a table (takeaway)">Change</button>
+    </div>
+
     <!-- Sticky Category Tabs -->
     <div class="menu-categories">
       <button v-for="cat in categories" :key="cat"
@@ -73,7 +82,8 @@
       </div>
       <div class="fc-details">
         <span class="fc-count">{{ orderStore.cartItemCount }} item{{ orderStore.cartItemCount !== 1 ? 's' : '' }}</span>
-        <span class="fc-total">ETB {{ orderStore.grandTotal.toFixed(0) }}</span>
+        <!-- Cart stage shows the cart subtotal; tip/discount are chosen at checkout. -->
+        <span class="fc-total">ETB {{ orderStore.cartTotal.toFixed(0) }}</span>
       </div>
       <div class="fc-chevron">
         <svg :class="{ rotated: showCart }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -132,12 +142,13 @@
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { apiGet } from '../api'
 import { useOrderStore } from '../stores/order'
 import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
 
 const router = useRouter()
+const route = useRoute()
 const toast = inject('toast')
 const orderStore = useOrderStore()
 const items = ref([])
@@ -239,9 +250,10 @@ function onModifierConfirm(selection) {
 // ─── Navigate to checkout ───
 function goToCheckout() {
   if (orderStore.isEmpty) return
-  orderStore.resetCheckout()
- orderStore.checkoutStep = 'cart'
- showCart.value = false
+  // Keep table/customer context — the waiter already chose it on the floor plan.
+  orderStore.resetCheckout({ keepOrderContext: true })
+  orderStore.checkoutStep = 'cart'
+  showCart.value = false
   router.push('/app/checkout')
 }
 
@@ -262,8 +274,25 @@ const filteredItems = computed(() => {
   return result
 })
 
+// ─── Table context ───
+// TablesView sends the waiter here as /app/menu-view?table=N. Bind that to the
+// order so the table survives all the way to checkout without being retyped.
+const activeTable = computed(() => orderStore.tableNum)
+
+function clearTable() {
+  orderStore.tableNum = ''
+  orderStore.orderType = 'takeaway'
+}
+
 // ─── Init ───
-onMounted(loadData)
+onMounted(() => {
+  const t = route.query.table
+  if (t) {
+    orderStore.tableNum = String(t)
+    orderStore.orderType = 'dine-in'
+  }
+  loadData()
+})
 async function loadData() {
   try {
     items.value = await apiGet('menu')
@@ -276,6 +305,16 @@ async function loadData() {
 
 <style scoped>
 .menu-view-shell{display:flex;flex-direction:column;height:100%}
+
+/* Active table context bar */
+.table-context-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;margin-bottom:12px;border-radius:var(--radius-md);background:var(--teal-50);border:1.5px solid var(--primary);flex-shrink:0}
+.tcb-icon{display:flex;color:var(--primary);flex-shrink:0}
+.tcb-icon svg{width:17px;height:17px}
+.tcb-label{flex:1;font-size:.85rem;color:var(--text-heading)}
+.tcb-label strong{color:var(--primary);font-weight:700}
+.tcb-clear{background:none;border:none;color:var(--primary);font-size:.78rem;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:var(--radius-sm)}
+.tcb-clear:hover{background:rgba(15,123,120,.1)}
+:global([data-theme="dark"]) .table-context-bar{background:rgba(15,123,120,.15)}
 
 /* Category tabs */
 .menu-categories{display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;flex-shrink:0;scrollbar-width:none}

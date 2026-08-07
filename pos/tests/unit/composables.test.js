@@ -106,6 +106,46 @@ describe('useToast', () => {
     expect(toastEl.textContent).toContain('Order created')
   })
 
+  // Regression: App.vue renders a static #toastContainer, and ensureContainer()
+  // used to return early when it found one — skipping style injection entirely.
+  // Every toast then rendered unstyled, and its bare SVG icon stretched to fill
+  // the viewport.
+  it('should inject toast styles even when the container already exists', () => {
+    const container = document.createElement('div')
+    container.id = 'toastContainer'
+    container.className = 'toast-container'
+    document.body.appendChild(container)
+
+    const { toast } = useToast()
+    toast('Welcome back', 'success')
+
+    expect(document.head.querySelector('style[data-toast-styles]')).not.toBeNull()
+  })
+
+  it('should constrain the toast icon so it cannot fill the page', () => {
+    const container = document.createElement('div')
+    container.id = 'toastContainer'
+    document.body.appendChild(container)
+
+    const { toast } = useToast()
+    toast('Welcome back', 'success')
+
+    const css = document.head.querySelector('style[data-toast-styles]').textContent
+    expect(css).toContain('.toast-notification .toast-icon svg')
+    expect(css).toMatch(/\.toast-notification\s*\{[^}]*max-width:\s*340px/)
+  })
+
+  it('should mark a pre-existing container as a live region', () => {
+    const container = document.createElement('div')
+    container.id = 'toastContainer'
+    document.body.appendChild(container)
+
+    const { toast } = useToast()
+    toast('Welcome back', 'success')
+
+    expect(container.getAttribute('aria-live')).toBe('polite')
+  })
+
   it('should render an auto-detected title for known types', () => {
     const container = document.createElement('div')
     container.id = 'toastContainer'

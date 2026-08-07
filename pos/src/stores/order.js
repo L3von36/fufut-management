@@ -45,7 +45,9 @@ export const useOrderStore = defineStore('order', () => {
   const lastOrderError = ref(null)
 
   // ─── Phase 2: Tip ───
-  const tipType = ref('percentage')      // 'percentage' | 'fixed' | 'none'
+  // Defaults to 'none': a tip must be chosen explicitly by staff/guest, never
+  // pre-applied to the bill.
+  const tipType = ref('none')            // 'percentage' | 'fixed' | 'none'
   const tipPercent = ref(10)             // preset: 10, 15, 20
   const tipAmount = ref(0)               // fixed ETB amount
 
@@ -266,13 +268,24 @@ export const useOrderStore = defineStore('order', () => {
     }
   }
 
-  function resetCheckout() {
+  /**
+   * Clear payment/checkout state.
+   * @param {object} [opts]
+   * @param {boolean} [opts.keepOrderContext] - preserve who/where the order is
+   *   for (type, table, customer). Set when moving cart → checkout, so the
+   *   table the waiter started from is not wiped.
+   */
+  function resetCheckout({ keepOrderContext = false } = {}) {
     checkoutStep.value = 'cart'
     tendered.value = 0
     paymentMethod.value = 'cash'
-    orderType.value = 'dine-in'
-    tableNum.value = ''
-    customerName.value = ''
+    if (!keepOrderContext) {
+      orderType.value = 'dine-in'
+      tableNum.value = ''
+      customerName.value = ''
+      // Notes belong to the order they were written for — never carry them over.
+      notes.value = ''
+    }
     lastOrderId.value = null
     lastOrderError.value = null
     // Phase 2 resets
@@ -344,6 +357,8 @@ export const useOrderStore = defineStore('order', () => {
       type: orderType.value,
       tableNum: tableNum.value || undefined,
       customer: customerName.value || 'Walk-in',
+      // Order-level notes (allergies, prep instructions) must reach the kitchen.
+      notes: notes.value?.trim() || undefined,
       // Phase 2: Tip
       tip: Math.round(calculatedTip.value * 100) / 100,
       tipType: tipType.value,

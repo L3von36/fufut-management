@@ -1,16 +1,22 @@
 // Service Worker for FU FUT POS — offline-first with sync queue
-const CACHE = 'fufut-pos-v2'
+const CACHE = 'fufut-pos-v3'
+// Built with `--base /`, so these live at the site root. '/pos/*' paths only
+// hit the SPA fallback and would silently precache HTML in place of assets.
 const STATIC_ASSETS = [
   '/pos/',
-  '/pos/index.html',
-  '/pos/assets/logo.webp',
-  '/pos/favicon.svg'
+  '/assets/logo.webp',
+  '/favicon.svg'
 ]
 
-// Install: precache static assets
+// Install: precache static assets. Individually, so one missing file cannot
+// abort the whole install the way cache.addAll() does.
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(STATIC_ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then((c) => Promise.all(
+        STATIC_ASSETS.map((url) => c.add(url).catch(() => {}))
+      ))
+      .then(() => self.skipWaiting())
   )
 })
 
@@ -36,7 +42,15 @@ self.addEventListener('fetch', (e) => {
     return
   }
 
-  // Static assets — cache first
+  // Page loads — network first. Cache-first here would pin staff to the app
+  // shell from an old deploy, which then requests asset hashes that no longer
+  // exist and leaves them on a blank screen until the cache is cleared.
+  if (e.request.mode === 'navigate') {
+    e.respondWith(navigationFirst(e.request))
+    return
+  }
+
+  // Hashed/static assets — cache first
   e.respondWith(cacheFirst(e.request))
 })
 
@@ -55,6 +69,26 @@ async function networkFirst(req) {
     return new Response(JSON.stringify({ ok: false, offline: true }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' }
+    })
+  }
+}
+
+// Page loads: always prefer the network so deploys land immediately, but fall
+// back to the cached app shell so the POS still opens on a dead connection.
+async function navigationFirst(req) {
+  try {
+    const res = await fetch(req)
+    if (res.ok) {
+      const cache = await caches.open(CACHE)
+      cache.put('/pos/', res.clone())
+    }
+    return res
+  } catch {
+    const cached = await caches.match('/pos/') || await caches.match(req)
+    if (cached) return cached
+    return new Response('Offline', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain' }
     })
   }
 }
