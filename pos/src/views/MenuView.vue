@@ -398,10 +398,14 @@ async function loadData() {
 .cart-item-name{font-size:.85rem;font-weight:600;color:var(--text-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cart-item-price{font-size:.72rem;color:var(--text-muted);font-family:var(--font-mono)}
 .cart-qty{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.qty-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--text-heading);font-size:1rem;font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all var(--duration-fast)}
+/* 44px minimum touch target — these steppers change the guest's bill and are
+   tapped constantly on a handheld tablet. */
+.qty-btn{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--text-heading);font-size:1.1rem;font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all var(--duration-fast);flex-shrink:0}
 .qty-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
 .qty-value{font-size:.95rem;font-weight:700;font-family:var(--font-mono);min-width:24px;text-align:center;color:var(--text-heading)}
-.cart-remove{width:28px;height:28px;border-radius:50%;border:none;background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.78rem;transition:all var(--duration-fast)}
+/* Destructive, so it gets its own 44px target and is spaced away from −/+ to
+   stop mis-taps that silently change the bill. */
+.cart-remove{width:44px;height:44px;margin-left:6px;border-radius:50%;border:none;background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.9rem;transition:all var(--duration-fast);flex-shrink:0}
 .cart-remove:hover{background:var(--red-50);color:var(--danger)}
 
 .cart-footer{flex-shrink:0;border-top:1px solid var(--border);padding-top:12px}
@@ -423,8 +427,8 @@ async function loadData() {
   .menu-grid{grid-template-columns:repeat(2,1fr);gap:10px}
   .menu-card:hover{transform:none}
   .menu-card:hover .menu-img img{transform:none}
-  .menu-add-btn{opacity:1;bottom:10px;right:10px;width:34px;height:34px}
-  .menu-add-btn svg{width:16px;height:16px}
+  .menu-add-btn{opacity:1;bottom:10px;right:10px;width:44px;height:44px}
+  .menu-add-btn svg{width:20px;height:20px}
   .menu-info{padding:10px 12px 12px}
   .menu-info h3{font-size:.95rem}
   .menu-price{font-size:.95rem}

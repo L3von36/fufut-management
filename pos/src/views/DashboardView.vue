@@ -12,6 +12,28 @@
       </button>
     </div>
 
+    <!-- Quick actions — a waiter's dashboard should reach the floor in one tap -->
+    <div v-if="showQuickActions" class="dash-quick-actions">
+      <button class="dash-qa" @click="router.push('/app/tables')">
+        <span class="dash-qa-icon" v-html="ICONS.tables"></span>
+        <span class="dash-qa-label">Floor Plan</span>
+      </button>
+      <button class="dash-qa dash-qa-primary" @click="router.push('/app/menu-view')">
+        <span class="dash-qa-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </span>
+        <span class="dash-qa-label">New Order</span>
+      </button>
+      <button class="dash-qa" @click="router.push('/app/orders')">
+        <span class="dash-qa-icon" v-html="ICONS.orders"></span>
+        <span class="dash-qa-label">Orders</span>
+      </button>
+      <button class="dash-qa" @click="router.push('/app/reservations')">
+        <span class="dash-qa-icon" v-html="ICONS.reservations"></span>
+        <span class="dash-qa-label">Reservations</span>
+      </button>
+    </div>
+
     <!-- KPI Grid — skeleton while loading first fetch -->
     <div class="kpi-grid">
       <template v-if="loading && !kpis.length">
@@ -96,8 +118,11 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { apiGet, TODAY } from '../api'
+
+const router = useRouter()
 
 let _Chart = null
 async function _loadChart() {
@@ -124,6 +149,8 @@ const kpis = ref([])
 const showCharts = ref(false)
 const showRecentOrders = ref(true)
 const showLowStock = ref(true)
+// Floor-facing roles get one-tap access to the screens they actually work from.
+const showQuickActions = computed(() => auth.roleKey === 'head-waiter')
 const recentOrders = ref([])
 const lowStockItems = ref([])
 const loading = ref(false)
@@ -141,6 +168,8 @@ const ICONS = {
   delivery:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
   cash:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg>',
   clean:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  reservations: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  ready:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>',
 }
 
 // Greeting based on time of day
@@ -265,14 +294,26 @@ function buildKpis() {
       { label: 'Avg Order',     value: `ETB ${todayOrders.value.length ? (rev/todayOrders.value.length).toFixed(0) : 0}`,                 sub: 'Per transaction',                                                            bar: 'teal',   icon: ICONS.revenue  }
     ]
   } else if (role === 'head-waiter') {
+    // A waiter has no inventory permission, so loadDashboard never fetches it
+    // and `low` is structurally always 0. Showing a Low Stock tile here would
+    // be a permanently-zero number they cannot act on — replaced with the
+    // metric that actually drives their shift: food waiting to be run.
+    showLowStock.value = false
     Promise.all([apiGet('tables'), apiGet('reservations')]).then(([tables, res]) => {
       const openTables = tables.filter(t => t.status !== 'available').length
+      const seatedGuests = tables.filter(t => t.status === 'occupied').reduce((s, t) => s + (t.guests || 0), 0)
       const todayRes = res.filter(r => r.date === TODAY() && r.status !== 'cancelled').length
       kpis.value = [
-        { label: 'Active Tables',      value: `${openTables}`,                   sub: `${todayOrders.value.filter(o=>o.status!=='fulfilled'&&o.status!=='cancelled').length} active orders`, bar: 'teal',  icon: ICONS.tables  },
-        { label: 'Today Reservations', value: `${todayRes}`,                     sub: `${res.filter(r=>r.date===TODAY()&&r.status==='new').length} new`,                                   bar: 'blue',  icon: ICONS.tables  },
-        { label: 'Low Stock',          value: `${low}`,                          sub: 'Items to reorder',                                                                                   bar: low ? 'yellow' : 'teal', icon: ICONS.stock },
-        { label: 'Orders Today',       value: `${todayOrders.value.length}`,     sub: `${newOrd} new`,                                                                                     bar: 'gold',  icon: ICONS.orders  }
+        { label: 'Ready to Serve',     value: `${readyOrd}`,                 sub: readyOrd ? 'Run these to tables' : 'Nothing waiting',                        bar: readyOrd ? 'gold' : 'teal', color: readyOrd ? 'var(--warning)' : '', icon: ICONS.ready },
+        { label: 'Active Tables',      value: `${openTables}`,               sub: `${seatedGuests} guest${seatedGuests === 1 ? '' : 's'} seated`,               bar: 'teal',  icon: ICONS.tables },
+        { label: 'Open Orders',        value: `${todayOrders.value.filter(o => o.status !== 'fulfilled' && o.status !== 'cancelled').length}`, sub: `${newOrd} new today`, bar: 'blue', icon: ICONS.orders },
+        { label: 'Today Reservations', value: `${todayRes}`,                 sub: `${res.filter(r => r.date === TODAY() && r.status === 'new').length} new`,   bar: 'gold',  icon: ICONS.reservations }
+      ]
+    }).catch(() => {
+      // Never leave the waiter staring at an empty skeleton if either call fails.
+      kpis.value = [
+        { label: 'Ready to Serve', value: `${readyOrd}`, sub: 'Run these to tables', bar: 'gold', icon: ICONS.ready },
+        { label: 'Open Orders',    value: `${todayOrders.value.filter(o => o.status !== 'fulfilled' && o.status !== 'cancelled').length}`, sub: `${newOrd} new today`, bar: 'blue', icon: ICONS.orders }
       ]
     })
   } else if (role === 'delivery-staff') {
@@ -370,7 +411,23 @@ async function buildCharts() {
 .dash-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;gap:12px}
 .dash-greeting{font-size:1.2rem;font-weight:700;color:var(--text-heading);line-height:1.2}
 .dash-subtitle{font-size:.78rem;color:var(--text-muted);margin-top:3px}
-.dash-refresh{display:inline-flex;align-items:center;gap:6px;flex-shrink:0}
+.dash-refresh{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;min-height:44px}
+
+/* Quick actions — sized to the 44px touch minimum for tablet use */
+.dash-quick-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.dash-qa{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:64px;padding:10px 8px;border-radius:var(--radius-md);border:1.5px solid var(--border);background:var(--surface);color:var(--text-body);cursor:pointer;transition:all var(--duration-fast) var(--ease)}
+.dash-qa:hover{border-color:var(--primary);color:var(--primary);background:var(--teal-50)}
+.dash-qa:active{transform:scale(.97)}
+.dash-qa-icon{line-height:0;opacity:.7}
+.dash-qa-label{font-size:.8rem;font-weight:600}
+.dash-qa-primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.dash-qa-primary:hover{background:var(--primary-hover);border-color:var(--primary-hover);color:#fff}
+.dash-qa-primary .dash-qa-icon{opacity:1}
+:global([data-theme="dark"]) .dash-qa:hover{background:rgba(15,123,120,.15)}
+
+@media(max-width:600px){
+  .dash-quick-actions{grid-template-columns:repeat(2,1fr)}
+}
 
 /* KPI enhancements */
 .kpi-top-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}

@@ -644,7 +644,8 @@ onMounted(() => {
   gap: 6px;
 }
 .qty-btn {
-  width: 32px; height: 32px; border-radius: 50%;
+  /* 44px minimum touch target, matching MenuView's cart. */
+  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
   border: 1.5px solid var(--border); background: var(--surface);
   color: var(--text-heading); font-size: 1rem; font-weight: 600;
   display: flex; align-items: center; justify-content: center;
