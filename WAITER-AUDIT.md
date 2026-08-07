@@ -228,6 +228,62 @@ These are quantity steppers used dozens of times per shift, on a tablet, by some
 
 ---
 
+## 5.1 Typography — the whole scale was rendering 12.5% small
+
+Measured computed sizes on the live order-taking screen. The root cause was
+`html{font-size:14px}` while the entire `rem` scale is authored against a 16px
+baseline:
+
+| Computed | Elements | What |
+|---|---|---|
+| **8.4px** | 1 | "Yonas • Head Waiter" |
+| **8.7px** | 48 | Nav section headers, menu category tags |
+| **9.1px** | 19 | Category counts, modifier tags |
+| **10.9px** | 8 | Date, "Change", category labels |
+| **11.5px** | 30 | Menu item descriptions |
+| **11.9px** | 7 | **Primary nav labels** |
+
+Guidance puts body text at ~16px and treats anything under 12px as unsuitable
+for sustained reading. Nav labels at 11.9px and category tags at 8.7px, on a
+handheld held at arm's length in variable dining-room light, is a genuine
+legibility failure — not a stylistic preference.
+
+Restoring the root to 16px alone was **not** sufficient: the bottom of the
+scale (`.55`–`.68rem`) still lands at 8.8–10.9px even at a 16px root. So both
+were fixed — root to 16px, and every value below `.72rem` floored to `.72rem`.
+Smallest text is now ~11.5px, up from 7.7–9.5px.
+
+Verified no layout regression at 1024px and 390px: zero horizontal overflow,
+no nav wrapping, menu prices retain 9–11px clearance inside 167px cards. One
+real regression did appear — the sidebar eyebrow wrapped to two lines at the
+larger size — so its letter-spacing went from `.16em` to `.08em` with
+ellipsis truncation.
+
+## 5.2 `TODAY()` returned yesterday for three hours every day
+
+Surfaced when the test suite began failing the instant the clock crossed
+midnight.
+
+```js
+export const TODAY = () => new Date().toISOString().slice(0, 10)  // UTC!
+```
+
+`toISOString()` is UTC. Addis Ababa is **UTC+3**. So between **00:00 and 03:00
+local, `TODAY()` returned the previous day.** Everything keyed off it was wrong
+during that window:
+
+- Dashboard "Today Revenue", "Orders Today", "Today Expenses"
+- `isToday()` filtering of the recent-orders list
+- Reservations matched with `r.date === TODAY()`
+
+Any order taken after midnight was filed under the previous business day,
+which also puts end-of-day cash reconciliation out. Compounding it, order
+`created` stamps are stored local (`"2026-08-06 01:55:46"`), so a local
+timestamp was being compared against a UTC-derived date and never lined up.
+
+Now computed from local date parts. Both new tests fail against the old
+implementation.
+
 ## 6. Test coverage gap
 
 The suite was **107 tests, all passing** — and caught none of the above. Notably, `composables.test.js` already constructed a pre-existing `#toastContainer` (the exact bug condition in 2.1) but only asserted the element existed, never that styles were injected. There was **no order-store test file at all**, despite that store holding all the money logic.
@@ -252,7 +308,10 @@ Each was confirmed to **fail against the original code** (verified via `git stas
 | **P0** | ETB 0 menu items | ⏳ Needs owner |
 | **P1** | Send to Kitchen / open tabs | ⛔ Blocked — API Worker repo not available |
 | **P1** | Service worker + manifest | ✅ Fixed |
-| **P1** | Touch targets ≥44px | ⏳ Proposed |
+| **P0** | `TODAY()` used UTC — wrong business day 00:00–03:00 | ✅ Fixed |
+| **P1** | Type scale rendering 12.5% small (8.7px labels) | ✅ Fixed |
+| **P1** | Touch targets ≥44px | ✅ Fixed |
+| **P1** | Waiter dashboard showed an always-zero Low Stock tile | ✅ Fixed |
 | **P2** | Menu typos, duplicate names, casing | ⏳ Needs owner |
 | **P2** | Category icon key mismatch | ⏳ Proposed |
 | **P2** | Coursing / seat assignment | ⏳ Roadmap |
