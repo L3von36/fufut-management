@@ -174,7 +174,7 @@ async function pollOrders() {
       toastInfo(label)
       // Browser notification
       if (Notification.permission === 'granted') {
-        new Notification('FU FUT COFFEE — New Order', { body: label, icon: '/assets/logo.webp' })
+        new Notification('FU FUT COFFEE — New Order', { body: label, icon: import.meta.env.BASE_URL + 'assets/logo.webp' })
       } else if (Notification.permission === 'default') {
         Notification.requestPermission()
       }

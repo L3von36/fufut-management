@@ -3,7 +3,7 @@
     <!-- Sidebar -->
     <aside class="sidebar" :class="{ open: sidebarOpen }">
       <div class="sidebar-logo">
-        <img src="/assets/logo.webp" alt="" />
+        <img :src="logoUrl" alt="" @error="$event.target.src = fallbackLogo" />
         <span>FU FUT <small>Admin</small></span>
       </div>
       <nav class="sidebar-nav">
@@ -54,6 +54,9 @@ import { NAV_ITEMS } from '../api'
 
 const router = useRouter()
 const route = useRoute()
+const base = import.meta.env.BASE_URL
+const logoUrl = base + 'assets/logo.webp'
+const fallbackLogo = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#0f7b78"/><text x="20" y="27" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="white">FU FUT</text></svg>')
 const sidebarOpen = ref(false)
 const currentView = ref('landing')
 const isDark = ref(document.documentElement.getAttribute('data-theme') === 'dark')

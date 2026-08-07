@@ -4,7 +4,7 @@
       <!-- Left: Brand Panel -->
       <div class="login-brand">
         <div class="brand-circle">
-          <img src="/assets/logo.webp" alt="FU FUT" />
+          <img :src="logoUrl" alt="FU FUT" @error="$event.target.src = fallbackLogo" />
         </div>
         <h1 class="brand-title">FU FUT</h1>
         <p class="brand-sub">COFFEE · BACKOFFICE</p>
@@ -78,6 +78,9 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const btnState = useButtonState({ successDuration: 2000 })
+const base = import.meta.env.BASE_URL
+const logoUrl = base + 'assets/logo.webp'
+const fallbackLogo = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#0f7b78"/><text x="50" y="58" text-anchor="middle" font-family="Arial,sans-serif" font-size="28" font-weight="bold" fill="white">FU FUT</text></svg>')
 
 async function handleLogin() {
   error.value = ''
