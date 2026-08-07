@@ -82,7 +82,14 @@ The checkout has an order-notes field placeheld *"Order notes (e.g. no onions on
 
 Additionally, `notes` was never cleared by `resetFull()`, so a note would have leaked into the *next* order once transmitted.
 
-**Fix:** `notes` is serialized into the payload (omitted when blank), and cleared with order context.
+**Fix (frontend only — see caveat):** `notes` is serialized into the payload (omitted when blank), and cleared with order context.
+
+> ⚠️ **This is not yet end-to-end.** The API stores a fixed 12-column row
+> (`id, items, total, payment, type, table_id, customer, status, created,
+> email, tableNum, table_number`). It has **no `notes` column**, so the field
+> is now sent but still dropped server-side. Confirmed against all 32 live
+> orders: none carry `notes`, and POS-created orders show `orderItems` is
+> discarded too. Closing this needs a backend change — see §3.1.
 
 ### 2.5 Offline support was completely dead
 
@@ -129,7 +136,51 @@ Concrete consequences today:
 - `TablesView` shows "Active Orders" per table and a `tableOrderCounts` badge — features that can only populate from **paid** orders, so they under-report reality.
 - The waiter has no Kitchen permission (correct — they don't need the KDS screen), but they also have no way to *reach* the kitchen at all.
 
-**Recommended shape** (roughly 1–2 days):
+### 3.1 Blocker: the API schema cannot express any of this today
+
+Probed the live API as the waiter role. `GET /api/orders` returns exactly 12
+columns:
+
+```
+id, items, total, payment, type, table_id, customer, status, created,
+email, tableNum, table_number
+```
+
+Everything else `buildOrderPayload()` sends — **`orderItems`, `notes`,
+`subtotal`, `tip`, `tipType`, `discount`, `discountType`, `discountReason`,
+`paymentBreakdown`** — is silently discarded. The entire "Phase 2" tip /
+discount / split-bill feature set computes values, shows them to the guest and
+folds them into `total`, but the breakdown is never stored. **You cannot report
+on tips, and a discount reason is unauditable.**
+
+Two further facts from the probe:
+
+- **Zero of 32 orders have any table set** (`tableNum`, `table_number` and
+  `table_id` all null across the board). That is the real-world footprint of
+  §2.2 — every order ever placed is detached from its table. This should begin
+  resolving now that the table fix is deployed, assuming the backend persists
+  the `tableNum` it is sent.
+- `GET /api/orders/:id` returns **404** — there is no single-order endpoint,
+  so there is nothing to append items to. `?table_number=` filtering *does*
+  work.
+
+**The API Worker (`fufut-api.fufutcoffee.workers.dev`) source is in neither
+`fufut-management` nor `fufut-coffee`.** Open tabs, coursing and order notes
+all require schema and endpoint changes there, so this work cannot start until
+that repo is available.
+
+Backend changes required:
+
+| Need | Change |
+|---|---|
+| Order notes reach kitchen | Add `notes` column |
+| Line-level modifiers survive | Persist `orderItems` (JSON) |
+| Tip/discount reporting | Add `subtotal`, `tip`, `discount`, `discount_reason` |
+| Append to an open tab | `GET /orders/:id` + `PATCH /orders/:id/items` |
+| Coursing | Add `course` per line, `fired_at` timestamp |
+| Tab lifecycle | Constrain `status`; `payment: 'unpaid'` already appears in live data |
+
+**Recommended shape** once the backend is reachable (roughly 1–2 days):
 
 1. Add `POST /orders` with `status: 'new'` behind a **"Send to Kitchen"** button in the cart, separate from payment.
 2. Introduce an **open tab per table**: `status` lifecycle `new → preparing → served → unpaid → paid`.
@@ -196,9 +247,10 @@ Each was confirmed to **fail against the original code** (verified via `git stas
 | **P0** | Toast styles never injected | ✅ Fixed |
 | **P0** | Table context discarded | ✅ Fixed |
 | **P0** | Silent 10% tip / conflicting totals | ✅ Fixed |
-| **P0** | Order notes discarded | ✅ Fixed |
+| **P0** | Order notes discarded | ⚠️ Frontend fixed; **needs backend column** |
+| **P0** | Tip/discount/modifiers not persisted | ⏳ Blocked on backend |
 | **P0** | ETB 0 menu items | ⏳ Needs owner |
-| **P1** | Send to Kitchen / open tabs | ⏳ Needs decision |
+| **P1** | Send to Kitchen / open tabs | ⛔ Blocked — API Worker repo not available |
 | **P1** | Service worker + manifest | ✅ Fixed |
 | **P1** | Touch targets ≥44px | ⏳ Proposed |
 | **P2** | Menu typos, duplicate names, casing | ⏳ Needs owner |
