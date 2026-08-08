@@ -1,10 +1,10 @@
-# Only client-side routes get rewritten to the app shell. The router's base is
-# /pos/, so scoping the rewrite there is enough.
+# Missing hashed assets must 404 rather than fall through to the app shell:
+# the shell is HTML with a long max-age, so browsers cached it under .css/.js
+# URLs and the Tables route's dynamic import rejected on it.
 #
-# Crucially this must NOT be a global /* catch-all: that swallowed requests for
-# missing hashed assets and answered them with index.html as 200 text/html.
-# Assets carry a long max-age, so browsers then cached an HTML document under a
-# .css URL and the Tables route's dynamic import rejected on it. With no rule
-# matching /assets/*, Pages falls through to 404.html with a real 404 status,
-# which is not cached as content and fails loudly instead of silently.
-/pos/*  /index.html  200
+# This rule has to come first — the catch-all below would otherwise match.
+/assets/*  /404.html  404
+
+# Client-side routing. Scoping this to /pos/* instead did not match in Pages and
+# 404'd every app route, so it stays a catch-all with /assets/* carved out above.
+/*  /index.html  200
