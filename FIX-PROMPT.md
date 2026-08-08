@@ -24,6 +24,48 @@ see `ROLE-AUDIT.md` and `WAITER-AUDIT.md` for the evidence behind each item.
 
 ---
 
+## Task 0 — [P1] Full mobile responsiveness — *partially done, see status*
+
+The app must not look or behave like the desktop layout on a phone. Every
+surface — tables, cards, text, modals, forms, toolbars — adapts.
+
+**Already fixed (deployed):**
+- Table → card conversion now runs from **768px** down, not 480px. Previously
+  tablet-portrait got cramped `nowrap` cells with a sticky first column and
+  sideways scrolling.
+- The global `table{min-width:600px}` was still applying in card mode, so the
+  "cards" were 600px wide inside a 390px viewport and scrolled sideways anyway.
+  Reset to `min-width:0;width:100%`.
+- `StaffView` and `RevenueView` had **no `data-label` attributes at all**, so
+  their mobile cards rendered as an unlabelled column of values. Added.
+  A `td:not([data-label])::before{content:''}` guard now covers `colspan`
+  empty-state rows.
+- Modals become **bottom sheets** below 768px, with stacked full-width actions
+  (primary last, nearest the thumb) and reduced padding.
+- Inputs forced to `font-size:16px` / `min-height:44px` so iOS does not zoom on
+  focus.
+- KPI grid stays **2-up** on phones (was 1-up, which pushed four tiles over the
+  whole first screen).
+- Type scale restored to a 16px root with an ~11.5px floor (was 8.4px smallest).
+- Cart steppers / remove / add buttons raised to the 44px touch minimum.
+
+**Still to do:**
+- **12 views have no view-specific media queries at all**: `AnalyticsView`,
+  `CashDrawerView`, `ExpensesView`, `InventoryView`, `MenuMgmtView`, `PnLView`,
+  `ReportsView`, `RevenueView`, `StaffView`, `TablesView`, `TimeClockView`,
+  `WasteView`. Walk each at 390px and 768px and fix what breaks.
+- **Charts** (`AnalyticsView`, `PnLView`, `RevenueView`, dashboard) — Chart.js
+  canvases need explicit responsive sizing and a sensible aspect ratio on
+  narrow screens; check legends do not overflow.
+- **`MenuMgmtView`** has an image thumbnail cell that renders label-less in card
+  mode — give it a sensible mobile treatment.
+- Verify every page at **390×844** and **768×1024**, in **both light and dark**,
+  asserting `document.documentElement.scrollWidth === clientWidth` (no
+  horizontal page scroll) on each.
+- Check the bottom nav does not overlap page content — `content-wrap` has
+  `padding-bottom:80px`; confirm that is enough with the safe-area inset on
+  notched devices.
+
 ## Task 1 — [P0] Require authentication on every API endpoint
 
 **The entire API is public.** Verified from a clean shell, no cookies, no origin:
@@ -60,7 +102,9 @@ Do:
 - Enforce auth + role on all mutations. Deleting or repricing the menu must be
   manager-only.
 
-## Task 3 — [P0] Fix the blank-screen crash for three roles
+## Task 3 — [P0] Fix the blank-screen crash for three roles — ✅ **DONE**
+
+*Fixed and deployed. Kept here for the record.*
 
 **Assistant Chef, Delivery Staff and Cleaner get a completely blank app.**
 `#app` renders 88 bytes.

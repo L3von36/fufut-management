@@ -81,17 +81,16 @@
 
     <!-- Bottom Nav -->
     <nav class="bottom-nav">
-      <template v-for="item in bottomItems" :key="item.view">
-        <button
-          v-if="item"
-          class="bn-item"
-          :class="{ active: currentView === item.view }"
-          @click="navigate(item.view); sidebarOpen = false"
-        >
-          <span v-html="icons[item.icon]"></span>
-          <span>{{ item.label }}</span>
-        </button>
-      </template>
+      <button
+        v-for="item in bottomItems"
+        :key="item.view"
+        class="bn-item"
+        :class="{ active: currentView === item.view }"
+        @click="navigate(item.view); sidebarOpen = false"
+      >
+        <span v-html="icons[item.icon]"></span>
+        <span>{{ item.label }}</span>
+      </button>
       <button class="bn-item bn-more" @click="sidebarOpen = true">
         <span v-html="icons['more-horizontal']"></span>
         <span>More</span>
@@ -188,9 +187,12 @@ const bottomItems = computed(() => {
   const priorityViews = BOTTOM_PRIORITY.filter(v => allowedItems.value.some(i => i.view === v))
   const priority = priorityViews.map(v => allowedItems.value.find(i => i.view === v))
   const rest = allowedItems.value.filter(i => !priorityViews.includes(i.view))
-  const items = [...priority, ...rest].slice(0, 5)
-  while (items.length < 5) items.push(null)
-  return items
+  // Never pad to a fixed length. `.bn-item` is flex:1 inside a space-around
+  // bar, so fewer items simply spread out. Padding with null used to crash
+  // every role holding under 5 nav items — Assistant Chef, Delivery Staff and
+  // Cleaner all rendered a blank page, because :key on the <template> reads
+  // item.view before the child's v-if can skip it.
+  return [...priority, ...rest].slice(0, 5)
 })
 
 const pageTitle = computed(() => {

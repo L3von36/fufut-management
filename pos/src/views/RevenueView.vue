@@ -27,8 +27,8 @@
           <thead><tr><th>Date</th><th>Orders</th><th>Revenue (ETB)</th><th>Cash</th><th>Card/Mobile</th></tr></thead>
           <tbody>
             <tr v-for="day in dailyBreakdown" :key="day.date">
-              <td>{{ day.date }}</td><td>{{ day.count }}</td><td style="font-weight:600;font-family:var(--font-mono)">{{ day.revenue.toFixed(0) }}</td>
-              <td>{{ day.cash.toFixed(0) }}</td><td>{{ day.card.toFixed(0) }}</td>
+              <td data-label="Date">{{ day.date }}</td><td data-label="Orders">{{ day.count }}</td><td data-label="Revenue (ETB)" style="font-weight:600;font-family:var(--font-mono)">{{ day.revenue.toFixed(0) }}</td>
+              <td data-label="Cash">{{ day.cash.toFixed(0) }}</td><td data-label="Card/Mobile">{{ day.card.toFixed(0) }}</td>
             </tr>
             <tr v-if="!dailyBreakdown.length"><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted)">No data</td></tr>
           </tbody>

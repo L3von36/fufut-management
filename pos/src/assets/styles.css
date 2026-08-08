@@ -453,10 +453,45 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
   .topbar h2{font-size:.9rem}
   .kpi-grid{grid-template-columns:1fr 1fr;gap:10px}
   .menu-toggle{display:block}
-  th,td{padding:8px 10px;font-size:.75rem;white-space:nowrap}
-  th:first-child,td:first-child{position:sticky;left:0;z-index:1;background:var(--surface)}
   .card{padding:14px}
   .table-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+
+  /* Table → Card. Applied from tablet-portrait down: a 600px-min table in a
+     ~730px column forces cramped nowrap cells and sideways scrolling, which is
+     unusable one-handed. Cards give each row full width and a real touch area. */
+  .table-scroll table,.table-scroll thead,.table-scroll tbody,.table-scroll th,.table-scroll td,.table-scroll tr{display:block}
+  /* Without this the global table{min-width:600px} keeps the "cards" 600px
+     wide and the container scrolls sideways anyway. */
+  .table-scroll table{min-width:0;width:100%}
+  .table-scroll{overflow-x:visible}
+  .table-scroll thead{display:none}
+  .table-scroll tr{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
+  .table-scroll tr:hover td{background:transparent!important}
+  .table-scroll td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0;border:none;font-size:.82rem;white-space:normal;text-align:right}
+  .table-scroll td:not(:last-child){border-bottom:1px solid var(--border)}
+  .table-scroll td::before{content:attr(data-label);font-weight:600;color:var(--text-muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;text-align:left}
+  /* A cell with no data-label would otherwise render an unlabelled value. */
+  .table-scroll td:not([data-label])::before{content:''}
+  .table-scroll td:first-child{position:static!important;background:transparent!important}
+
+  /* Modals become bottom sheets — reachable with a thumb instead of floating
+     mid-screen, and 28px of padding is too costly at this width. */
+  .modal-overlay{align-items:flex-end;padding:0}
+  .modal{width:100%;max-width:100%;max-height:92vh;padding:20px 16px;
+    padding-bottom:calc(20px + env(safe-area-inset-bottom));
+    border-radius:var(--radius-lg) var(--radius-lg) 0 0}
+  /* Right-aligned actions crowd into a corner; stack them full-width and put
+     the primary action last (closest to the thumb). */
+  .modal-actions{flex-direction:column-reverse;gap:8px}
+  .modal-actions .btn{width:100%;justify-content:center;min-height:44px}
+
+  /* Forms: one field per row, and 16px inputs so iOS does not zoom on focus. */
+  .form-row{grid-template-columns:1fr}
+  input,select,textarea,.input,.select{font-size:16px;min-height:44px}
+
+  /* Section headers wrap instead of squashing their action button. */
+  .card-header{flex-wrap:wrap;gap:8px}
+  .page-actions,.toolbar-actions{flex-wrap:wrap}
 }
 
 @media(max-width:480px){
@@ -470,16 +505,10 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
   .bottom-nav{padding:2px 0 env(safe-area-inset-bottom,2px)}
   .bn-item{padding:4px 2px;font-size:.72rem}
   .bn-item svg{width:20px;height:20px}
-
-  /* Table → Card conversion */
-  .table-scroll table,.table-scroll thead,.table-scroll tbody,.table-scroll th,.table-scroll td,.table-scroll tr{display:block}
-  .table-scroll thead{display:none}
-  .table-scroll tr{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
-  .table-scroll tr:hover td{background:transparent!important}
-  .table-scroll td{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border:none;font-size:.82rem;white-space:normal}
-  .table-scroll td:not(:last-child){border-bottom:1px solid var(--border)}
-  .table-scroll td::before{content:attr(data-label);font-weight:600;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;margin-right:12px;flex-shrink:0}
-  .table-scroll td:first-child{position:static!important;background:transparent!important}
+  /* The table → card conversion now lives in the 768px block above so tablet
+     portrait gets it too; only the tighter phone spacing belongs here. */
+  .table-scroll tr{padding:10px}
+  .table-scroll td{font-size:.8rem}
 }
 
 /* DARK MODE */

@@ -7,13 +7,13 @@
           <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Wage</th><th>Period</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
             <tr v-for="s in staff" :key="s.id">
-              <td><strong>{{ s.firstName }} {{ s.lastName }}</strong></td>
-              <td><span class="badge badge-new">{{ s.role }}</span></td>
-              <td>{{ s.phone||'—' }}</td>
-              <td>{{ s.wage?`ETB ${s.wage}`:'—' }}</td>
-              <td>{{ s.wagePeriod||'—' }}</td>
-              <td><span class="badge" :class="s.active!==false?'badge-ok':'badge-danger'">{{ s.active!==false?'Active':'Inactive' }}</span></td>
-              <td><button class="btn btn-sm btn-ghost" @click="openEdit(s)">Edit</button><button class="btn btn-sm btn-ghost" style="color:var(--danger)" @click="handleDelete(s)">Delete</button></td>
+              <td data-label="Name"><strong>{{ s.firstName }} {{ s.lastName }}</strong></td>
+              <td data-label="Role"><span class="badge badge-new">{{ s.role }}</span></td>
+              <td data-label="Phone">{{ s.phone||'—' }}</td>
+              <td data-label="Wage">{{ s.wage?`ETB ${s.wage}`:'—' }}</td>
+              <td data-label="Period">{{ s.wagePeriod||'—' }}</td>
+              <td data-label="Status"><span class="badge" :class="s.active!==false?'badge-ok':'badge-danger'">{{ s.active!==false?'Active':'Inactive' }}</span></td>
+              <td data-label="Actions"><button class="btn btn-sm btn-ghost" @click="openEdit(s)">Edit</button><button class="btn btn-sm btn-ghost" style="color:var(--danger)" @click="handleDelete(s)">Delete</button></td>
             </tr>
             <tr v-if="!staff.length"><td colspan="7" class="empty-state" style="padding:40px">No staff</td></tr>
           </tbody>

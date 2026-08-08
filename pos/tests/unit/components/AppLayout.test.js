@@ -1,0 +1,80 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createRouter, createMemoryHistory } from 'vue-router'
+import { setActivePinia, createPinia } from 'pinia'
+
+// Permission sets mirroring src/api ROLE_PERMISSIONS. The low-privilege roles
+// are the ones that mattered: the bottom nav used to be padded to 5 entries
+// with `null`, and :key="item.view" on the wrapping <template> dereferenced
+// those nulls before the child's v-if could skip them. Any role with fewer
+// than 5 nav items crashed to a blank page.
+const PERMS = {
+  cleaner: ['waste', 'dashboard'],
+  'delivery-staff': ['delivery', 'dashboard'],
+  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory'],
+  manager: ['dashboard', 'orders', 'tables', 'menu-view', 'checkout', 'kitchen', 'waste', 'staff']
+}
+
+let currentRole = 'cleaner'
+
+vi.mock('../../../src/stores/auth', () => ({
+  useAuthStore: vi.fn(() => ({
+    user: { firstName: 'Test', role: currentRole },
+    roleKey: currentRole,
+    isAuthenticated: true,
+    defaultView: 'dashboard',
+    permissions: PERMS[currentRole],
+    hasPermission: (v) => PERMS[currentRole].includes(v),
+    logout: vi.fn()
+  }))
+}))
+
+vi.mock('../../../src/api', async (orig) => {
+  const actual = await orig()
+  return { ...actual, isOnline: () => true }
+})
+
+import AppLayout from '../../../src/components/AppLayout.vue'
+
+function mountAs(role) {
+  currentRole = role
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/:pathMatch(.*)*', name: 'dashboard', component: { template: '<div/>' } }]
+  })
+  return mount(AppLayout, {
+    global: {
+      plugins: [router],
+      provide: { toast: vi.fn(), confirm: vi.fn(), isOnline: () => true },
+      stubs: { RouterView: true, RouterLink: true }
+    }
+  })
+}
+
+describe('AppLayout bottom nav', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it.each([
+    ['cleaner', 2],
+    ['delivery-staff', 2],
+    ['assistant-chef', 4]
+  ])('renders for %s, which has only %i nav items', (role) => {
+    const wrapper = mountAs(role)
+    expect(wrapper.html().length).toBeGreaterThan(0)
+    expect(wrapper.find('.bottom-nav').exists()).toBe(true)
+  })
+
+  it('never emits a bottom-nav button without a view', () => {
+    const wrapper = mountAs('cleaner')
+    const buttons = wrapper.findAll('.bn-item:not(.bn-more)')
+    expect(buttons.length).toBe(2)
+    buttons.forEach(b => expect(b.text().trim()).not.toBe(''))
+  })
+
+  it('caps the bottom nav at 5 items for a broad role', () => {
+    const wrapper = mountAs('manager')
+    expect(wrapper.findAll('.bn-item:not(.bn-more)').length).toBeLessThanOrEqual(5)
+  })
+})
