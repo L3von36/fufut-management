@@ -1,7 +1,9 @@
 <template>
   <div>
     <div class="table-toolbar"><h3>Profit & Loss</h3><button class="btn btn-outline btn-sm" @click="loadData">Refresh</button></div>
-    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <!-- Modifier class rather than an inline style, so the responsive rules in
+         styles.css can still override it on small screens. -->
+    <div class="kpi-grid kpi-grid-3">
       <div class="kpi-card"><div class="kpi-bar teal"></div><div class="kpi-label">Revenue (30d)</div><div class="kpi-value" style="color:var(--success)">ETB {{ rev30.toFixed(0) }}</div></div>
       <div class="kpi-card"><div class="kpi-bar yellow"></div><div class="kpi-label">Expenses (30d)</div><div class="kpi-value" style="color:var(--danger)">ETB {{ exp30.toFixed(0) }}</div></div>
       <div class="kpi-card"><div class="kpi-bar" :class="net30>=0?'teal':'yellow'"></div><div class="kpi-label">Net Profit</div><div class="kpi-value" :style="{color:net30>=0?'var(--success)':'var(--danger)'}">ETB {{ net30.toFixed(0) }}</div></div>

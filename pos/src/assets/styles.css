@@ -93,6 +93,9 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 
 /* KPI CARDS */
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+/* Use a class, never an inline grid-template-columns — inline styles outrank
+   the media queries below and pin the grid at desktop column counts. */
+.kpi-grid-3{grid-template-columns:repeat(3,1fr)}
 .kpi-card{background:var(--surface);border-radius:var(--radius-md);padding:20px 20px 18px;box-shadow:var(--shadow-card);border:1px solid var(--border);position:relative;overflow:hidden;transition:all var(--duration-base) var(--ease)}
 .kpi-card:hover{box-shadow:var(--shadow-card-hover);transform:translateY(-3px);border-color:var(--teal-200)}
 .kpi-card .kpi-bar{position:absolute;top:0;left:0;right:0;height:4px}
@@ -492,6 +495,16 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
   /* Section headers wrap instead of squashing their action button. */
   .card-header{flex-wrap:wrap;gap:8px}
   .page-actions,.toolbar-actions{flex-wrap:wrap}
+
+  /* Charts: shorter canvases and tighter padding so a chart card does not eat
+     a whole phone screen. */
+  .chart-card{padding:14px}
+  .chart-card canvas{max-height:180px}
+  .chart-card h3{font-size:.95rem}
+
+  /* Date-range / filter rows stack instead of overflowing. */
+  .filter-row,.report-filters,.date-range{flex-direction:column;align-items:stretch;gap:8px}
+  .filter-row .select,.filter-row .input,.date-range input,.date-range .select{width:100%}
 }
 
 @media(max-width:480px){

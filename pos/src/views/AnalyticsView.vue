@@ -20,7 +20,10 @@
     </div>
 
     <!-- Primary KPIs -->
-    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+    <!-- No inline grid-template-columns: it outranks the responsive rules in
+         styles.css and pinned this to 4 columns (80px tiles) on a phone.
+         .kpi-grid already defaults to 4-up on desktop. -->
+    <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-bar teal"></div>
         <div class="kpi-label">Total Revenue</div>
@@ -48,7 +51,7 @@
     </div>
 
     <!-- Secondary KPIs -->
-    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+    <div class="kpi-grid" style="margin-bottom:20px">
       <div class="kpi-card">
         <div class="kpi-bar teal"></div>
         <div class="kpi-label">Peak Hour</div>
