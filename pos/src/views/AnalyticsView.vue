@@ -28,7 +28,7 @@
         <div class="kpi-bar teal"></div>
         <div class="kpi-label">Total Revenue</div>
         <div class="kpi-value">ETB {{ fmt(totalRevenue) }}</div>
-        <div class="kpi-sub" v-if="periodOrders">{{ periodOrders }} orders in period</div>
+        <div class="kpi-sub" v-if="periodOrders.length">{{ periodOrders.length }} orders in period</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-bar blue"></div>
@@ -46,7 +46,7 @@
         <div class="kpi-bar" :class="fulfillmentRate >= 90 ? 'teal' : 'yellow'"></div>
         <div class="kpi-label">Fulfillment Rate</div>
         <div class="kpi-value">{{ fulfillmentRate }}%</div>
-        <div class="kpi-sub">{{ fulfilledCount }} of {{ periodOrders }} orders completed</div>
+        <div class="kpi-sub">{{ fulfilledCount }} of {{ periodOrders.length }} orders completed</div>
       </div>
     </div>
 
@@ -62,7 +62,7 @@
         <div class="kpi-bar blue"></div>
         <div class="kpi-label">Avg Items / Order</div>
         <div class="kpi-value">{{ avgItemsPerOrder }}</div>
-        <div class="kpi-sub">across {{ periodOrders }} orders</div>
+        <div class="kpi-sub">across {{ periodOrders.length }} orders</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-bar gold"></div>
