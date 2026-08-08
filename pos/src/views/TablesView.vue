@@ -80,42 +80,50 @@
           role="button"
           @keydown.enter="openDetail(t)"
         >
-          <!-- Status ring -->
-          <div class="tm-card-ring"></div>
+          <!-- Status rail: the card's colour already states the status, so the
+               old redundant badge is gone. -->
+          <span class="tm-rail"></span>
+
           <div class="tm-card-body">
-            <!-- Header -->
-            <div class="tm-card-top">
+            <div class="tm-card-head">
               <span class="tm-table-num">{{ t.number }}</span>
-              <span class="tm-table-name">{{ t.name || ('Table ' + t.number) }}</span>
-            </div>
-
-            <!-- Shape + capacity -->
-            <div class="tm-card-meta">
-              <span class="tm-shape-icon" :title="(t.shape || 'square') + ' table'">
-                <svg v-if="(t.shape || 'square') === 'round'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/></svg>
-                <svg v-else-if="t.shape === 'long'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="10" rx="3"/></svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>
+              <!-- Seats as dots — countable at a glance, and it makes a
+                   2-seater visibly different from an 8-seater. -->
+              <span class="tm-seats" :title="t.capacity + ' seats'" :aria-label="t.capacity + ' seats'">
+                <i v-for="n in Math.min(t.capacity || 0, 8)" :key="n" class="tm-seat"></i>
+                <span v-if="(t.capacity || 0) > 8" class="tm-seat-more">+{{ t.capacity - 8 }}</span>
               </span>
-              <span class="tm-capacity">{{ t.capacity }} seats</span>
             </div>
 
-            <!-- Status badge -->
-            <div class="tm-status-badge" :class="'tsb-' + t.status">{{ t.status }}</div>
+            <div class="tm-card-name">{{ t.name || ('Table ' + t.number) }}</div>
 
-            <!-- Occupied info -->
+            <!-- Occupied: how long they have been sitting is the one number a
+                 waiter scans for, so it leads and carries urgency colour. -->
             <template v-if="t.status === 'occupied'">
-              <div class="tm-timer">{{ occupancyTimer(t) }}</div>
-              <div v-if="tableOrderCounts[t.id]" class="tm-order-hint">
+              <div class="tm-timer" :class="'urg-' + occupancyUrgency(t)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+                {{ occupancyTimer(t) }}
+              </div>
+              <div class="tm-meta-row">
+                <span v-if="t.guests">{{ t.guests }} guest{{ t.guests > 1 ? 's' : '' }}</span>
+                <span v-if="t.server" class="tm-server">{{ t.server }}</span>
+              </div>
+              <div v-if="tableOrderCounts[t.id]" class="tm-order-chip">
                 {{ tableOrderCounts[t.id] }} order{{ tableOrderCounts[t.id] > 1 ? 's' : '' }}
                 <span v-if="tableOrderTotals[t.id]"> &middot; {{ formatETB(tableOrderTotals[t.id]) }}</span>
               </div>
-              <div v-if="t.guests" class="tm-guests">{{ t.guests }} guest{{ t.guests > 1 ? 's' : '' }}</div>
-              <div v-if="t.server" class="tm-server">{{ t.server }}</div>
             </template>
 
-            <!-- Reserved info -->
-            <template v-if="t.status === 'reserved'">
-              <div v-if="t.guests" class="tm-guests">{{ t.guests }} guest{{ t.guests > 1 ? 's' : '' }} reserved</div>
+            <template v-else-if="t.status === 'reserved'">
+              <div class="tm-state-line">Reserved<span v-if="t.guests"> &middot; {{ t.guests }} guest{{ t.guests > 1 ? 's' : '' }}</span></div>
+            </template>
+
+            <template v-else-if="t.status === 'cleaning'">
+              <div class="tm-state-line">Needs cleaning</div>
+            </template>
+
+            <template v-else>
+              <div class="tm-state-line tm-free">Free &middot; {{ t.capacity }} seats</div>
             </template>
           </div>
         </div>
@@ -351,6 +359,18 @@ const tableOrderTotals = computed(() => {
 })
 
 // ─── Timer ───
+
+/**
+ * Bucket a table's seated time so the card can colour it. A table 20 minutes in
+ * needs nothing; one at two hours is either ready to pay or has been forgotten.
+ */
+function occupancyUrgency(t) {
+  if (!t.seated_at) return 'none'
+  const mins = (Date.now() - new Date(t.seated_at).getTime()) / 60000
+  if (mins < 45) return 'fresh'
+  if (mins < 90) return 'warm'
+  return 'late'
+}
 
 function occupancyTimer(t) {
   if (!t.seated_at) return ''

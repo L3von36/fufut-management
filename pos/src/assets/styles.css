@@ -324,52 +324,66 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .tm-section-header h4{font-size:.82rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
 .tm-section-count{font-size:.72rem;color:var(--text-muted);background:var(--neutral-50);padding:3px 10px;border-radius:99px;font-weight:500}
 
-/* Floor grid */
-.tm-floor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:16px}
+/* Floor grid — denser than before so more of the room fits on one screen. */
+.tm-floor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px}
 
-/* Table card */
-.tm-card{position:relative;background:var(--surface);border-radius:var(--radius-md);box-shadow:var(--shadow-card);border:1.5px solid var(--border);cursor:pointer;transition:all var(--duration-base) var(--ease);overflow:hidden}
-.tm-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-card-hover)}
-.tm-card:active{transform:translateY(-1px)}
-.tm-card-ring{position:absolute;top:0;left:0;right:0;height:4px}
-.tm-card.available .tm-card-ring{background:linear-gradient(90deg,var(--success),#4ade80)}
-.tm-card.occupied .tm-card-ring{background:linear-gradient(90deg,var(--primary),var(--secondary))}
-.tm-card.reserved .tm-card-ring{background:linear-gradient(90deg,var(--warning),#fbbf24)}
-.tm-card.cleaning .tm-card-ring{background:linear-gradient(90deg,var(--neutral-400),var(--neutral-300))}
-.tm-card.available{border-color:rgba(46,125,50,.35)}
-.tm-card.occupied{border-color:rgba(15,123,120,.4);background:linear-gradient(180deg,var(--teal-50) 0%,var(--surface) 100%)}
-.tm-card.reserved{border-color:rgba(181,101,29,.35)}
-.tm-card.cleaning{border-color:rgba(154,149,137,.3)}
+/* ── Table card ──
+   Status is carried by a left rail plus a faint wash, so the card no longer
+   repeats itself with a status pill. Hierarchy: table number, then how long
+   they have been seated, then everything else. */
+.tm-card{position:relative;background:var(--surface);border-radius:14px;box-shadow:var(--shadow-card);border:1px solid var(--border);cursor:pointer;overflow:hidden;
+  transition:transform var(--duration-fast) var(--ease-out),box-shadow var(--duration-fast) var(--ease-out),border-color var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color:transparent}
+.tm-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-card-hover)}
+.tm-card:active{transform:scale(.975);box-shadow:var(--shadow-xs);transition-duration:60ms}
+.tm-card:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 
-.tm-card-body{padding:18px 16px 16px;display:flex;flex-direction:column;gap:6px}
+.tm-rail{position:absolute;top:0;bottom:0;left:0;width:4px}
+.tm-card.available .tm-rail{background:var(--success)}
+.tm-card.occupied  .tm-rail{background:var(--primary)}
+.tm-card.reserved  .tm-rail{background:var(--warning)}
+.tm-card.cleaning  .tm-rail{background:var(--neutral-400)}
 
-/* Card header */
-.tm-card-top{display:flex;align-items:baseline;gap:8px}
-.tm-table-num{font-size:1.55rem;font-weight:700;color:var(--text-heading);font-family:var(--font-mono);line-height:1}
-.tm-table-name{font-size:.75rem;color:var(--text-muted);font-weight:500}
+.tm-card.occupied{border-color:rgba(15,123,120,.28);background:linear-gradient(180deg,rgba(15,123,120,.055),transparent 62%)}
+.tm-card.reserved{border-color:rgba(181,101,29,.26);background:linear-gradient(180deg,rgba(181,101,29,.05),transparent 62%)}
+.tm-card.cleaning{border-color:var(--border);background:var(--neutral-25)}
 
-/* Shape + capacity */
-.tm-card-meta{display:flex;align-items:center;gap:6px;margin-top:2px}
-.tm-shape-icon{width:18px;height:18px;color:var(--neutral-400);flex-shrink:0}
-.tm-shape-icon svg{width:100%;height:100%}
-.tm-capacity{font-size:.72rem;color:var(--text-muted)}
+.tm-card-body{padding:12px 13px 12px 15px;display:flex;flex-direction:column;gap:3px}
 
-/* Status badge */
-.tm-status-badge{display:inline-block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:4px;width:fit-content}
-.tsb-available{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
-.tsb-occupied{background:var(--teal-50);color:var(--primary);border:1px solid var(--teal-200)}
-.tsb-reserved{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A}
-.tsb-cleaning{background:var(--neutral-50);color:var(--neutral-600);border:1px solid var(--neutral-200)}
+.tm-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tm-table-num{font-size:1.9rem;font-weight:800;color:var(--text-heading);font-family:var(--font-mono);line-height:1;letter-spacing:-.02em}
+.tm-card-name{font-size:.74rem;color:var(--text-muted);font-weight:500;line-height:1.2}
 
-/* Occupied details */
-.tm-timer{font-size:.78rem;font-weight:600;color:var(--info);font-family:var(--font-mono);margin-top:2px}
-.tm-order-hint{font-size:.72rem;color:var(--text-muted)}
-.tm-guests{font-size:.72rem;color:var(--text-muted)}
-.tm-server{font-size:.72rem;color:var(--neutral-400);font-style:italic}
+/* Seats as dots. Replaces a tiny outline square that read as a broken
+   checkbox and told you nothing you could count. */
+.tm-seats{display:flex;align-items:center;gap:3px;flex-wrap:wrap;justify-content:flex-end;max-width:52px}
+.tm-seat{width:5px;height:5px;border-radius:50%;background:var(--neutral-300);display:block}
+.tm-card.occupied .tm-seat{background:var(--primary);opacity:.55}
+.tm-card.available .tm-seat{background:var(--success);opacity:.5}
+.tm-card.reserved .tm-seat{background:var(--warning);opacity:.55}
+.tm-seat-more{font-size:.62rem;color:var(--text-muted);font-weight:600;margin-left:1px}
 
-/* Shape-specific card tweaks */
-.tm-card.shape-round{border-radius:var(--radius-lg)}
-.tm-card.shape-long .tm-card-body{padding:18px 20px 16px}
+/* Seated time — the number a waiter is actually scanning for. */
+.tm-timer{display:flex;align-items:center;gap:4px;font-size:.9rem;font-weight:700;font-family:var(--font-mono);margin-top:5px;line-height:1}
+.tm-timer svg{width:13px;height:13px;flex-shrink:0}
+.tm-timer.urg-fresh{color:var(--success)}
+.tm-timer.urg-warm{color:var(--warning)}
+.tm-timer.urg-late{color:var(--danger)}
+.tm-timer.urg-none{color:var(--text-muted)}
+
+.tm-meta-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.72rem;color:var(--text-muted);margin-top:1px}
+.tm-meta-row .tm-server{color:var(--text-body);font-weight:600}
+.tm-meta-row .tm-server::before{content:'·';margin-right:6px;color:var(--neutral-300);font-weight:400}
+
+.tm-order-chip{margin-top:5px;align-self:flex-start;font-size:.7rem;font-weight:600;color:var(--primary);background:var(--teal-50);border:1px solid var(--teal-200);padding:2px 7px;border-radius:99px}
+
+.tm-state-line{font-size:.74rem;color:var(--text-muted);margin-top:5px;font-weight:500}
+.tm-state-line.tm-free{color:var(--success)}
+
+/* Shape: round tables get a rounder card, long tables a wider one. */
+.tm-card.shape-round{border-radius:22px}
+.tm-card.shape-long{grid-column:span 2}
+@media(max-width:480px){ .tm-card.shape-long{grid-column:span 1} }
 
 /* ═══ DETAIL MODAL ═══ */
 .tm-detail-modal{background:var(--surface);border-radius:var(--radius-lg);padding:0;box-shadow:var(--shadow-xl);width:600px;max-width:95vw;max-height:88vh;overflow-y:auto;border:1px solid var(--border);display:flex;flex-direction:column}
@@ -423,18 +437,53 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 }
 @media(max-width:768px){
   .tm-floor-grid{grid-template-columns:repeat(2,1fr);gap:10px}
-  .tm-section-tabs{gap:4px}
-  .tm-tab{padding:6px 12px;font-size:.72rem}
-  .tm-detail-modal{width:100%;max-width:100%;max-height:100vh;border-radius:var(--radius-md) var(--radius-md) 0 0}
+  .tm-card-body{padding:11px 11px 11px 13px}
+  .tm-table-num{font-size:1.7rem}
+
+  /* Section tabs behave like an app's segmented control: a single swipeable
+     row that snaps, rather than wrapping and reflowing the page. */
+  .tm-section-tabs{gap:6px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;
+    scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;
+    padding-bottom:2px;margin-inline:-16px;padding-inline:16px}
+  .tm-section-tabs::-webkit-scrollbar{display:none}
+  .tm-tab{padding:8px 14px;font-size:.76rem;flex:0 0 auto;scroll-snap-align:start;min-height:38px}
+
+  /* Section headings stay put while scrolling a long floor, so you always know
+     which room you are looking at. */
+  .tm-section-header{position:sticky;top:0;z-index:5;background:var(--bg);
+    padding:8px 0 6px;margin-bottom:2px}
+
+  /* Detail opens as a bottom sheet rather than a centred dialog — thumb-height,
+     with a grab handle, the way a native app would present it. */
+  .tm-detail-modal{width:100%;max-width:100%;max-height:90vh;
+    border-radius:20px 20px 0 0;
+    padding-bottom:env(safe-area-inset-bottom);
+    animation:tmSheetUp .28s cubic-bezier(.22,1,.36,1) both}
+  .tm-detail-modal::before{content:'';display:block;width:38px;height:4px;border-radius:99px;
+    background:var(--neutral-300);margin:8px auto 2px;flex-shrink:0}
+  .tm-detail-header{padding-top:6px}
+  .tm-detail-actions{position:sticky;bottom:0;background:var(--surface);
+    border-top:1px solid var(--border);padding-top:12px;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+  .tm-detail-actions .btn{flex:1 1 auto;min-height:46px;justify-content:center}
+  .tm-quick-status{gap:6px}
+  .tm-qs-btn{flex:1 1 auto;min-height:44px}
 }
+
+@keyframes tmSheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.tm-detail-modal{animation:none}}
 @media(max-width:480px){
   .tm-floor-grid{grid-template-columns:1fr}
 }
-[data-theme="dark"] .tm-card.occupied{background:linear-gradient(180deg,rgba(15,123,120,.12) 0%,var(--neutral-25) 100%)}
+[data-theme="dark"] .tm-card.occupied{background:linear-gradient(180deg,rgba(15,123,120,.14),transparent 62%)}
+[data-theme="dark"] .tm-card.reserved{background:linear-gradient(180deg,rgba(181,101,29,.13),transparent 62%)}
+[data-theme="dark"] .tm-card.cleaning{background:var(--neutral-50)}
 [data-theme="dark"] .tm-order-card{background:var(--neutral-50)}
-[data-theme="dark"] .tsb-available{background:rgba(46,125,50,.15);color:#4ade80;border-color:rgba(46,125,50,.3)}
-[data-theme="dark"] .tsb-occupied{background:rgba(15,123,120,.15);color:var(--teal-300);border-color:rgba(15,123,120,.3)}
-[data-theme="dark"] .tsb-reserved{background:rgba(181,101,29,.15);color:#fbbf24;border-color:rgba(181,101,29,.3)}
+[data-theme="dark"] .tm-seat{background:var(--neutral-400)}
+[data-theme="dark"] .tm-order-chip{background:rgba(15,123,120,.18);border-color:rgba(15,123,120,.35);color:var(--teal-300)}
+[data-theme="dark"] .tm-timer.urg-fresh{color:#4ade80}
+[data-theme="dark"] .tm-timer.urg-warm{color:#fbbf24}
+[data-theme="dark"] .tm-timer.urg-late{color:#f87171}
 
 /* RESPONSIVE */
 @media(max-width:1024px){
