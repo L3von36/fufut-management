@@ -1,5 +1,28 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+
+/**
+ * Cart persistence.
+ *
+ * The cart lived only in memory, so a pull-to-refresh, a backgrounded browser or
+ * a flat battery discarded an order the waiter may already have read back to the
+ * guest. On a tablet POS that is a routine event, not an edge case.
+ *
+ * Restores are cut off after one shift's length so a cart abandoned overnight is
+ * not silently resurrected onto the next day's service.
+ */
+const PERSIST_KEY = 'fufut.pos.cart.v1'
+const PERSIST_MAX_AGE_MS = 12 * 60 * 60 * 1000
+
+function safeStorage() {
+  try {
+    if (typeof localStorage === 'undefined') return null
+    return localStorage
+  } catch {
+    // Private-mode Safari throws on access rather than returning null.
+    return null
+  }
+}
 
 /**
  * Order Store — Phase 1: Structured cart with modifier support.
@@ -20,13 +43,32 @@ import { ref, computed } from 'vue'
 let _uidCounter = 0
 function uid() { return 'c' + Date.now().toString(36) + (++_uidCounter).toString(36) }
 
-function dedupKey(menuItemId, selectedModifiers, notes) {
+/**
+ * Identity of a cart line.
+ *
+ * `name` and `basePrice` are part of the key deliberately, not for tidiness.
+ * The API once served every menu item with `id: ""`, which made this key
+ * identical for every product in the menu — so adding a 130 ETB macchiato to a
+ * cart holding a 65 ETB coffee merged into the coffee's line and billed 2 x 65.
+ * The API now assigns real ids, but keying on the price and name as well means a
+ * blank, duplicated or regressed id can never again silently merge two different
+ * dishes: the worst case becomes a split line, which is visible, rather than a
+ * wrong total, which is not.
+ */
+function dedupKey(menuItemId, selectedModifiers, notes, name, basePrice) {
   const modNames = (selectedModifiers || [])
     .map(m => m.name)
     .slice()
     .sort()
     .join('|')
-  return `${menuItemId}::${modNames}::${(notes || '').trim().toLowerCase()}`
+  const price = Number.isFinite(parseFloat(basePrice)) ? parseFloat(basePrice) : 0
+  return [
+    menuItemId || '',
+    name || '',
+    price,
+    modNames,
+    (notes || '').trim().toLowerCase()
+  ].join('::')
 }
 
 export const useOrderStore = defineStore('order', () => {
@@ -126,7 +168,7 @@ export const useOrderStore = defineStore('order', () => {
 
   // ─── Actions ───
   function addItem({ menuItemId, name, basePrice, selectedModifiers = [], notes = '' }) {
-    const key = dedupKey(menuItemId, selectedModifiers, notes)
+    const key = dedupKey(menuItemId, selectedModifiers, notes, name, basePrice)
     const existing = items.value.find(i => i._key === key)
     if (existing) {
       existing.qty++
@@ -174,6 +216,7 @@ export const useOrderStore = defineStore('order', () => {
 
   function clearCart() {
     items.value = []
+    clearPersisted()
   }
 
   // ─── Checkout Getters ───
@@ -343,6 +386,66 @@ export const useOrderStore = defineStore('order', () => {
     }]
   }
 
+  // ─── Persistence ───
+  function clearPersisted() {
+    const store = safeStorage()
+    if (!store) return
+    try { store.removeItem(PERSIST_KEY) } catch { /* quota or private mode */ }
+  }
+
+  function persist() {
+    const store = safeStorage()
+    if (!store) return
+    // Nothing worth keeping once the cart is empty and no context is set.
+    if (items.value.length === 0 && !tableNum.value && !customerName.value && !notes.value) {
+      clearPersisted()
+      return
+    }
+    try {
+      store.setItem(PERSIST_KEY, JSON.stringify({
+        savedAt: Date.now(),
+        items: items.value,
+        tableNum: tableNum.value,
+        orderType: orderType.value,
+        customerName: customerName.value,
+        notes: notes.value
+      }))
+    } catch { /* quota exceeded — losing persistence is preferable to throwing */ }
+  }
+
+  function restore() {
+    const store = safeStorage()
+    if (!store) return false
+    let raw
+    try { raw = store.getItem(PERSIST_KEY) } catch { return false }
+    if (!raw) return false
+    let saved
+    try { saved = JSON.parse(raw) } catch { clearPersisted(); return false }
+    if (!saved || !Array.isArray(saved.items)) { clearPersisted(); return false }
+    if (!Number.isFinite(saved.savedAt) || Date.now() - saved.savedAt > PERSIST_MAX_AGE_MS) {
+      clearPersisted()
+      return false
+    }
+    // Only accept lines that still carry the fields the totals depend on, so a
+    // malformed or half-written entry cannot produce a wrong bill.
+    items.value = saved.items.filter(i =>
+      i && typeof i.name === 'string' && Number.isFinite(parseFloat(i.basePrice)) && Number.isFinite(parseFloat(i.qty))
+    )
+    if (typeof saved.tableNum === 'string') tableNum.value = saved.tableNum
+    if (typeof saved.orderType === 'string') orderType.value = saved.orderType
+    if (typeof saved.customerName === 'string') customerName.value = saved.customerName
+    if (typeof saved.notes === 'string') notes.value = saved.notes
+    return true
+  }
+
+  restore()
+
+  watch(
+    [items, tableNum, orderType, customerName, notes],
+    persist,
+    { deep: true }
+  )
+
   /** Full order payload */
   function buildOrderPayload(overrides = {}) {
     const base = {
@@ -391,6 +494,10 @@ export const useOrderStore = defineStore('order', () => {
     incrementQty,
     decrementQty,
     clearCart,
+    // Persistence (exposed for tests and for an explicit discard action)
+    persist,
+    restore,
+    clearPersisted,
     // Checkout State
     paymentMethod,
     tendered,

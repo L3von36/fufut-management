@@ -1,4 +1,4 @@
-import { vi } from 'vitest'
+import { vi, beforeEach } from 'vitest'
 import { config } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import BaseButton from '../src/components/BaseButton.vue'
@@ -113,6 +113,14 @@ const localStorageMock = (() => {
   }
 })()
 vi.stubGlobal('localStorage', localStorageMock)
+
+// The mock above is module-scoped, so without this every test inherits whatever
+// the previous one wrote. That matters now the order store persists the cart and
+// restores it when the store is created: three tests each adding one macchiato
+// would otherwise see a three-item cart by the third.
+beforeEach(() => {
+  localStorage.clear()
+})
 
 // Mock matchMedia
 vi.stubGlobal('matchMedia', vi.fn((query) => ({

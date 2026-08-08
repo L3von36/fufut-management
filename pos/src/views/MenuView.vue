@@ -37,7 +37,7 @@
     <!-- Menu Grid -->
     <div class="menu-grid-wrapper">
       <div class="menu-grid">
-        <div v-for="item in filteredItems" :key="item.id"
+        <div v-for="item in filteredItems" :key="itemKey(item)"
           class="menu-card"
           :class="{ unavailable: item.available === false, 'in-cart': storeCartCount(item.id) > 0 }"
           @click="handleItemClick(item)"
@@ -219,10 +219,19 @@ function hashCode(s) {
   return h
 }
 
-// Cart count for badge (aggregates all cart lines matching this menu item id)
+// v-for key. Falls back to a composite when an item has no id, so a regressed
+// feed cannot hand Vue 45 duplicate keys and break list reconciliation.
+function itemKey(item) {
+  return item.id || `${item.category || ''}::${item.name || ''}::${item.price || 0}`
+}
+
+// Cart count for badge (aggregates all cart lines matching this menu item id).
+// A blank id must never match: when the API served every item with id:"" this
+// comparison was true for all 45 cards, so a single add lit up the whole grid.
 function storeCartCount(menuItemId) {
+  if (!menuItemId) return 0
   return orderStore.items
-    .filter(i => i.menuItemId === menuItemId)
+    .filter(i => i.menuItemId && i.menuItemId === menuItemId)
     .reduce((s, i) => s + i.qty, 0)
 }
 
@@ -319,7 +328,7 @@ async function loadData() {
 /* Category tabs */
 .menu-categories{display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;flex-shrink:0;scrollbar-width:none}
 .menu-categories::-webkit-scrollbar{display:none}
-.cat-tab{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-body);font-size:.78rem;font-weight:500;white-space:nowrap;cursor:pointer;transition:all var(--duration-fast) var(--ease);flex-shrink:0}
+.cat-tab{display:flex;align-items:center;gap:6px;padding:8px 14px;min-height:44px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-body);font-size:.78rem;font-weight:500;white-space:nowrap;cursor:pointer;transition:all var(--duration-fast) var(--ease);flex-shrink:0}
 .cat-tab:hover{border-color:var(--primary);color:var(--primary);background:var(--teal-50)}
 .cat-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 .cat-tab .cat-icon{font-size:1rem}
@@ -367,7 +376,10 @@ async function loadData() {
 .mod-tag{font-size:.72rem;color:var(--text-muted);background:var(--neutral-50);padding:2px 8px;border-radius:4px;border:1px solid var(--border)}
 .mod-more{color:var(--primary);background:var(--teal-50);border-color:var(--teal-200)}
 
-.menu-add-btn{position:absolute;bottom:14px;right:14px;width:40px;height:40px;border-radius:50%;border:none;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:all var(--duration-base) var(--ease-out);box-shadow:var(--shadow-primary)}
+/* 44x44 is the baseline, not a mobile-only override — this is the single most
+   tapped control in the app (one per menu card) and the POS runs on tablets at
+   >=1024px, which never matched the old mobile breakpoint. */
+.menu-add-btn{position:absolute;bottom:14px;right:14px;width:44px;height:44px;border-radius:50%;border:none;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:all var(--duration-base) var(--ease-out);box-shadow:var(--shadow-primary)}
 .menu-card:hover .menu-add-btn{opacity:1;transform:translateY(0)}
 .menu-add-btn:hover{background:var(--primary-hover);transform:scale(1.1)!important}
 .menu-add-btn svg{width:20px;height:20px}

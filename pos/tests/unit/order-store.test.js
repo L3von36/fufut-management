@@ -111,4 +111,107 @@ describe('Order Store', () => {
       expect(store.buildOrderPayload().notes).toBeUndefined()
     })
   })
+
+  describe('cart line identity', () => {
+    // Regression: /api/menu served every item with id:"", so dedupKey collapsed
+    // to the same string for all 45 products. Adding a 130 macchiato to a cart
+    // holding a 65 coffee merged into the coffee's line and billed 2 x 65 = 130
+    // instead of 195, and the macchiato never reached the kitchen.
+    it('keeps two different items on separate lines even with blank ids', () => {
+      const store = useOrderStore()
+      store.addItem({ menuItemId: '', name: 'Tridintional coffee', basePrice: 65 })
+      store.addItem({ menuItemId: '', name: 'Macchiato', basePrice: 130 })
+
+      expect(store.items).toHaveLength(2)
+      expect(store.cartItemCount).toBe(2)
+      expect(store.cartTotal).toBe(195)
+    })
+
+    it('does not let a third blank-id item inherit the first price', () => {
+      const store = useOrderStore()
+      store.addItem({ menuItemId: '', name: 'Tridintional coffee', basePrice: 65 })
+      store.addItem({ menuItemId: '', name: 'Macchiato', basePrice: 130 })
+      store.addItem({ menuItemId: '', name: 'TEA', basePrice: 70 })
+
+      expect(store.items).toHaveLength(3)
+      expect(store.cartTotal).toBe(265)
+    })
+
+    it('still merges genuine repeats of the same item into one line', () => {
+      const store = useOrderStore()
+      addMacchiato(store)
+      addMacchiato(store)
+
+      expect(store.items).toHaveLength(1)
+      expect(store.items[0].qty).toBe(2)
+      expect(store.cartTotal).toBe(260)
+    })
+
+    it('separates the same item when its price differs', () => {
+      // The live menu carries two dishes both named "Fut Special Gebeta" at
+      // 1400 and 900. They must not merge.
+      const store = useOrderStore()
+      store.addItem({ menuItemId: '', name: 'Fut Special Gebeta', basePrice: 1400 })
+      store.addItem({ menuItemId: '', name: 'Fut Special Gebeta', basePrice: 900 })
+
+      expect(store.items).toHaveLength(2)
+      expect(store.cartTotal).toBe(2300)
+    })
+  })
+
+  describe('cart persistence', () => {
+    // Regression: the cart was memory-only, so a refresh on a tablet discarded
+    // an order the waiter may already have read back to the guest.
+    it('restores items and table context into a new store instance', () => {
+      const first = useOrderStore()
+      first.addItem({ menuItemId: 'M002', name: 'Macchiato', basePrice: 130 })
+      first.tableNum = '4'
+      first.persist()
+
+      // A reload means a fresh pinia and a fresh store, same localStorage.
+      setActivePinia(createPinia())
+      const afterReload = useOrderStore()
+
+      expect(afterReload.items).toHaveLength(1)
+      expect(afterReload.cartTotal).toBe(130)
+      expect(afterReload.tableNum).toBe('4')
+    })
+
+    it('discards a cart older than one shift', () => {
+      const store = useOrderStore()
+      store.addItem({ menuItemId: 'M002', name: 'Macchiato', basePrice: 130 })
+      store.persist()
+
+      // Backdate the saved blob by 13 hours.
+      const saved = JSON.parse(localStorage.getItem('fufut.pos.cart.v1'))
+      saved.savedAt = Date.now() - 13 * 60 * 60 * 1000
+      localStorage.setItem('fufut.pos.cart.v1', JSON.stringify(saved))
+
+      setActivePinia(createPinia())
+      const afterReload = useOrderStore()
+
+      expect(afterReload.items).toHaveLength(0)
+      expect(localStorage.getItem('fufut.pos.cart.v1')).toBeNull()
+    })
+
+    it('clears the persisted cart when the order completes', () => {
+      const store = useOrderStore()
+      store.addItem({ menuItemId: 'M002', name: 'Macchiato', basePrice: 130 })
+      store.persist()
+      expect(localStorage.getItem('fufut.pos.cart.v1')).not.toBeNull()
+
+      store.resetFull()
+
+      expect(localStorage.getItem('fufut.pos.cart.v1')).toBeNull()
+    })
+
+    it('ignores a malformed persisted blob instead of throwing', () => {
+      localStorage.setItem('fufut.pos.cart.v1', '{not json')
+
+      setActivePinia(createPinia())
+      const store = useOrderStore()
+
+      expect(store.items).toHaveLength(0)
+    })
+  })
 })

@@ -12,10 +12,19 @@
   --primary:#0F7B78; --primary-light:#EDF8F8; --primary-bg:#FAFAF8; --primary-hover:#0C5F5B;
   --secondary:#18B4B7; --accent:#D6B36A; --accent-dark:#AD8A47; --accent-light:#E4CB99;
   --success:#2E7D32; --warning:#B5651D; --danger:#D32F2F; --info:#2563EB;
+  /* Foreground-only variants of the semantic colours. The base tokens above are
+     used both as text and as button fills, so they cannot be lightened for dark
+     mode without dropping white-on-fill below AA. These are for coloured *text*
+     and are re-tokenised per theme; never use them as a background. */
+  --success-text:#2E7D32; --warning-text:#8A4E12; --danger-text:#C62828; --info-text:#1D4ED8;
   --terracotta:#C67B5C; --sand-beige:#D4C4A8; --warm-clay:#B5651D; --soft-cream:#F5F0E1; --olive-green:#6B7B3C;
   --blue-50:#EFF6FF; --red-50:#FEF2F2; --gold-50:#FFFBEB;
   --bg:var(--neutral-25); --surface:var(--neutral-0);
-  --text-heading:var(--neutral-900); --text-body:var(--neutral-700); --text-muted:var(--neutral-500);
+  /* --text-muted was --neutral-500 (#8C897F), which measured 3.1-3.5:1 on the
+     light surfaces and failed AA everywhere it appeared — table names, KPI
+     labels, seat counts, dates, section headers. --neutral-600 is already in the
+     scale and lands at ~6.8:1 while still reading as clearly secondary. */
+  --text-heading:var(--neutral-900); --text-body:var(--neutral-700); --text-muted:var(--neutral-600);
   --text-on-primary:#FFFFFF;
   --border:var(--neutral-100); --border-strong:var(--neutral-200); --border-brand:var(--teal-200);
   --radius-sm:8px; --radius-md:16px; --radius-lg:24px; --radius-xl:32px;
@@ -31,7 +40,7 @@
   --font-mono:'Fira Code',monospace;
   --font-display:'Cormorant Garamond',ui-serif,Georgia,serif;
   --font-script:'Great Vibes',cursive;
-  --sidebar-w:240px; --topbar-h:60px; --nav-item-h:42px;
+  --sidebar-w:240px; --topbar-h:60px; --nav-item-h:44px;
   --ease:cubic-bezier(.4,0,.2,1); --ease-out:cubic-bezier(.16,1,.3,1);
   --duration-fast:150ms; --duration-base:280ms; --duration-slow:520ms;
 }
@@ -69,7 +78,9 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .btn-success{background:var(--success);color:#fff}.btn-success:hover{background:#15803D;transform:translateY(-1px);box-shadow:0 4px 12px rgba(22,163,74,.2)}
 .btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#B91C1C;transform:translateY(-1px)}
 .btn-warning{background:var(--warning);color:#fff}.btn-warning:hover{background:#B45309;transform:translateY(-1px)}
-.btn-sm{padding:6px 12px;font-size:.75rem;min-height:30px}
+/* Touch minimum applies at every width: these row-level actions are used on
+   tablets, which never matched the mobile-only override further down. */
+.btn-sm{padding:6px 12px;font-size:.75rem;min-height:44px;min-width:44px}
 .btn-ghost{background:transparent;color:var(--text-body);padding:6px 10px}
 .btn-ghost:hover{background:var(--neutral-50);color:var(--text-heading)}
 /* Button states */
@@ -106,7 +117,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .kpi-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:4px;font-weight:600}
 .kpi-value{font-size:1.65rem;font-weight:700;color:var(--text-heading);font-family:var(--font-mono);line-height:1.15}
 .kpi-sub{font-size:.75rem;color:var(--text-muted);margin-top:6px}
-.kpi-sub .up{color:var(--success);font-weight:500}.kpi-sub .down{color:var(--danger);font-weight:500}
+.kpi-sub .up{color:var(--success-text);font-weight:500}.kpi-sub .down{color:var(--danger-text);font-weight:500}
 
 /* CHARTS */
 .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
@@ -148,12 +159,12 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(15,123,120,.1);background:var(--surface)}
 .form-group textarea{resize:vertical;min-height:70px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.field-error{font-size:.7rem;color:var(--danger);margin-top:2px;min-height:1em}
+.field-error{font-size:.7rem;color:var(--danger-text);margin-top:2px;min-height:1em}
 .form-group input.error,.form-group select.error{border-color:var(--danger);box-shadow:0 0 0 2px rgba(220,38,38,.15)}
 .form-group select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:14px;padding-right:40px}
 
 /* STANDALONE INPUTS & SELECTS (outside .form-group) */
-.input,.select,.search-input,.menu-search-input{width:100%;padding:11px 14px;border:1.5px solid var(--border-strong);border-radius:var(--radius-sm);font-size:.88rem;transition:all var(--duration-base) var(--ease);background:var(--surface);color:var(--text-heading);font-family:inherit}
+.input,.select,.search-input,.menu-search-input{width:100%;padding:11px 14px;min-height:44px;border:1.5px solid var(--border-strong);border-radius:var(--radius-sm);font-size:.88rem;transition:all var(--duration-base) var(--ease);background:var(--surface);color:var(--text-heading);font-family:inherit}
 .input::placeholder,.select::placeholder,.search-input::placeholder,.menu-search-input::placeholder{color:var(--neutral-400)}
 .input:focus,.select:focus,.search-input:focus,.menu-search-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(15,123,120,.1);background:var(--surface)}
 .input.error,.select.error,.search-input.error{border-color:var(--danger);box-shadow:0 0 0 2px rgba(220,38,38,.15)}
@@ -177,8 +188,8 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .sidebar.collapsed .nav-item{justify-content:center;padding:0 6px;margin:1px 4px;height:44px}
 .sidebar.collapsed .nav-item .nav-label{display:none}
 .sidebar.collapsed .sidebar-footer{display:none}
-.sidebar-collapse-toggle{background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;padding:4px;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:color var(--duration-fast);flex-shrink:0}
-.sidebar-collapse-toggle:hover{color:rgba(255,255,255,.7)}
+.sidebar-collapse-toggle{background:none;border:none;color:rgba(255,255,255,.55);cursor:pointer;padding:4px;min-width:44px;min-height:44px;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:color var(--duration-fast);flex-shrink:0}
+.sidebar-collapse-toggle:hover{color:rgba(255,255,255,.85)}
 .sidebar-collapse-toggle svg{width:18px;height:18px}
 .sidebar.collapsed .sidebar-collapse-toggle{position:absolute;bottom:16px;left:50%;transform:translateX(-50%)}
 .sidebar-brand{height:var(--topbar-h);display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;position:relative}
@@ -190,8 +201,11 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
 .sidebar-nav::-webkit-scrollbar{width:4px}
 .sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}
-.nav-section{padding:16px 20px 6px;font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.3);font-weight:600}
-.nav-item{display:flex;align-items:center;gap:10px;padding:0 20px;height:var(--nav-item-h);color:rgba(255,255,255,.55);font-size:.85rem;transition:all var(--duration-base) var(--ease);cursor:pointer;border-left:3px solid transparent;margin:1px 8px;border-radius:0 var(--radius-sm) var(--radius-sm) 0}
+/* Sidebar text on the teal gradient. .3 alpha measured 2.29:1 and .55 measured
+   4.23:1 against #0A4A47 — both under AA. .68 and .72 land at ~5.2:1 and ~6.0:1
+   while keeping the section headers visibly quieter than the nav labels. */
+.nav-section{padding:16px 20px 6px;font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.68);font-weight:600}
+.nav-item{display:flex;align-items:center;gap:10px;padding:0 20px;height:var(--nav-item-h);color:rgba(255,255,255,.72);font-size:.85rem;transition:all var(--duration-base) var(--ease);cursor:pointer;border-left:3px solid transparent;margin:1px 8px;border-radius:0 var(--radius-sm) var(--radius-sm) 0}
 .nav-item.icon-only{justify-content:center;padding:0;margin:1px 4px;height:44px;border-left-width:0;border-radius:var(--radius-sm)}
 .nav-item:hover{color:rgba(255,255,255,.9);background:rgba(255,255,255,.06)}
 .nav-item.active,router-link-active{color:#fff;background:rgba(255,255,255,.1);border-left-color:var(--accent);font-weight:500}
@@ -200,7 +214,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid rgba(255,255,255,.08)}
 .sidebar-footer button{background:transparent;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);padding:9px 16px;border-radius:var(--radius-sm);font-size:.78rem;width:100%;transition:all var(--duration-base) var(--ease)}
 .sidebar-footer button:hover{color:#fff;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.06)}
-.sidebar-logout-btn{display:flex;align-items:center;gap:8px;color:rgba(255,255,255,.6)!important;font-size:.78rem;font-weight:500;background:rgba(220,47,47,.15)!important;border:1px solid rgba(220,47,47,.3)!important;border-radius:var(--radius-sm)!important;padding:9px 16px;width:100%;cursor:pointer;transition:all var(--duration-base) var(--ease);font-family:inherit}
+.sidebar-logout-btn{display:flex;align-items:center;gap:8px;color:rgba(255,255,255,.82)!important;font-size:.78rem;font-weight:500;background:rgba(220,47,47,.15)!important;border:1px solid rgba(220,47,47,.3)!important;border-radius:var(--radius-sm)!important;padding:9px 16px;min-height:44px;width:100%;cursor:pointer;transition:all var(--duration-base) var(--ease);font-family:inherit}
 .sidebar-logout-btn:hover{background:rgba(220,47,47,.3)!important;color:#fff!important;border-color:rgba(220,47,47,.5)!important}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(28,25,23,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:99}
 .sidebar-open .sidebar-overlay{display:block}
@@ -219,7 +233,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .menu-toggle{display:none;background:none;border:none;font-size:1.3rem;color:var(--text-body);padding:4px 6px;border-radius:var(--radius-sm)}
 .menu-toggle:hover{background:var(--neutral-50)}
 .date-display{font-size:.78rem;color:var(--text-muted);font-family:var(--font-mono)}
-.theme-toggle{background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;border-radius:var(--radius-sm);display:flex;align-items:center;transition:all var(--duration-fast)}
+.theme-toggle{background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px;min-width:44px;min-height:44px;justify-content:center;border-radius:var(--radius-sm);display:flex;align-items:center;transition:all var(--duration-fast)}
 .theme-toggle:hover{color:var(--text-heading);background:var(--neutral-50)}
 .theme-toggle svg{width:20px;height:20px}
 
@@ -314,7 +328,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 
 /* Section tabs */
 .tm-section-tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
-.tm-tab{padding:7px 16px;border-radius:99px;font-size:.78rem;font-weight:500;border:1.5px solid var(--border);background:var(--surface);color:var(--text-muted);cursor:pointer;transition:all var(--duration-fast) var(--ease);white-space:nowrap}
+.tm-tab{padding:7px 16px;min-height:44px;border-radius:99px;font-size:.78rem;font-weight:500;border:1.5px solid var(--border);background:var(--surface);color:var(--text-muted);cursor:pointer;transition:all var(--duration-fast) var(--ease);white-space:nowrap}
 .tm-tab:hover{border-color:var(--primary);color:var(--primary)}
 .tm-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 
@@ -366,9 +380,9 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 /* Seated time — the number a waiter is actually scanning for. */
 .tm-timer{display:flex;align-items:center;gap:4px;font-size:.9rem;font-weight:700;font-family:var(--font-mono);margin-top:5px;line-height:1}
 .tm-timer svg{width:13px;height:13px;flex-shrink:0}
-.tm-timer.urg-fresh{color:var(--success)}
-.tm-timer.urg-warm{color:var(--warning)}
-.tm-timer.urg-late{color:var(--danger)}
+.tm-timer.urg-fresh{color:var(--success-text)}
+.tm-timer.urg-warm{color:var(--warning-text)}
+.tm-timer.urg-late{color:var(--danger-text)}
 .tm-timer.urg-none{color:var(--text-muted)}
 
 .tm-meta-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.72rem;color:var(--text-muted);margin-top:1px}
@@ -378,7 +392,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .tm-order-chip{margin-top:5px;align-self:flex-start;font-size:.7rem;font-weight:600;color:var(--primary);background:var(--teal-50);border:1px solid var(--teal-200);padding:2px 7px;border-radius:99px}
 
 .tm-state-line{font-size:.74rem;color:var(--text-muted);margin-top:5px;font-weight:500}
-.tm-state-line.tm-free{color:var(--success)}
+.tm-state-line.tm-free{color:var(--success-text)}
 
 /* Shape: round tables get a rounder card, long tables a wider one. */
 .tm-card.shape-round{border-radius:22px}
@@ -446,7 +460,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
     scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;
     padding-bottom:2px;margin-inline:-16px;padding-inline:16px}
   .tm-section-tabs::-webkit-scrollbar{display:none}
-  .tm-tab{padding:8px 14px;font-size:.76rem;flex:0 0 auto;scroll-snap-align:start;min-height:38px}
+  .tm-tab{padding:8px 14px;font-size:.76rem;flex:0 0 auto;scroll-snap-align:start;min-height:44px}
 
   /* Section headings stay put while scrolling a long floor, so you always know
      which room you are looking at. */
@@ -574,7 +588,12 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 }
 
 /* DARK MODE */
-[data-theme="dark"]{--bg:#1a1a1a;--surface:#262626;--neutral-0:#262626;--neutral-25:#1f1f1f;--neutral-50:#2a2a2a;--neutral-100:#333;--neutral-500:#999;--neutral-700:#ccc;--neutral-900:#eee;--border:#404040;--text-heading:#eee;--text-body:#ccc;--text-muted:#888;--shadow-sm:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 8px 24px rgba(0,0,0,.4);--shadow-lg:0 24px 60px rgba(0,0,0,.5);--shadow-card:0 1px 2px rgba(0,0,0,.3);--shadow-card-hover:0 8px 24px rgba(0,0,0,.4)}
+[data-theme="dark"]{--bg:#1a1a1a;--surface:#262626;--neutral-0:#262626;--neutral-25:#1f1f1f;--neutral-50:#2a2a2a;--neutral-100:#333;--neutral-500:#999;--neutral-700:#ccc;--neutral-900:#eee;--border:#404040;--text-heading:#eee;--text-body:#ccc;--text-muted:#9A9A9A;
+  /* The semantic colours were never re-tokenised for dark, so light-theme values
+     were painted onto dark cards: the "Free" green sat at 2.95:1 and the danger
+     red at ~3.0:1. These are foreground-only (see --success-text in :root) and
+     all clear 4.5:1 against the #262626 surface. */
+  --success-text:#4CAF50;--warning-text:#E09A4A;--danger-text:#F26C6C;--info-text:#6B9BFF;--shadow-sm:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 8px 24px rgba(0,0,0,.4);--shadow-lg:0 24px 60px rgba(0,0,0,.5);--shadow-card:0 1px 2px rgba(0,0,0,.3);--shadow-card-hover:0 8px 24px rgba(0,0,0,.4)}
 [data-theme="dark"] .sidebar{background:linear-gradient(180deg,var(--teal-800) 0%,var(--teal-900) 100%)}
 [data-theme="dark"] .table-card.occupied{background:rgba(15,123,120,.15)}
 [data-theme="dark"] tr:hover td{background:var(--neutral-50)}
