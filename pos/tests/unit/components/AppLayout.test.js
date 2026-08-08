@@ -34,6 +34,21 @@ vi.mock('../../../src/api', async (orig) => {
   return { ...actual, isOnline: () => true }
 })
 
+// useSync starts a timer that reads the IndexedDB sync queue. Under jsdom that
+// throws "tx.objectStore is not a function" as an *unhandled* rejection —
+// which vitest reports but still exits 0 on locally, while CI fails the run.
+// This component test is about nav rendering, so stub the sync engine out.
+vi.mock('../../../src/composables/useSync', () => ({
+  useSync: () => ({
+    pendingCount: { value: 0 },
+    syncing: { value: false },
+    processQueue: vi.fn(),
+    refreshCount: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn()
+  })
+}))
+
 import AppLayout from '../../../src/components/AppLayout.vue'
 
 function mountAs(role) {
