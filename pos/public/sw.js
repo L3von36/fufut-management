@@ -1,5 +1,9 @@
 // Service Worker for FU FUT POS — offline-first with sync queue
-const CACHE = 'fufut-pos-v3'
+// Bumped to v4 to evict caches poisoned by the bug fixed in cacheFirst() below:
+// a stylesheet entry holding SPA-fallback HTML. `activate` deletes every cache
+// whose name is not CACHE, so bumping this is what heals devices already stuck
+// on a blank screen — staff cannot be asked to clear site data mid-service.
+const CACHE = 'fufut-pos-v4'
 // Built with `--base /`, so these live at the site root. '/pos/*' paths only
 // hit the SPA fallback and would silently precache HTML in place of assets.
 const STATIC_ASSETS = [
@@ -93,12 +97,33 @@ async function navigationFirst(req) {
   }
 }
 
+/**
+ * A missing asset does not 404 here — Pages answers with the SPA shell, i.e.
+ * **HTML with status 200**. Caching that under a .js/.css URL poisons the entry
+ * permanently, because cacheFirst never revalidates. That is exactly what took
+ * the Tables page down: a stylesheet entry holding an HTML document, so the
+ * route's dynamic import rejected and the screen stayed blank.
+ *
+ * So: never store an HTML response for a request that did not ask for a page.
+ */
+function isSpaFallback(req, res) {
+  if (req.mode === 'navigate' || req.destination === 'document') return false
+  const type = res.headers.get('Content-Type') || ''
+  return type.includes('text/html')
+}
+
 async function cacheFirst(req) {
   const cached = await caches.match(req)
-  if (cached) return cached
+  // Self-heal: if a previous version stored a fallback page here, drop it and
+  // go back to the network rather than serving HTML as a script or stylesheet.
+  if (cached) {
+    if (!isSpaFallback(req, cached)) return cached
+    const cache = await caches.open(CACHE)
+    await cache.delete(req)
+  }
   try {
     const res = await fetch(req)
-    if (res.ok) {
+    if (res.ok && !isSpaFallback(req, res)) {
       const cache = await caches.open(CACHE)
       cache.put(req, res.clone())
     }
