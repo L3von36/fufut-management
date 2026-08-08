@@ -1,0 +1,11 @@
+# Pages serves a real file when one matches; these rules only apply when none does.
+#
+# A missing hashed asset must 404. By default the SPA fallback answered it with
+# index.html as 200 text/html, and because assets carry max-age=14400 browsers
+# then cached an HTML document under a .css/.js URL for four hours. That is what
+# blanked the Tables page: the route's dynamic import got HTML instead of a
+# stylesheet and rejected. A 404 is not cached that way and fails loudly.
+/assets/*  /404.html  404
+
+# Everything else is client-side routing.
+/*  /index.html  200

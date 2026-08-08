@@ -1,0 +1,17 @@
+# Hashed assets are immutable — a new build produces a new filename, so these
+# can be cached hard and forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The app shell must never be cached. It is the file that names which asset
+# hashes to load, so a stale copy sends the browser after files a later deploy
+# has removed — the failure that took the Tables page down.
+/
+  Cache-Control: no-store
+/index.html
+  Cache-Control: no-store
+
+# The service worker decides how everything else is cached, so it must always be
+# fetched fresh; a stale one keeps its old rules indefinitely.
+/sw.js
+  Cache-Control: no-store
