@@ -167,7 +167,11 @@ export async function apiDelete(endpoint, id) {
 // Role permissions (unchanged)
 export const ROLE_PERMISSIONS = {
   manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout'],
-  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline'],
+  // menu-mgmt is granted for one action: taking a dish off when the kitchen has
+  // run out. The screen itself hides adding, editing, deleting, cost and margin
+  // from anyone but a manager, and the API only lets this role write the
+  // availability flag - so the grant cannot widen into repricing.
+  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt'],
   'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory'],
   'head-waiter': ['tables', 'orders', 'dashboard', 'menu-view', 'reservations', 'checkout'],
   cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout'],

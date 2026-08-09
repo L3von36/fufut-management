@@ -12,7 +12,7 @@
           <option value="Food">Food</option>
           <option value="Drinks">Drinks</option>
         </select>
-        <button class="btn btn-primary" @click="openAdd">+ Add Item</button>
+        <button v-if="isManager" class="btn btn-primary" @click="openAdd">+ Add Item</button>
         <base-button text="Refresh" variant="btn-outline" :on-click="loadData" />
       </div>
     </div>
@@ -21,7 +21,9 @@
       <div class="table-scroll">
         <table>
           <thead>
-            <tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Cost</th><th>Margin</th><th>Modifiers</th><th>Status</th><th>Actions</th></tr>
+            <!-- Cost and margin are commercial figures, shown to the manager
+                 only. A chef is here to take a dish off, not to see the markup. -->
+            <tr><th></th><th>Name</th><th>Category</th><th>Price</th><th v-if="isManager">Cost</th><th v-if="isManager">Margin</th><th>Modifiers</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
             <tr v-for="i in filteredItems" :key="i.id">
@@ -29,14 +31,30 @@
               <td data-label="Name"><strong>{{ i.name }}</strong></td>
               <td data-label="Category">{{ i.category }}</td>
               <td data-label="Price">ETB {{ parseFloat(i.price||0).toFixed(0) }}</td>
-              <td data-label="Cost">ETB {{ parseFloat(i.cost||0).toFixed(0) }}</td>
-              <td data-label="Margin"><span class="badge" :class="marginClass(i)">{{ marginPercent(i) }}%</span></td>
+              <td v-if="isManager" data-label="Cost">ETB {{ parseFloat(i.cost||0).toFixed(0) }}</td>
+              <td v-if="isManager" data-label="Margin"><span class="badge" :class="marginClass(i)">{{ marginPercent(i) }}%</span></td>
               <td data-label="Modifiers">{{ i.modifiers || '—' }}</td>
-              <td data-label="Status"><span class="badge" :class="i.available !== false ? 'badge-ok' : 'badge-danger'">{{ i.available !== false ? 'Available' : 'Unavailable' }}</span></td>
+              <td data-label="Status">
+                <span class="badge" :class="i.available !== false ? 'badge-ok' : 'badge-danger'">{{ i.available !== false ? 'Available' : 'Unavailable' }}</span>
+                <!-- Two people can change this - a chef takes a dish off, a
+                     manager may put it back - so say who last did. -->
+                <div v-if="i.availabilityChangedBy" class="mm-changed">
+                  by {{ i.availabilityChangedBy }}{{ i.availabilityChangedAt ? ' · ' + shortTime(i.availabilityChangedAt) : '' }}
+                </div>
+              </td>
               <td data-label="Actions">
                 <div style="display:flex;gap:4px">
-                  <button class="btn btn-sm btn-ghost" @click="openEdit(i)">Edit</button>
-                  <base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => handleDelete(i)" />
+                  <!-- Running out is a kitchen fact, so this is the one menu
+                       action a chef owns. It sends only the availability flag. -->
+                  <button
+                    v-if="canToggleAvailability"
+                    class="btn btn-sm"
+                    :class="i.available !== false ? 'btn-outline' : 'btn-success'"
+                    :disabled="togglingId === i.id"
+                    @click="toggleAvailability(i)"
+                  >{{ togglingId === i.id ? '…' : (i.available !== false ? 'Mark 86' : 'Restore') }}</button>
+                  <button v-if="isManager" class="btn btn-sm btn-ghost" @click="openEdit(i)">Edit</button>
+                  <base-button v-if="isManager" text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => handleDelete(i)" />
                 </div>
               </td>
             </tr>
@@ -87,6 +105,18 @@ import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useButtonState } from '../composables/useButtonState'
 import { useFormValidation } from '../composables/useFormValidation'
+import { useAuthStore } from '../stores/auth'
+
+const auth = useAuthStore()
+/**
+ * A head chef reaches this screen for one reason: to take a dish off when the
+ * kitchen has run out. Everything else here - adding items, editing them,
+ * pricing, cost and margin - stays with the manager, so the chef sees a menu
+ * they can 86 from and nothing they can reprice.
+ */
+const isManager = computed(() => auth.roleKey === 'manager')
+const canToggleAvailability = computed(() => ['manager', 'head-chef'].includes(auth.roleKey))
+const togglingId = ref('')
 
 const toast = inject('toast')
 const confirmDelete = inject('confirm')
@@ -168,12 +198,42 @@ async function saveItem() {
   } catch (e) { toast(e.message || 'Failed', 'error'); btnState.setError(e.message) }
 }
 
+/**
+ * Sends only the availability flag, to its own endpoint. The server reads
+ * nothing else from the request, so this cannot become a way to edit a price
+ * even if this screen were changed later.
+ */
+async function toggleAvailability(item) {
+  if (togglingId.value) return
+  const next = item.available === false
+  togglingId.value = item.id
+  try {
+    const res = await apiPut(`menu/${item.id}/availability`, { available: next })
+    item.available = next
+    if (res && res.changedBy) {
+      item.availabilityChangedBy = res.changedBy
+      item.availabilityChangedAt = res.changedAt
+    }
+    toast(next ? `${item.name} back on` : `${item.name} marked 86`)
+  } catch (e) {
+    toast(e.message || 'Could not update availability', 'error')
+  } finally {
+    togglingId.value = ''
+  }
+}
+
+function shortTime(iso) {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
 async function handleDelete(item) {
   if (!await confirmDelete(`Delete "${item.name}"?`)) return
   try { await apiDelete('menu/' + item.id); toast('Deleted'); await loadData() } catch (e) { toast(e.message, 'error') }
 }
 </script>
 <style scoped>
+.mm-changed { font-size: .78rem; color: var(--text-muted); margin-top: 2px; }
 .input-error { border-color: var(--danger, #e74c3c) !important; }
 .field-error { display: block; color: var(--danger, #e74c3c); font-size: 0.75rem; margin-top: 2px; }
 </style>
