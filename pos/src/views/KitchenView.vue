@@ -38,20 +38,48 @@
               </div>
             </div>
 
-            <!-- Structured items -->
+            <!-- Tracked lines: each one advances on its own, which is what makes
+                 per-dish timing a measurement instead of an estimate. -->
             <div class="ko-items">
-              <div v-for="(line, li) in getOrderLines(o)" :key="li" class="ko-line">
-                <div class="ko-line-main">
-                  <span class="ko-qty">{{ line.qty }}x</span>
-                  <span class="ko-name">{{ line.name }}</span>
+              <button
+                v-for="line in trackedLines(o)"
+                :key="line.id"
+                class="ko-line ko-line-tap"
+                :class="'st-' + line.status"
+                :disabled="busyItems.has(line.id)"
+                @click="advanceLine(o, line)"
+                :title="`Mark ${line.name} as ${nextStatus(line.status)}`"
+              >
+                <span class="ko-line-state" :class="'st-' + line.status" aria-hidden="true"></span>
+                <span class="ko-line-body">
+                  <span class="ko-line-main">
+                    <span class="ko-qty">{{ line.qty }}x</span>
+                    <span class="ko-name">{{ line.name }}</span>
+                  </span>
+                  <span v-if="line.parsedModifiers.length" class="ko-mods">
+                    <span v-for="(mod, mi) in line.parsedModifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name || mod) }}</span>
+                  </span>
+                  <span v-if="line.notes" class="ko-line-notes">{{ line.notes }}</span>
+                </span>
+                <span class="ko-line-action">{{ lineActionLabel(line.status) }}</span>
+              </button>
+
+              <!-- Orders placed before per-line tracking existed have no rows in
+                   order_items, so they keep the original read-only rendering
+                   rather than showing an empty ticket. -->
+              <template v-if="!trackedLines(o).length">
+                <div v-for="(line, li) in getOrderLines(o)" :key="li" class="ko-line">
+                  <div class="ko-line-main">
+                    <span class="ko-qty">{{ line.qty }}x</span>
+                    <span class="ko-name">{{ line.name }}</span>
+                  </div>
+                  <div v-if="line.modifiers && line.modifiers.length" class="ko-mods">
+                    <span v-for="(mod, mi) in line.modifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name) }}</span>
+                  </div>
+                  <div v-if="line.notes" class="ko-line-notes">{{ line.notes }}</div>
                 </div>
-                <div v-if="line.modifiers && line.modifiers.length" class="ko-mods">
-                  <span v-for="(mod, mi) in line.modifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name) }}</span>
-                </div>
-                <div v-if="line.notes" class="ko-line-notes">{{ line.notes }}</div>
-              </div>
-              <!-- Fallback: flat string if no structured data -->
-              <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ o.items }}</div>
+                <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ o.items }}</div>
+              </template>
             </div>
 
             <!-- Order-level notes -->
@@ -61,7 +89,11 @@
 
             <div class="ko-footer">
               <span class="kitchen-timer" :class="timerClass(o)">{{ timerLabel(o) }}</span>
-              <base-button text="Start Preparing" variant="btn-primary" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'preparing')" />
+              <!-- Kept as one tap for the whole ticket. Per-line marking is an
+                   addition, not a replacement: if the granular path were the
+                   only path it would be slower than today and staff would stop
+                   using the screen during a rush. -->
+              <base-button text="Start All" variant="btn-primary" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'preparing')" />
             </div>
           </div>
           <div v-if="!newOrders.length" class="kitchen-empty">
@@ -92,17 +124,42 @@
             </div>
 
             <div class="ko-items">
-              <div v-for="(line, li) in getOrderLines(o)" :key="li" class="ko-line">
-                <div class="ko-line-main">
-                  <span class="ko-qty">{{ line.qty }}x</span>
-                  <span class="ko-name">{{ line.name }}</span>
+              <button
+                v-for="line in trackedLines(o)"
+                :key="line.id"
+                class="ko-line ko-line-tap"
+                :class="'st-' + line.status"
+                :disabled="busyItems.has(line.id)"
+                @click="advanceLine(o, line)"
+                :title="`Mark ${line.name} as ${nextStatus(line.status)}`"
+              >
+                <span class="ko-line-state" :class="'st-' + line.status" aria-hidden="true"></span>
+                <span class="ko-line-body">
+                  <span class="ko-line-main">
+                    <span class="ko-qty">{{ line.qty }}x</span>
+                    <span class="ko-name">{{ line.name }}</span>
+                  </span>
+                  <span v-if="line.parsedModifiers.length" class="ko-mods">
+                    <span v-for="(mod, mi) in line.parsedModifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name || mod) }}</span>
+                  </span>
+                  <span v-if="line.notes" class="ko-line-notes">{{ line.notes }}</span>
+                </span>
+                <span class="ko-line-action">{{ lineActionLabel(line.status) }}</span>
+              </button>
+
+              <template v-if="!trackedLines(o).length">
+                <div v-for="(line, li) in getOrderLines(o)" :key="li" class="ko-line">
+                  <div class="ko-line-main">
+                    <span class="ko-qty">{{ line.qty }}x</span>
+                    <span class="ko-name">{{ line.name }}</span>
+                  </div>
+                  <div v-if="line.modifiers && line.modifiers.length" class="ko-mods">
+                    <span v-for="(mod, mi) in line.modifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name) }}</span>
+                  </div>
+                  <div v-if="line.notes" class="ko-line-notes">{{ line.notes }}</div>
                 </div>
-                <div v-if="line.modifiers && line.modifiers.length" class="ko-mods">
-                  <span v-for="(mod, mi) in line.modifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name) }}</span>
-                </div>
-                <div v-if="line.notes" class="ko-line-notes">{{ line.notes }}</div>
-              </div>
-              <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ o.items }}</div>
+                <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ o.items }}</div>
+              </template>
             </div>
 
             <div v-if="o.notes" class="ko-order-notes">
@@ -111,7 +168,8 @@
 
             <div class="ko-footer">
               <span class="kitchen-timer" :class="timerClass(o)">{{ timerLabel(o) }}</span>
-              <base-button text="Mark Ready" variant="btn-success" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'ready')" />
+              <span v-if="lineProgress(o)" class="ko-progress">{{ lineProgress(o) }}</span>
+              <base-button text="All Ready" variant="btn-success" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'ready')" />
             </div>
           </div>
           <div v-if="!preparingOrders.length" class="kitchen-empty">
@@ -181,9 +239,99 @@ const auth = useAuthStore()
 const { muted, enabled, playNewOrder, playOrderReady, playOrderUpdate, toggleMute } = useAudioAlerts()
 const sse = useSSE()
 const orders = ref([])
+// Tracking rows for every line on the board, fetched in one request rather than
+// one per ticket: this screen refreshes on a 15s timer and on every SSE event.
+const activeItems = ref([])
+// Lines with a request in flight, so a double-tap cannot fire twice.
+const busyItems = ref(new Set())
 let timer = null
 let clockTimer = null
 const now = ref(Date.now())
+
+const ITEM_FLOW = ['new', 'preparing', 'ready', 'served']
+
+/** Lines belonging to one order, in ticket order. */
+const itemsByOrder = computed(() => {
+  const map = new Map()
+  for (const item of activeItems.value) {
+    if (!map.has(item.order_id)) map.set(item.order_id, [])
+    map.get(item.order_id).push({
+      ...item,
+      // modifiers arrive as a JSON string from D1; parse once here so the
+      // template never has to.
+      parsedModifiers: parseModifiers(item.modifiers)
+    })
+  }
+  for (const list of map.values()) list.sort((a, b) => (a.line_no || 0) - (b.line_no || 0))
+  return map
+})
+
+function trackedLines(order) {
+  return itemsByOrder.value.get(order.id) || []
+}
+
+function parseModifiers(raw) {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function nextStatus(status) {
+  const i = ITEM_FLOW.indexOf(status)
+  if (i < 0 || i >= ITEM_FLOW.length - 1) return ITEM_FLOW[ITEM_FLOW.length - 1]
+  return ITEM_FLOW[i + 1]
+}
+
+function lineActionLabel(status) {
+  return { new: 'Start', preparing: 'Ready', ready: 'Served' }[status] || 'Done'
+}
+
+/** "2 of 3 ready" — how much of a ticket is actually finished. */
+function lineProgress(order) {
+  const lines = trackedLines(order)
+  if (!lines.length) return ''
+  const done = lines.filter(l => l.status === 'ready' || l.status === 'served').length
+  return `${done} of ${lines.length} ready`
+}
+
+/**
+ * Advance one line. The row is moved locally first so the kitchen sees the tap
+ * register immediately - on a busy pass the round trip is long enough to make
+ * staff tap twice - and reverted if the server rejects it.
+ */
+async function advanceLine(order, line) {
+  if (busyItems.value.has(line.id)) return
+  const target = nextStatus(line.status)
+  if (target === line.status) return
+
+  const previous = line.status
+  busyItems.value = new Set(busyItems.value).add(line.id)
+  const row = activeItems.value.find(i => i.id === line.id)
+  if (row) row.status = target
+
+  try {
+    const res = await apiPut(`orders/${order.id}/items/${line.id}`, { status: target })
+    if (res && res.orderStatus) {
+      const o = orders.value.find(x => x.id === order.id)
+      if (o) o.status = res.orderStatus === 'served' ? 'fulfilled' : res.orderStatus
+    }
+    if (target === 'ready') playOrderReady()
+    else playOrderUpdate()
+    await loadOrders()
+  } catch {
+    if (row) row.status = previous
+    toast('Could not update that item', 'error')
+  } finally {
+    const next = new Set(busyItems.value)
+    next.delete(line.id)
+    busyItems.value = next
+  }
+}
 
 const newOrders = computed(() =>
   orders.value
@@ -216,7 +364,16 @@ onUnmounted(() => {
 
 async function loadOrders() {
   try {
-    orders.value = await apiGet('orders')
+    // One request each, in parallel. The item feed is allowed to fail on its
+    // own: tickets must still render if per-line tracking is unavailable.
+    const [ordersRes, itemsRes] = await Promise.allSettled([
+      apiGet('orders'),
+      apiGet('orders/items/active')
+    ])
+    if (ordersRes.status === 'fulfilled') orders.value = ordersRes.value
+    if (itemsRes.status === 'fulfilled' && Array.isArray(itemsRes.value)) {
+      activeItems.value = itemsRes.value
+    }
   } catch (e) { console.error(e) }
 }
 
@@ -381,6 +538,69 @@ function refresh() { loadOrders() }
   font-weight: 600;
   font-family: var(--font-mono);
 }
+/* ═══ TAPPABLE ORDER LINES ═══
+   Each line is its own control, so a cook can mark the coffee done while the
+   food is still on. 44px minimum because this is now the most-tapped target on
+   the kitchen screen and it is used with wet or gloved hands. */
+.ko-line-tap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  text-align: left;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease);
+}
+.ko-line-tap:hover { border-color: var(--primary); }
+.ko-line-tap:active { transform: scale(.99); }
+.ko-line-tap:disabled { opacity: .55; cursor: progress; }
+.ko-line-tap:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.ko-line-body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+/* State is carried by a colour bar rather than a word, so a cook reads the
+   ticket at arm's length without parsing text. */
+.ko-line-state {
+  width: 4px;
+  align-self: stretch;
+  min-height: 28px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background: var(--neutral-300);
+}
+.ko-line-state.st-preparing { background: var(--warning); }
+.ko-line-state.st-ready     { background: var(--success); }
+.ko-line-state.st-served    { background: var(--neutral-400); }
+
+.ko-line-tap.st-ready  { background: var(--green-50); border-color: var(--success); }
+.ko-line-tap.st-served { opacity: .6; }
+.ko-line-tap.st-served .ko-name { text-decoration: line-through; }
+
+.ko-line-action {
+  flex-shrink: 0;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.ko-line-tap.st-served .ko-line-action { color: var(--text-muted); }
+
+.ko-progress {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-right: auto;
+  margin-left: 8px;
+}
+
 .ks-new { background: var(--blue-50, #EFF6FF); color: var(--primary); }
 .ks-prep { background: var(--gold-50, #FFFBEB); color: var(--warning); }
 .ks-ready { background: var(--green-50, #F0FDF4); color: var(--success); }
