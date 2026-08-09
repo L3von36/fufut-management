@@ -97,6 +97,18 @@
 
             <div class="tm-card-name">{{ t.name || ('Table ' + t.number) }}</div>
 
+            <!-- An active booking is shown whatever the table's own status says.
+                 The server decides what still counts as held, including the
+                 grace period, so a lapsed no-show simply stops appearing here
+                 rather than the floor plan having to know the rule. -->
+            <div v-if="t.reservedHold" class="tm-hold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span class="tm-hold-text">
+                <strong>{{ t.reservedHold.name || 'Reserved' }}</strong>
+                <span class="tm-hold-when">{{ holdWindowLabel(t.reservedHold) }}</span>
+              </span>
+            </div>
+
             <!-- Occupied tiles carry the three numbers table-service POS products
                  converge on: how long they have sat, how many are sitting, and how
                  much is on the table. Everything else is one tap away in the panel. -->
@@ -153,6 +165,24 @@
           </div>
           <button class="btn-icon tm-detail-close" @click="closeDetail" aria-label="Close">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <!-- The booking that holds this table, stated before the waiter tries
+             to seat anyone. The server refuses the seating either way; showing
+             it here is the difference between an explanation and a wall. -->
+        <div v-if="detailHold" class="tm-hold-banner" :class="{ 'is-manager': isManager }">
+          <div class="tm-hold-banner-main">
+            <strong>Reserved &mdash; {{ detailHold.name || 'no name given' }}</strong>
+            <span>{{ holdWindowLabel(detailHold) }}<span v-if="detailHold.guests"> &middot; {{ detailHold.guests }} guest{{ detailHold.guests > 1 ? 's' : '' }}</span></span>
+            <span class="tm-hold-rule">
+              {{ isManager
+                ? 'You can release it for a walk-in. The booking is cancelled and recorded against your name.'
+                : 'It cannot be seated until a manager releases it. It frees itself ' + graceMinutes + ' minutes after the booked time if nobody arrives.' }}
+            </span>
+          </div>
+          <button v-if="isManager" class="btn btn-warning btn-sm" :disabled="releasing" @click="releaseHold">
+            {{ releasing ? 'Releasing…' : 'Release Table' }}
           </button>
         </div>
 
@@ -310,6 +340,50 @@ let timerInterval = null
 const tick = ref(0) // Reactive trigger for timer updates
 
 const newTable = ref({ number: '', name: '', capacity: 4, section: 'Main Hall', shape: 'square' })
+const releasing = ref(false)
+// Mirrors GRACE_MIN in the worker. Only ever displayed - the rule itself is
+// enforced server-side, so a stale copy here misinforms but cannot let anyone
+// seat a table they should not.
+const graceMinutes = 15
+
+const isManager = computed(() => authStore?.roleKey === 'manager')
+
+/** The live hold for the table open in the panel, read from the tables feed. */
+const detailHold = computed(() => {
+  if (!detailTable.value) return null
+  const row = tables.value.find(t => t.id === detailTable.value.id)
+  return (row && row.reservedHold) || null
+})
+
+/**
+ * "holding until 19:30" or "from 18:00" — whichever the waiter needs to know.
+ * Before the sitting starts, the useful fact is when the guests are due; once
+ * it has started, it is when the table frees up.
+ */
+function holdWindowLabel(hold) {
+  if (!hold) return ''
+  const start = new Date(hold.startAt)
+  const end = new Date(hold.endAt)
+  const fmt = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return ''
+  return Date.now() < start.getTime() ? `from ${fmt(start)}` : `until ${fmt(end)}`
+}
+
+async function releaseHold() {
+  const hold = detailHold.value
+  if (!hold || releasing.value) return
+  if (!await confirmDelete(`Release Table ${detailTable.value.number} and cancel ${hold.name || 'this booking'}?`)) return
+  releasing.value = true
+  try {
+    await apiPost(`reservations/${hold.id}/release`, {})
+    toast('Table released')
+    await loadTables()
+  } catch (e) {
+    toast(e.message || 'Could not release the table', 'error')
+  } finally {
+    releasing.value = false
+  }
+}
 
 // ─── Computed ───
 
@@ -531,7 +605,13 @@ async function saveDetail() {
     toast('Table updated')
     closeDetail()
     await loadTables()
-  } catch { toast('Failed to update', 'error') }
+  } catch (e) {
+    // The server refuses seating a held table with an explanation; showing the
+    // generic "Failed to update" instead would leave the waiter guessing why a
+    // table they can see is empty will not accept a party.
+    toast(e.message || 'Failed to update', 'error')
+    await loadTables()
+  }
 }
 
 async function deleteTable() {
@@ -674,6 +754,47 @@ onUnmounted(() => {
 }
 .tm-chip-label { font-size: .82rem; font-weight: 600; color: var(--text-body); }
 .tm-chip-sub { font-size: .78rem; color: var(--text-muted); margin-left: auto; }
+
+/* ═══ RESERVATION HOLD ═══ */
+.tm-hold {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--gold-50, #FFFBEB);
+  border: 1px solid var(--warning);
+  color: var(--warning-text);
+}
+.tm-hold svg { width: 12px; height: 12px; flex-shrink: 0; margin-top: 1px; }
+.tm-hold-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.tm-hold-text strong {
+  font-size: .78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tm-hold-when { font-size: .78rem; font-family: var(--font-mono); }
+
+.tm-hold-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 28px 4px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--gold-50, #FFFBEB);
+  border: 1.5px solid var(--warning);
+}
+.tm-hold-banner-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 200px; }
+.tm-hold-banner-main strong { font-size: .88rem; color: var(--text-heading); }
+.tm-hold-banner-main span { font-size: .82rem; color: var(--text-body); }
+/* The rule is spelled out rather than implied by a disabled control: a waiter
+   needs to know both why they cannot seat it and when it frees itself. */
+.tm-hold-rule { color: var(--warning-text) !important; font-weight: 500; }
 
 /* ═══ TILE VITALS ═══ */
 .tm-vitals {

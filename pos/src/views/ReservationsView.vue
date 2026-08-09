@@ -34,7 +34,7 @@
               <td data-label="Date">{{ r.date||'—' }}</td>
               <td data-label="Time">{{ r.time||'—' }}</td>
               <td data-label="Guests">{{ r.guests||'-' }}</td>
-              <td data-label="Table">{{ r.tableNum||r.table||'—' }}</td>
+              <td data-label="Table">{{ tableLabel(r) }}</td>
               <td data-label="Contact">{{ r.phone||r.contact||'—' }}</td>
               <td data-label="Status"><span class="badge" :class="'badge-'+r.status">{{ r.status }}</span></td>
               <td data-label="Actions">
@@ -66,10 +66,42 @@
           <div class="form-group"><label>Guests</label><input v-model.number="form.guests" type="number" :class="{ 'input-error': vErrors.guests }" /><span v-if="vErrors.guests" class="field-error">{{ vErrors.guests }}</span></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Date</label><input v-model="form.date" type="date" :class="{ 'input-error': vErrors.date }" /><span v-if="vErrors.date" class="field-error">{{ vErrors.date }}</span></div>
-          <div class="form-group"><label>Time</label><input v-model="form.time" type="time" /></div>
+          <div class="form-group"><label>Date</label><input v-model="form.date" type="date" :class="{ 'input-error': vErrors.date }" @change="refreshAvailability" /><span v-if="vErrors.date" class="field-error">{{ vErrors.date }}</span></div>
+          <div class="form-group"><label>Time</label><input v-model="form.time" type="time" @change="refreshAvailability" /></div>
         </div>
-        <div class="form-group"><label>Table #</label><input v-model="form.tableNum" :class="{ 'input-error': vErrors.tableNum }" /><span v-if="vErrors.tableNum" class="field-error">{{ vErrors.tableNum }}</span></div>
+        <div class="form-row">
+          <!-- A table is chosen from the tables that exist, not typed. The old
+               free-text box was posted as tableNum while the API only read
+               tableId, so every booking silently lost its table. -->
+          <div class="form-group">
+            <label>Table</label>
+            <select v-model="form.tableNum" class="select" :class="{ 'input-error': vErrors.tableNum }">
+              <option value="">No table yet</option>
+              <option
+                v-for="t in tables"
+                :key="t.id"
+                :value="t.number"
+                :disabled="isTaken(t)"
+              >
+                Table {{ t.number }} &middot; {{ t.capacity }} seats &middot; {{ t.section }}{{ isTaken(t) ? ' — booked' : '' }}
+              </option>
+            </select>
+            <span v-if="vErrors.tableNum" class="field-error">{{ vErrors.tableNum }}</span>
+            <span v-else-if="tooSmall" class="field-error">This table seats {{ tooSmall.capacity }}; you have {{ form.guests }} guests.</span>
+          </div>
+          <div class="form-group">
+            <label>Holds for</label>
+            <select v-model.number="form.durationMin" class="select" @change="refreshAvailability">
+              <option :value="60">1 hour</option>
+              <option :value="90">1½ hours</option>
+              <option :value="120">2 hours</option>
+              <option :value="180">3 hours</option>
+            </select>
+          </div>
+        </div>
+        <!-- The server rejects an overlapping booking outright; this says so
+             before the guest is told their table is confirmed. -->
+        <div v-if="clashMessage" class="rv-clash">{{ clashMessage }}</div>
         <div class="form-group"><label>Phone</label><input v-model="form.phone" :class="{ 'input-error': vErrors.phone }" /><span v-if="vErrors.phone" class="field-error">{{ vErrors.phone }}</span></div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="showModal=false">Cancel</button>
@@ -101,7 +133,65 @@ const reservations = ref([])
 const statusFilter = ref('')
 const search = ref('')
 const showModal = ref(false)
-const form = ref({ name: '', guests: 2, date: '', time: '', tableNum: '', phone: '' })
+const form = ref({ name: '', guests: 2, date: '', time: '', tableNum: '', phone: '', durationMin: 90 })
+const tables = ref([])
+// table_ids already booked for the window currently in the form.
+const takenTableIds = ref(new Set())
+const clashMessage = ref('')
+const saving = ref(false)
+
+/**
+ * Tables already held for the chosen window, asked of the server rather than
+ * worked out here: the overlap rule and the grace period live in the worker,
+ * and a second copy in the browser would drift out of step with it.
+ */
+async function refreshAvailability() {
+  clashMessage.value = ''
+  if (!form.value.date || !form.value.time) {
+    takenTableIds.value = new Set()
+    return
+  }
+  try {
+    const res = await apiGet(
+      `reservations/availability?date=${encodeURIComponent(form.value.date)}` +
+      `&time=${encodeURIComponent(form.value.time)}&duration=${form.value.durationMin || 90}`
+    )
+    takenTableIds.value = new Set((res.taken || []).map(t => t.table_id))
+    // A table already chosen can become unavailable when the time is edited.
+    const chosen = tables.value.find(t => String(t.number) === String(form.value.tableNum))
+    if (chosen && takenTableIds.value.has(chosen.id)) {
+      form.value.tableNum = ''
+      clashMessage.value = 'That table is taken at the new time, so the selection was cleared.'
+    }
+  } catch {
+    // Availability is a convenience; the server still refuses a real clash on
+    // save, so a failed lookup must not block taking a booking.
+    takenTableIds.value = new Set()
+  }
+}
+
+function isTaken(table) {
+  return takenTableIds.value.has(table.id)
+}
+
+/**
+ * Reservations store a table_id; the floor talks in table numbers. The legacy
+ * rows have neither, and show a dash rather than a blank cell so it is clear
+ * the booking has no table rather than the column being broken.
+ */
+function tableLabel(r) {
+  const id = r.table_id || r.tableId
+  if (!id) return '—'
+  const t = tables.value.find(x => x.id === id)
+  return t ? `Table ${t.number}` : id
+}
+
+/** Warn, but do not block: staff sometimes seat five at a four-top. */
+const tooSmall = computed(() => {
+  const t = tables.value.find(x => String(x.number) === String(form.value.tableNum))
+  if (!t) return null
+  return Number(form.value.guests) > Number(t.capacity) ? t : null
+})
 
 const filteredReservations = computed(() => {
   let result = !statusFilter.value ? reservations.value : reservations.value.filter(r => r.status === statusFilter.value)
@@ -124,17 +214,44 @@ onMounted(() => {
 })
 
 async function loadData() {
-  try { reservations.value = await apiGet('reservations') } catch (e) { console.error(e) }
+  // The table list is what the picker is built from, so it is loaded with the
+  // bookings rather than on demand; a booking must point at a table that exists.
+  const [res, tbl] = await Promise.allSettled([apiGet('reservations'), apiGet('tables')])
+  if (res.status === 'fulfilled') reservations.value = res.value
+  else console.error(res.reason)
+  if (tbl.status === 'fulfilled' && Array.isArray(tbl.value)) {
+    tables.value = tbl.value.slice().sort((a, b) => (a.number || 0) - (b.number || 0))
+  }
 }
 
 async function saveItem() {
   if (!validate(form.value)) { toast('Please fix the errors', 'error'); return }
+  if (saving.value) return
+  saving.value = true
+  clashMessage.value = ''
   try {
-    await apiPost('reservations', { ...form.value, status: 'new' })
+    await apiPost('reservations', {
+      ...form.value,
+      duration_min: form.value.durationMin,
+      status: 'new'
+    })
     toast('Created')
     showModal.value = false
     await loadData()
-  } catch (e) { console.error(e); toast('Failed', 'error') }
+  } catch (e) {
+    // A 409 means another booking already holds that table for an overlapping
+    // window. It is shown in the form rather than as a toast, because the fix
+    // is to change the table or the time and the form is where that happens.
+    //
+    // Refresh first, then set the message: refreshAvailability clears
+    // clashMessage on entry, so setting it beforehand would wipe the very
+    // explanation the person needs.
+    await refreshAvailability()
+    clashMessage.value = e.message || 'Could not create the reservation'
+    toast('Could not create the reservation', 'error')
+  } finally {
+    saving.value = false
+  }
 }
 
 async function updateStatus(r, s) {
@@ -144,8 +261,15 @@ async function updateStatus(r, s) {
 
 function openAdd() {
   const n = new Date()
-  form.value = { name: '', guests: 2, date: n.toISOString().slice(0, 10), time: n.toTimeString().slice(0, 5), tableNum: '', phone: '' }
+  form.value = {
+    name: '', guests: 2,
+    date: n.toISOString().slice(0, 10),
+    time: n.toTimeString().slice(0, 5),
+    tableNum: '', phone: '', durationMin: 90
+  }
+  clashMessage.value = ''
   showModal.value = true
+  refreshAvailability()
 }
 
 /**
@@ -162,6 +286,20 @@ async function handleCancel(r) {
 }
 </script>
 <style scoped>
+/* Shown in the form, not as a toast: the fix for a clash is to change the table
+   or the time, and both are right here. A toast would vanish before the person
+   had finished reading which booking blocked them. */
+.rv-clash {
+  margin: 4px 0 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--red-50, #FEF2F2);
+  border: 1.5px solid var(--danger);
+  color: var(--danger-text);
+  font-size: .82rem;
+  font-weight: 500;
+}
+
 .rv-toolbar {
   display: flex;
   justify-content: space-between;
