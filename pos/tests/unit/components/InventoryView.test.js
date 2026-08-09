@@ -54,10 +54,38 @@ describe('InventoryView', () => {
     mockApiPost.mockResolvedValue({ ok: true })
   })
 
-  // This is why the browser suite could never assert the adjust and edit forms
-  // as a chef: those controls are not rendered for that role at all.
+  // Monitoring levels, ordering supplies and controlling food cost are the
+  // duties a head chef's role is defined by, so this screen has to let them.
   describe('as a head chef', () => {
     beforeEach(() => { currentRole = 'head-chef' })
+
+    it('can add, adjust and edit stock', async () => {
+      const w = await open()
+      const labels = w.findAll('button').map(b => b.text())
+      expect(labels).toContain('+ Add Item')
+      expect(labels).toContain('Edit')
+      expect(labels).toContain('+1')
+      expect(w.text()).not.toContain('View only')
+    })
+
+    it('records an adjustment against the item', async () => {
+      const w = await open()
+      await w.findAll('button').find(b => b.text() === '+1').trigger('click')
+      await flushPromises()
+      expect(mockApiPut).toHaveBeenCalledWith('inventory/I1', expect.objectContaining({ quantity: 3 }))
+    })
+
+    // Removing an item from the catalogue is a different act from recording
+    // what was used, and stays with the manager.
+    it('cannot delete an item from the catalogue', async () => {
+      const w = await open()
+      expect(w.findAll('button').map(b => b.text())).not.toContain('Delete')
+    })
+  })
+
+  // An assistant works against the counts rather than setting them.
+  describe('as an assistant chef', () => {
+    beforeEach(() => { currentRole = 'assistant-chef' })
 
     it('can read stock but is offered no way to change it', async () => {
       const w = await open()

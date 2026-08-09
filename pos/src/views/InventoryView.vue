@@ -12,7 +12,7 @@
           <option value="">All Items</option>
           <option value="low">Low Stock Only</option>
         </select>
-        <button v-if="auth.roleKey === 'manager'" class="btn btn-primary" @click="openAdd">+ Add Item</button>
+        <button v-if="canManageStock" class="btn btn-primary" @click="openAdd">+ Add Item</button>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
       </div>
     </div>
@@ -45,19 +45,20 @@
                 <span class="badge" :class="isLow(i) ? 'badge-low' : 'badge-ok'">{{ isLow(i) ? 'Low Stock' : 'In Stock' }}</span>
               </td>
               <td data-label="Adjust">
-                <div v-if="auth.roleKey === 'manager'" style="display:flex;gap:4px">
+                <div v-if="canManageStock" style="display:flex;gap:4px">
                   <button class="btn btn-sm btn-outline" @click="quickAdjust(i, 1)">+1</button>
                   <button class="btn btn-sm btn-outline" @click="quickAdjust(i, -1)">−1</button>
                 </div>
                 <span v-else style="color:var(--text-muted);font-size:.78rem">—</span>
               </td>
               <td data-label="Actions">
-                <template v-if="auth.roleKey === 'manager'">
-                  <div style="display:flex;gap:4px">
-                    <button class="btn btn-sm btn-ghost" @click="openEdit(i)">Edit</button>
-                    <button class="btn btn-sm btn-ghost danger" @click="handleDelete(i)">Delete</button>
-                  </div>
-                </template>
+                <div style="display:flex;gap:4px" v-if="canManageStock || canDeleteStock">
+                  <button v-if="canManageStock" class="btn btn-sm btn-ghost" @click="openEdit(i)">Edit</button>
+                  <!-- Deleting removes the item from the catalogue entirely, which
+                       is a different act from recording what was used. Kept with
+                       the manager even though the chef owns the stock itself. -->
+                  <button v-if="canDeleteStock" class="btn btn-sm btn-ghost danger" @click="handleDelete(i)">Delete</button>
+                </div>
                 <span v-else style="color:var(--text-muted);font-size:.78rem">View only</span>
               </td>
             </tr>
@@ -153,6 +154,20 @@ const filter = ref('')
 const showModal = ref(false)
 const editing = ref(null)
 const form = ref({ name: '', category: '', quantity: 0, minLevel: 0, unit: 'kg', cost: 0 })
+
+/**
+ * Stock control is the head chef's job, not an administrative extra: monitoring
+ * levels, ordering supplies and managing food cost are the duties the role is
+ * defined by. This screen previously gated every action on `manager`, so the
+ * person responsible for the stock could see the beans running low and log the
+ * waste when they spoiled, but never record what was used or received.
+ *
+ * The assistant chef is deliberately left read-only. They execute against the
+ * stock rather than owning it, and two people adjusting the same counts is how
+ * a stock take stops reconciling.
+ */
+const canManageStock = computed(() => ['manager', 'head-chef'].includes(auth.roleKey))
+const canDeleteStock = computed(() => auth.roleKey === 'manager')
 
 const lowStockItems = computed(() => items.value.filter(i => isLow(i)))
 
