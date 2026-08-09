@@ -101,7 +101,7 @@
                  The server decides what still counts as held, including the
                  grace period, so a lapsed no-show simply stops appearing here
                  rather than the floor plan having to know the rule. -->
-            <div v-if="t.reservedHold" class="tm-hold">
+            <div v-if="t.reservedHold" class="tm-hold" :class="{ 'is-upcoming': !t.reservedHold.blocksNow }">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
               <span class="tm-hold-text">
                 <strong>{{ t.reservedHold.name || 'Reserved' }}</strong>
@@ -176,9 +176,15 @@
             <strong>Reserved &mdash; {{ detailHold.name || 'no name given' }}</strong>
             <span>{{ holdWindowLabel(detailHold) }}<span v-if="detailHold.guests"> &middot; {{ detailHold.guests }} guest{{ detailHold.guests > 1 ? 's' : '' }}</span></span>
             <span class="tm-hold-rule">
-              {{ isManager
-                ? 'You can release it for a walk-in. The booking is cancelled and recorded against your name.'
-                : 'It cannot be seated until a manager releases it. It frees itself ' + graceMinutes + ' minutes after the booked time if nobody arrives.' }}
+              <template v-if="!detailHold.blocksNow">
+                The table is still usable until {{ leadMinutes }} minutes before the booking, so a short sitting can be seated now.
+              </template>
+              <template v-else-if="isManager">
+                You can release it for a walk-in. The booking is cancelled and recorded against your name.
+              </template>
+              <template v-else>
+                It cannot be seated until a manager releases it. It frees itself {{ graceMinutes }} minutes after the booked time if nobody arrives.
+              </template>
             </span>
           </div>
           <button v-if="isManager" class="btn btn-warning btn-sm" :disabled="releasing" @click="releaseHold">
@@ -345,6 +351,8 @@ const releasing = ref(false)
 // enforced server-side, so a stale copy here misinforms but cannot let anyone
 // seat a table they should not.
 const graceMinutes = 15
+// Mirrors SEATING_LEAD_MIN. Display only; the server decides what blocks.
+const leadMinutes = 60
 
 const isManager = computed(() => authStore?.roleKey === 'manager')
 
@@ -766,6 +774,14 @@ onUnmounted(() => {
   background: var(--gold-50, #FFFBEB);
   border: 1px solid var(--warning);
   color: var(--warning-text);
+}
+/* A booking later today is information, not an obstruction, so it is muted
+   rather than carrying the same warning colour as a table that genuinely
+   cannot be seated right now. */
+.tm-hold.is-upcoming {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
 }
 .tm-hold svg { width: 12px; height: 12px; flex-shrink: 0; margin-top: 1px; }
 .tm-hold-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
