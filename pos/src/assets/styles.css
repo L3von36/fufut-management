@@ -62,7 +62,14 @@
    Only rem shrinks. Every tap target is authored in px (44px minimum, set during
    the accessibility pass), so controls keep their physical size while the type and
    spacing around them contract. That is the one way this differs from browser
-   zoom, and it is the point: fingers do not get smaller at 80%. */
+   zoom, and it is the point: fingers do not get smaller at 80%.
+
+   Deploy note: /assets/* is served immutable and cached hard by the CDN, so a
+   hashed asset requested in the window between index.html going live and the
+   asset itself landing gets the SPA fallback cached against its URL, and the
+   app then loads unstyled until that entry expires. Do not fetch new asset URLs
+   while a Pages deploy is still propagating; if it happens, changing this file
+   mints a new hash and sidesteps the poisoned entry. */
 html{font-size:12.8px;scroll-behavior:smooth}
 body{font-family:var(--font-body);color:var(--text-body);background:var(--bg);line-height:1.55;min-height:100vh;-webkit-font-smoothing:antialiased}
 a{color:var(--primary);text-decoration:none;transition:color var(--duration-fast) var(--ease)}
