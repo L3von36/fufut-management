@@ -250,8 +250,12 @@ describe('API Client', () => {
       })
     })
 
-    it('NAV_ITEMS should have 21 items across defined sections', () => {
-      expect(NAV_ITEMS.length).toBe(21)
+    // 20 since Staff was removed: editing colleague accounts belongs in the
+    // backoffice, not on a shared floor tablet. The HR section remains for
+    // Shifts and Time Clock.
+    it('NAV_ITEMS should have 20 items across defined sections', () => {
+      expect(NAV_ITEMS.length).toBe(20)
+      expect(NAV_ITEMS.map(n => n.view)).not.toContain('staff')
       const sections = [...new Set(NAV_ITEMS.map(n => n.section))]
       expect(sections).toContain('Overview')
       expect(sections).toContain('Sales')

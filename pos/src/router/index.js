@@ -16,7 +16,11 @@ const PnLView = () => import('../views/PnLView.vue')
 const CashDrawerView = () => import('../views/CashDrawerView.vue')
 const InventoryView = () => import('../views/InventoryView.vue')
 const WasteView = () => import('../views/WasteView.vue')
-const StaffView = () => import('../views/StaffView.vue')
+// Staff records are managed in the backoffice, which owns the HR cluster
+// (Staff, Shifts, Time Clock, Audit Log). The POS duplicated that screen, and a
+// shared floor tablet that stays signed in all service is the worst of the three
+// places to be editing colleague accounts. Time Clock still reads the staff list
+// for who is on shift; only the editing screen is gone.
 const ShiftsView = () => import('../views/ShiftsView.vue')
 const TimeClockView = () => import('../views/TimeClockView.vue')
 const ReportsView = () => import('../views/ReportsView.vue')
@@ -28,6 +32,15 @@ const CheckoutView = () => import('../views/CheckoutView.vue')
 const routes = [
   { path: '/', redirect: '/login' },
   { path: '/login', name: 'login', component: LoginView },
+  // Outside /app on purpose: it must render without the sidebar, because every
+  // destination behind it is being refused by the server until the password is
+  // changed.
+  {
+    path: '/change-password',
+    name: 'change-password',
+    component: () => import('../views/ChangePasswordView.vue'),
+    meta: { requiresAuth: true },
+  },
   {
     path: '/app',
     component: () => import('../components/AppLayout.vue'),
@@ -47,7 +60,6 @@ const routes = [
       { path: 'cashdrawer', name: 'cashdrawer', component: CashDrawerView },
       { path: 'inventory', name: 'inventory', component: InventoryView },
       { path: 'waste', name: 'waste', component: WasteView },
-      { path: 'staff', name: 'staff', component: StaffView },
       { path: 'shifts', name: 'shifts', component: ShiftsView },
       { path: 'timeclock', name: 'timeclock', component: TimeClockView },
       { path: 'reports', name: 'reports', component: ReportsView },
@@ -85,6 +97,15 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return next('/login')
   }
+
+  // An account carrying a manager-issued password can go exactly one place.
+  // The server enforces this too - it refuses every other endpoint - so this
+  // guard exists to explain rather than to protect: without it the person lands
+  // on a dashboard where every request fails with no stated reason.
+  if (auth.mustChangePassword && to.name !== 'change-password') {
+    return next({ name: 'change-password' })
+  }
+
   // Permission guard
   if (to.meta.requiresAuth && to.name && to.name !== 'login') {
     const viewName = to.name

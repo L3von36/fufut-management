@@ -166,7 +166,10 @@ export async function apiDelete(endpoint, id) {
 
 // Role permissions (unchanged)
 export const ROLE_PERMISSIONS = {
-  manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout'],
+  // 'staff' is absent deliberately: editing colleague accounts lives in the
+  // backoffice, alongside Shifts, Time Clock and the audit log. Time Clock here
+  // still reads the staff list to show who is on shift.
+  manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout'],
   // menu-mgmt is granted for one action: taking a dish off when the kitchen has
   // run out. The screen itself hides adding, editing, deleting, cost and margin
   // from anyone but a manager, and the API only lets this role write the
@@ -203,7 +206,6 @@ export const NAV_ITEMS = [
   { view: 'cashdrawer', label: 'Cash Drawer', icon: 'cash', section: 'Finance' },
   { view: 'inventory', label: 'Inventory', icon: 'package', section: 'Stock' },
   { view: 'waste', label: 'Waste Log', icon: 'trash-2', section: 'Stock' },
-  { view: 'staff', label: 'Staff', icon: 'users', section: 'HR' },
   { view: 'shifts', label: 'Shifts', icon: 'clock', section: 'HR' },
   { view: 'timeclock', label: 'Time Clock', icon: 'fingerprint', section: 'HR' },
   { view: 'reports', label: 'Reports', icon: 'file-text', section: 'Analytics' },
