@@ -12,7 +12,13 @@
           <button v-if="search" class="rv-search-clear" @click="search=''" aria-label="Clear search">&times;</button>
         </div>
         <select v-model="statusFilter" class="select"><option value="">All</option><option value="new">New</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="completed">Completed</option></select>
-        <button v-if="auth.hasPermission('reservations') && auth.roleKey === 'manager'" class="btn btn-primary" @click="openAdd">+ New</button>
+        <!-- Taking a booking is floor-staff work, so this follows the reservations
+             permission rather than a manager check. Confirm and Complete below were
+             already open to any permitted role; gating only create and cancel to
+             managers left a waiter able to advance a booking but not raise or drop
+             one. The API agrees: MANAGER_ONLY covers /api/staff and /api/migrate
+             only, so reservation writes were never restricted server-side. -->
+        <button v-if="auth.hasPermission('reservations')" class="btn btn-primary" @click="openAdd">+ New</button>
         <button class="btn btn-ghost btn-sm" @click="loadData" title="Refresh">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
@@ -34,7 +40,7 @@
               <td data-label="Actions">
                 <button v-if="r.status==='new'" class="btn btn-sm btn-success" @click="updateStatus(r,'confirmed')">Confirm</button>
                 <button v-if="r.status==='confirmed'" class="btn btn-sm btn-primary" @click="updateStatus(r,'completed')">Complete</button>
-                <button v-if="auth.roleKey === 'manager'" class="btn btn-sm btn-ghost danger" @click="handleDelete(r)">Cancel</button>
+                <button v-if="auth.hasPermission('reservations') && r.status !== 'cancelled'" class="btn btn-sm btn-ghost danger" @click="handleCancel(r)">Cancel</button>
               </td>
             </tr>
             <tr v-if="!filteredReservations.length"><td colspan="8">
@@ -75,7 +81,7 @@
 </template>
 <script setup>
 import { ref, computed, onMounted , inject} from 'vue'
-import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import { apiGet, apiPost, apiPut } from '../api'
 import { useFormValidation } from '../composables/useFormValidation'
 import { useAuthStore } from '../stores/auth'
 
@@ -142,9 +148,17 @@ function openAdd() {
   showModal.value = true
 }
 
-async function handleDelete(r) {
+/**
+ * Cancelling marks the booking cancelled rather than deleting the row. The
+ * button has always read "Cancel", but it used to hard-delete: the guest's
+ * history vanished, the status filter's "Cancelled" option could never match
+ * anything, and a no-show could not be told apart from a booking that was
+ * never made. Now that floor staff hold this control too, a mis-tap must not
+ * destroy a record.
+ */
+async function handleCancel(r) {
   if (!await confirmDelete('Cancel this reservation?')) return
-  try { await apiDelete('reservations/' + r.id); toast('Cancelled'); await loadData() } catch (e) { console.error(e); toast('Failed', 'error') }
+  await updateStatus(r, 'cancelled')
 }
 </script>
 <style scoped>
