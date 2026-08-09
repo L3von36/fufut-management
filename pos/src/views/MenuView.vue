@@ -345,7 +345,37 @@ async function loadData() {
 
 /* Grid */
 .menu-grid-wrapper{flex:1;overflow-y:auto;padding-bottom:80px}
-.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+/* 300px minimum fitted only three cards on a laptop: the sidebar takes 240px, so
+   a 1366px screen leaves ~1080px of grid and 1080/300 rounds down to 3. Table
+   service POS layouts sit at four to five columns, and a waiter scanning for a
+   dish is served far better by seeing most of a category at once than by large
+   photographs. 190px lands at five columns on that same laptop and six on a
+   1600px screen, while still leaving room for the name and price to stay at
+   full size - the card gets denser, the text does not get smaller. */
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+
+/* The card is its own container, so what gets dropped depends on how wide THAT
+   card actually is rather than on the viewport. A phone in landscape and a
+   narrow column on a laptop are the same problem, and a viewport media query
+   cannot tell them apart. Name and price are never hidden - they are the whole
+   point of the card - so shrinking can never make an item unidentifiable. */
+.menu-card{container-type:inline-size}
+/* Selectors are deliberately two-deep. The max-width:600px block at the bottom
+   of this file also sets .menu-info padding, and being later in source order it
+   would otherwise win on a phone - which is exactly where these rules matter
+   most. */
+@container (max-width:230px){
+  .menu-card .menu-desc{display:none}
+  .menu-card .menu-info{padding:10px 12px 12px}
+}
+@container (max-width:175px){
+  .menu-card .menu-meta,.menu-card .menu-modifiers{display:none}
+  /* The 44px add button is anchored bottom-right and stays 44px, so on the
+     narrowest cards the price would run underneath it. Reserve the space rather
+     than shrinking the button below the touch minimum. */
+  .menu-card .menu-info{padding:8px 10px 44px}
+  .menu-card .menu-name-row{flex-direction:column;gap:2px}
+}
 
 .menu-card{background:var(--surface);border-radius:var(--radius-md);border:1.5px solid var(--border);overflow:hidden;cursor:pointer;position:relative;transition:all var(--duration-base) var(--ease-out);box-shadow:var(--shadow-xs)}
 .menu-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-card-hover);border-color:var(--primary)}
@@ -381,6 +411,16 @@ async function loadData() {
    >=1024px, which never matched the old mobile breakpoint. */
 .menu-add-btn{position:absolute;bottom:14px;right:14px;width:44px;height:44px;border-radius:50%;border:none;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:all var(--duration-base) var(--ease-out);box-shadow:var(--shadow-primary)}
 .menu-card:hover .menu-add-btn{opacity:1;transform:translateY(0)}
+/* Reveal-on-hover hid this button completely on the hardware the POS actually
+   runs on. It was forced visible only under max-width:600px, but the tablets are
+   >=1024px touch screens with no hover at all, so the primary add control was
+   invisible there and staff had to know the whole card was tappable. Any device
+   without hover gets it permanently. */
+@media(hover:none){
+  .menu-add-btn{opacity:1}
+}
+/* Keyboard users need it too - it was reachable by Tab but never painted. */
+.menu-add-btn:focus-visible{opacity:1;outline:2px solid var(--primary);outline-offset:2px}
 .menu-add-btn:hover{background:var(--primary-hover);transform:scale(1.1)!important}
 .menu-add-btn svg{width:20px;height:20px}
 
@@ -436,7 +476,10 @@ async function loadData() {
 .cart-slide-leave-to .cart-sheet{transform:translateY(100%)}
 
 @media(max-width:600px){
-  .menu-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  /* Three across on a phone. The container queries above have already dropped
+     the description and tags by this width, so what remains is the photo, the
+     name and the price - which is what a waiter taps against. */
+  .menu-grid{grid-template-columns:repeat(3,1fr);gap:8px}
   .menu-card:hover{transform:none}
   .menu-card:hover .menu-img img{transform:none}
   .menu-add-btn{opacity:1;bottom:10px;right:10px;width:44px;height:44px}
@@ -447,5 +490,12 @@ async function loadData() {
   .menu-desc{font-size:.75rem;-webkit-line-clamp:1}
   .floating-cart{bottom:80px;padding:10px 16px;min-width:200px}
   .cart-sheet{padding:16px;border-radius:var(--radius-md) var(--radius-md) 0 0}
+}
+
+/* Must come after the 600px block, which also sets menu-grid columns. Below
+   ~360px three across leaves under 100px per card, where a dish name wraps to
+   four lines and stops being scannable, so two is the floor. */
+@media(max-width:360px){
+  .menu-grid{grid-template-columns:repeat(2,1fr)}
 }
 </style>
