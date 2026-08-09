@@ -1,4 +1,4 @@
-/* ═══ FU FUT COFFEE — DESIGN SYSTEM ═══ */
+/* â•â•â• FU FUT COFFEE â€” DESIGN SYSTEM â•â•â• */
 :root {
   --teal-50:#EDF8F8; --teal-100:#D2EFEF; --teal-200:#A8DFE0; --teal-300:#7DCFD0;
   --teal-400:#4DBEC0; --teal-500:#18B4B7; --teal-600:#0F7B78; --teal-700:#0C5F5B;
@@ -21,7 +21,7 @@
   --blue-50:#EFF6FF; --red-50:#FEF2F2; --gold-50:#FFFBEB;
   --bg:var(--neutral-25); --surface:var(--neutral-0);
   /* --text-muted was --neutral-500 (#8C897F), which measured 3.1-3.5:1 on the
-     light surfaces and failed AA everywhere it appeared — table names, KPI
+     light surfaces and failed AA everywhere it appeared â€” table names, KPI
      labels, seat counts, dates, section headers. --neutral-600 is already in the
      scale and lands at ~6.8:1 while still reading as clearly secondary. */
   --text-heading:var(--neutral-900); --text-body:var(--neutral-700); --text-muted:var(--neutral-600);
@@ -45,14 +45,25 @@
   --duration-fast:150ms; --duration-base:280ms; --duration-slow:520ms;
 }
 
-/* ═══ DARK MODE ═══ */
+/* â•â•â• DARK MODE â•â•â• */
 [data-theme="dark"]{--teal-50:#0A2E2C;--teal-100:#0C3F3C;--teal-200:#0F504C;--teal-300:#18B4B7;--teal-400:#4DBEC0;--teal-500:#18B4B7;--teal-600:#0F7B78;--teal-700:#0C5F5B;--teal-800:#0A4A47;--teal-900:#073735;--green-50:#0D2818;--green-100:#1A3D2A;--gold-100:#2A2210;--gold-300:#7A6A30;--gold-500:#D6B36A;--gold-700:#AD8A47;--neutral-0:#1A1A1A;--neutral-25:#222222;--neutral-50:#2A2A2A;--neutral-100:#333333;--neutral-200:#444444;--neutral-300:#555555;--neutral-400:#888888;--neutral-500:#999999;--neutral-600:#AAAAAA;--neutral-700:#CCCCCC;--neutral-800:#EEEEEE;--neutral-900:#FFFFFF;--bg:var(--neutral-25);--surface:var(--neutral-0);--text-heading:var(--neutral-900);--text-body:var(--neutral-700);--text-muted:var(--neutral-400);--border:var(--neutral-100);--border-strong:var(--neutral-200);--shadow-xs:0 1px 2px rgba(0,0,0,.2);--shadow-sm:0 1px 2px rgba(0,0,0,.3),0 1px 1px rgba(0,0,0,.2);--shadow-md:0 8px 24px rgba(0,0,0,.4),0 2px 6px rgba(0,0,0,.3);--shadow-lg:0 24px 60px rgba(0,0,0,.5),0 8px 16px rgba(0,0,0,.3);--shadow-xl:0 24px 60px rgba(0,0,0,.5),0 8px 16px rgba(0,0,0,.3);--shadow-card:0 1px 2px rgba(0,0,0,.2),0 1px 1px rgba(0,0,0,.15);--shadow-card-hover:0 8px 24px rgba(0,0,0,.4),0 2px 6px rgba(0,0,0,.3);--terracotta:#C67B5C;--sand-beige:#D4C4A8;--warm-clay:#B5651D;--soft-cream:#F5F0E1;--olive-green:#6B7B3C;--warning:#B5651D}
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-/* 16px root. The type scale is authored in rem against a 16px baseline; a 14px
-   root silently shrank every size by 12.5%, which pushed micro-labels to 8-9px
-   on the order-taking screens. */
-html{font-size:16px;scroll-behavior:smooth}
+/* 12.8px root = 80% of the 16px baseline the rem scale was authored against.
+   This is a deliberate density choice: it reproduces the 80%-zoom view the floor
+   staff preferred, and it matches how table-service POS products trade text size
+   for seeing more of the floor at once.
+
+   An earlier 14px root was reverted because it pushed micro-labels to 8-9px, and
+   80% would be worse still, so the four sub-0.75rem steps below were floored at
+   0.78rem (10px here) rather than left to scale. That flattens the very bottom of
+   the type scale on purpose - legibility over hierarchy at sizes nobody can read.
+
+   Only rem shrinks. Every tap target is authored in px (44px minimum, set during
+   the accessibility pass), so controls keep their physical size while the type and
+   spacing around them contract. That is the one way this differs from browser
+   zoom, and it is the point: fingers do not get smaller at 80%. */
+html{font-size:12.8px;scroll-behavior:smooth}
 body{font-family:var(--font-body);color:var(--text-body);background:var(--bg);line-height:1.55;min-height:100vh;-webkit-font-smoothing:antialiased}
 a{color:var(--primary);text-decoration:none;transition:color var(--duration-fast) var(--ease)}
 a:hover{color:var(--primary-hover)}
@@ -61,7 +72,7 @@ input,select,textarea{font-family:inherit;font-size:inherit}
 button,.btn,.nav-item,.bn-item,.table-card,.menu-btn{touch-action:manipulation}
 table{border-collapse:collapse;width:100%;min-width:600px}
 th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--border);font-size:.85rem}
-th{font-weight:600;color:var(--text-heading);background:var(--surface);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;position:sticky;top:0;z-index:1;border-bottom:2px solid var(--border)}
+th{font-weight:600;color:var(--text-heading);background:var(--surface);font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;position:sticky;top:0;z-index:1;border-bottom:2px solid var(--border)}
 tr{transition:background var(--duration-fast) var(--ease)}
 tr:hover td{background:var(--teal-50)}
 tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
@@ -104,7 +115,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 
 /* KPI CARDS */
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-/* Use a class, never an inline grid-template-columns — inline styles outrank
+/* Use a class, never an inline grid-template-columns â€” inline styles outrank
    the media queries below and pin the grid at desktop column counts. */
 .kpi-grid-3{grid-template-columns:repeat(3,1fr)}
 .kpi-card{background:var(--surface);border-radius:var(--radius-md);padding:20px 20px 18px;box-shadow:var(--shadow-card);border:1px solid var(--border);position:relative;overflow:hidden;transition:all var(--duration-base) var(--ease)}
@@ -114,7 +125,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .kpi-bar.blue{background:linear-gradient(90deg,var(--info),#60A5FA)}
 .kpi-bar.yellow{background:linear-gradient(90deg,var(--warning),#FBBF24)}
 .kpi-bar.gold{background:linear-gradient(90deg,var(--accent),var(--gold-300))}
-.kpi-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:4px;font-weight:600}
+.kpi-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:4px;font-weight:600}
 .kpi-value{font-size:1.65rem;font-weight:700;color:var(--text-heading);font-family:var(--font-mono);line-height:1.15}
 .kpi-sub{font-size:.75rem;color:var(--text-muted);margin-top:6px}
 .kpi-sub .up{color:var(--success-text);font-weight:500}.kpi-sub .down{color:var(--danger-text);font-weight:500}
@@ -134,7 +145,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .table-scroll.can-scroll::after{opacity:1}
 
 /* STATUS BADGES */
-.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
 .badge-new{background:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE}
 .badge-preparing{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A}
 .badge-ready{background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE}
@@ -159,7 +170,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(15,123,120,.1);background:var(--surface)}
 .form-group textarea{resize:vertical;min-height:70px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.field-error{font-size:.7rem;color:var(--danger-text);margin-top:2px;min-height:1em}
+.field-error{font-size:.78rem;color:var(--danger-text);margin-top:2px;min-height:1em}
 .form-group input.error,.form-group select.error{border-color:var(--danger);box-shadow:0 0 0 2px rgba(220,38,38,.15)}
 .form-group select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:14px;padding-right:40px}
 
@@ -176,7 +187,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .search-input{min-width:220px}
 .menu-search-input{width:100%;max-width:280px}
 
-/* TOAST — styles managed dynamically by useToast.js (injects its own <style> tag) */
+/* TOAST â€” styles managed dynamically by useToast.js (injects its own <style> tag) */
 
 /* SIDEBAR */
 .sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,var(--teal-800) 0%,var(--teal-900) 100%);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100;box-shadow:2px 0 8px rgba(7,55,53,.15);transition:width var(--duration-base) var(--ease)}
@@ -197,14 +208,14 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .sidebar-brand .logo img{width:100%;height:100%;object-fit:cover;display:block}
 .sidebar-brand .brand-text{display:flex;flex-direction:column;gap:2px;line-height:1}
 .sidebar-brand .brand-text .mark{font-weight:700;font-size:1rem;color:#fff;letter-spacing:.02em}
-.sidebar-brand .brand-text .eyebrow{font-size:.72rem;color:var(--accent-light);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.sidebar-brand .brand-text .eyebrow{font-size:.78rem;color:var(--accent-light);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 .sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
 .sidebar-nav::-webkit-scrollbar{width:4px}
 .sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}
 /* Sidebar text on the teal gradient. .3 alpha measured 2.29:1 and .55 measured
-   4.23:1 against #0A4A47 — both under AA. .68 and .72 land at ~5.2:1 and ~6.0:1
+   4.23:1 against #0A4A47 â€” both under AA. .68 and .72 land at ~5.2:1 and ~6.0:1
    while keeping the section headers visibly quieter than the nav labels. */
-.nav-section{padding:16px 20px 6px;font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.68);font-weight:600}
+.nav-section{padding:16px 20px 6px;font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.68);font-weight:600}
 .nav-item{display:flex;align-items:center;gap:10px;padding:0 20px;height:var(--nav-item-h);color:rgba(255,255,255,.72);font-size:.85rem;transition:all var(--duration-base) var(--ease);cursor:pointer;border-left:3px solid transparent;margin:1px 8px;border-radius:0 var(--radius-sm) var(--radius-sm) 0}
 .nav-item.icon-only{justify-content:center;padding:0;margin:1px 4px;height:44px;border-left-width:0;border-radius:var(--radius-sm)}
 .nav-item:hover{color:rgba(255,255,255,.9);background:rgba(255,255,255,.06)}
@@ -241,7 +252,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 
 /* BOTTOM NAV */
 .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:150;background:var(--surface);border-top:1.5px solid var(--border);padding:4px 0 env(safe-area-inset-bottom,4px);justify-content:space-around;align-items:stretch;box-shadow:0 -4px 20px rgba(7,55,53,.08)}
-.bn-item{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 4px;background:none;border:none;color:var(--text-muted);font-size:.72rem;cursor:pointer;transition:color var(--duration-fast) var(--ease);min-width:0;flex:1;border-radius:0;-webkit-tap-highlight-color:transparent;position:relative}
+.bn-item{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 4px;background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;transition:color var(--duration-fast) var(--ease);min-width:0;flex:1;border-radius:0;-webkit-tap-highlight-color:transparent;position:relative}
 .bn-item svg{width:22px;height:22px;opacity:.6;transition:opacity var(--duration-fast) var(--ease)}
 .bn-item span{line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .bn-item.active,.bn-item.router-link-active{color:var(--primary)}
@@ -254,7 +265,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
 .summary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;text-align:center;box-shadow:var(--shadow-sm)}
 .summary-card .num{font-size:1.5rem;font-weight:700;color:var(--text-heading);font-family:var(--font-mono)}
-.summary-card .lbl{font-size:.72rem;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:.04em}
+.summary-card .lbl{font-size:.78rem;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:.04em}
 
 /* PAGINATION */
 .pagination{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;font-size:.78rem;color:var(--text-muted)}
@@ -274,13 +285,13 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 @keyframes pulse-border{0%,100%{border-left-color:var(--danger)}50%{border-left-color:#FCA5A5}}
 .kitchen-order .ko-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px}
 .kitchen-order .ko-id{font-family:var(--font-mono);font-size:.75rem;color:var(--text-muted)}
-.kitchen-order .ko-time{font-size:.7rem;color:var(--text-muted)}
+.kitchen-order .ko-time{font-size:.78rem;color:var(--text-muted)}
 .kitchen-order .ko-items{font-size:.85rem;color:var(--text-heading);margin-bottom:4px}
 .kitchen-order .ko-actions{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
 .kitchen-order .ko-actions button{font-size:.75rem;padding:8px 16px;min-height:36px}
 .kitchen-empty{text-align:center;padding:40px 0;color:var(--text-muted);font-size:.85rem}
 
-/* TABLE GRID (floor plan) — Phase 4: replaced by tm-* classes below */
+/* TABLE GRID (floor plan) â€” Phase 4: replaced by tm-* classes below */
 .table-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:24px}
 .table-card{background:var(--surface);border-radius:var(--radius-md);padding:20px;box-shadow:var(--shadow-sm);border:1.5px solid var(--border);cursor:pointer;transition:all .2s;position:relative}
 .table-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
@@ -290,7 +301,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .table-card.cleaning{border-color:var(--neutral-300)}
 .table-card .table-num{font-size:1.6rem;font-weight:700;color:var(--text-heading);font-family:var(--font-mono)}
 .table-card .table-cap{font-size:.75rem;color:var(--text-muted);margin-top:2px}
-.table-card .table-status{position:absolute;top:12px;right:14px;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:2px 8px;border-radius:4px}
+.table-card .table-status{position:absolute;top:12px;right:14px;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:2px 8px;border-radius:4px}
 
 /* ALERT BANNER */
 .alert-banner{display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:var(--radius-md);margin-bottom:20px;font-size:.82rem;font-weight:500}
@@ -319,7 +330,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .offline-banner.syncing{background:var(--info)}
 .offline-banner span{margin-left:auto}
 
-/* ═══ PHASE 4: TABLE MANAGEMENT ═══ */
+/* â•â•â• PHASE 4: TABLE MANAGEMENT â•â•â• */
 .tm-page{} 
 .tm-toolbar-actions{display:flex;gap:8px;align-items:center}
 .tm-sse-dot{width:8px;height:8px;border-radius:50%;background:var(--neutral-400);display:inline-block;transition:background .2s}
@@ -336,12 +347,12 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .tm-section{margin-bottom:28px}
 .tm-section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .tm-section-header h4{font-size:.82rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
-.tm-section-count{font-size:.72rem;color:var(--text-muted);background:var(--neutral-50);padding:3px 10px;border-radius:99px;font-weight:500}
+.tm-section-count{font-size:.78rem;color:var(--text-muted);background:var(--neutral-50);padding:3px 10px;border-radius:99px;font-weight:500}
 
-/* Floor grid — denser than before so more of the room fits on one screen. */
+/* Floor grid â€” denser than before so more of the room fits on one screen. */
 .tm-floor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px}
 
-/* ── Table card ──
+/* â”€â”€ Table card â”€â”€
    Status is carried by a left rail plus a faint wash, so the card no longer
    repeats itself with a status pill. Hierarchy: table number, then how long
    they have been seated, then everything else. */
@@ -366,7 +377,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 
 .tm-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .tm-table-num{font-size:1.9rem;font-weight:800;color:var(--text-heading);font-family:var(--font-mono);line-height:1;letter-spacing:-.02em}
-.tm-card-name{font-size:.74rem;color:var(--text-muted);font-weight:500;line-height:1.2}
+.tm-card-name{font-size:.78rem;color:var(--text-muted);font-weight:500;line-height:1.2}
 
 /* Seats as dots. Replaces a tiny outline square that read as a broken
    checkbox and told you nothing you could count. */
@@ -375,9 +386,9 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .tm-card.occupied .tm-seat{background:var(--primary);opacity:.55}
 .tm-card.available .tm-seat{background:var(--success);opacity:.5}
 .tm-card.reserved .tm-seat{background:var(--warning);opacity:.55}
-.tm-seat-more{font-size:.62rem;color:var(--text-muted);font-weight:600;margin-left:1px}
+.tm-seat-more{font-size:.78rem;color:var(--text-muted);font-weight:600;margin-left:1px}
 
-/* Seated time — the number a waiter is actually scanning for. */
+/* Seated time â€” the number a waiter is actually scanning for. */
 .tm-timer{display:flex;align-items:center;gap:4px;font-size:.9rem;font-weight:700;font-family:var(--font-mono);margin-top:5px;line-height:1}
 .tm-timer svg{width:13px;height:13px;flex-shrink:0}
 .tm-timer.urg-fresh{color:var(--success-text)}
@@ -385,13 +396,13 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .tm-timer.urg-late{color:var(--danger-text)}
 .tm-timer.urg-none{color:var(--text-muted)}
 
-.tm-meta-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.72rem;color:var(--text-muted);margin-top:1px}
+.tm-meta-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.78rem;color:var(--text-muted);margin-top:1px}
 .tm-meta-row .tm-server{color:var(--text-body);font-weight:600}
-.tm-meta-row .tm-server::before{content:'·';margin-right:6px;color:var(--neutral-300);font-weight:400}
+.tm-meta-row .tm-server::before{content:'Â·';margin-right:6px;color:var(--neutral-300);font-weight:400}
 
-.tm-order-chip{margin-top:5px;align-self:flex-start;font-size:.7rem;font-weight:600;color:var(--primary);background:var(--teal-50);border:1px solid var(--teal-200);padding:2px 7px;border-radius:99px}
+.tm-order-chip{margin-top:5px;align-self:flex-start;font-size:.78rem;font-weight:600;color:var(--primary);background:var(--teal-50);border:1px solid var(--teal-200);padding:2px 7px;border-radius:99px}
 
-.tm-state-line{font-size:.74rem;color:var(--text-muted);margin-top:5px;font-weight:500}
+.tm-state-line{font-size:.78rem;color:var(--text-muted);margin-top:5px;font-weight:500}
 .tm-state-line.tm-free{color:var(--success-text)}
 
 /* Shape: round tables get a rounder card, long tables a wider one. */
@@ -399,7 +410,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .tm-card.shape-long{grid-column:span 2}
 @media(max-width:480px){ .tm-card.shape-long{grid-column:span 1} }
 
-/* ═══ DETAIL MODAL ═══ */
+/* â•â•â• DETAIL MODAL â•â•â• */
 .tm-detail-modal{background:var(--surface);border-radius:var(--radius-lg);padding:0;box-shadow:var(--shadow-xl);width:600px;max-width:95vw;max-height:88vh;overflow-y:auto;border:1px solid var(--border);display:flex;flex-direction:column}
 .tm-detail-header{display:flex;justify-content:space-between;align-items:flex-start;padding:24px 28px 0;gap:12px}
 .tm-detail-header h3{font-size:1.1rem;color:var(--text-heading);font-weight:700}
@@ -427,7 +438,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .tm-order-total{margin-left:auto;font-weight:700;color:var(--text-heading);font-size:.85rem}
 .tm-order-items{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.8rem;color:var(--text-body)}
 .tm-order-line{white-space:nowrap}
-.tm-order-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:.7rem;color:var(--text-muted)}
+.tm-order-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:.78rem;color:var(--text-muted)}
 .tm-order-customer{color:var(--primary);font-weight:500}
 .tm-no-orders{text-align:center;padding:20px;color:var(--text-muted);font-size:.82rem}
 
@@ -437,14 +448,14 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 /* Detail modal actions */
 .tm-detail-modal .modal-actions{padding:16px 28px;margin:0;border-top:1px solid var(--border)}
 
-/* ═══ ADD TABLE MODAL — Shape Picker ═══ */
+/* â•â•â• ADD TABLE MODAL â€” Shape Picker â•â•â• */
 .tm-shape-picker{display:flex;gap:12px}
 .tm-shape-opt{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 20px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-muted);cursor:pointer;transition:all var(--duration-fast) var(--ease);font-size:.75rem;font-weight:500}
 .tm-shape-opt svg{width:28px;height:28px}
 .tm-shape-opt:hover{border-color:var(--primary);color:var(--primary)}
 .tm-shape-opt.active{border-color:var(--primary);color:var(--primary);background:var(--teal-50)}
 
-/* Responsive — Phase 4 */
+/* Responsive â€” Phase 4 */
 @media(max-width:1024px){
   .tm-floor-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
   .tm-detail-grid{grid-template-columns:1fr}
@@ -467,7 +478,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
   .tm-section-header{position:sticky;top:0;z-index:5;background:var(--bg);
     padding:8px 0 6px;margin-bottom:2px}
 
-  /* Detail opens as a bottom sheet rather than a centred dialog — thumb-height,
+  /* Detail opens as a bottom sheet rather than a centred dialog â€” thumb-height,
      with a grab handle, the way a native app would present it. */
   .tm-detail-modal{width:100%;max-width:100%;max-height:90vh;
     border-radius:20px 20px 0 0;
@@ -522,7 +533,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
   .card{padding:14px}
   .table-grid{grid-template-columns:repeat(2,1fr);gap:10px}
 
-  /* Table → Card. Applied from tablet-portrait down: a 600px-min table in a
+  /* Table â†’ Card. Applied from tablet-portrait down: a 600px-min table in a
      ~730px column forces cramped nowrap cells and sideways scrolling, which is
      unusable one-handed. Cards give each row full width and a real touch area. */
   .table-scroll table,.table-scroll thead,.table-scroll tbody,.table-scroll th,.table-scroll td,.table-scroll tr{display:block}
@@ -535,12 +546,12 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
   .table-scroll tr:hover td{background:transparent!important}
   .table-scroll td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0;border:none;font-size:.82rem;white-space:normal;text-align:right}
   .table-scroll td:not(:last-child){border-bottom:1px solid var(--border)}
-  .table-scroll td::before{content:attr(data-label);font-weight:600;color:var(--text-muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;text-align:left}
+  .table-scroll td::before{content:attr(data-label);font-weight:600;color:var(--text-muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;text-align:left}
   /* A cell with no data-label would otherwise render an unlabelled value. */
   .table-scroll td:not([data-label])::before{content:''}
   .table-scroll td:first-child{position:static!important;background:transparent!important}
 
-  /* Modals become bottom sheets — reachable with a thumb instead of floating
+  /* Modals become bottom sheets â€” reachable with a thumb instead of floating
      mid-screen, and 28px of padding is too costly at this width. */
   .modal-overlay{align-items:flex-end;padding:0}
   .modal{width:100%;max-width:100%;max-height:92vh;padding:20px 16px;
@@ -579,9 +590,9 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
   .table-grid{grid-template-columns:1fr}
   .login-box{padding:28px 16px;margin:12px}
   .bottom-nav{padding:2px 0 env(safe-area-inset-bottom,2px)}
-  .bn-item{padding:4px 2px;font-size:.72rem}
+  .bn-item{padding:4px 2px;font-size:.78rem}
   .bn-item svg{width:20px;height:20px}
-  /* The table → card conversion now lives in the 768px block above so tablet
+  /* The table â†’ card conversion now lives in the 768px block above so tablet
      portrait gets it too; only the tighter phone spacing belongs here. */
   .table-scroll tr{padding:10px}
   .table-scroll td{font-size:.8rem}
@@ -617,7 +628,7 @@ button:focus-visible,.nav-item:focus-visible,input:focus-visible,select:focus-vi
   .kitchen-order .ko-actions button{min-height:44px}
 }
 
-/* REDUCED MOTION — disable transitions/animations for users who prefer reduced motion */
+/* REDUCED MOTION â€” disable transitions/animations for users who prefer reduced motion */
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition:none!important;animation:none!important}
   html{scroll-behavior:auto!important}

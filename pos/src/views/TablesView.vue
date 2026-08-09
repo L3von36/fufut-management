@@ -31,36 +31,25 @@
       <button v-for="s in allSections" :key="s" class="tm-tab" :class="{ active: activeSection === s }" @click="activeSection = s">{{ s }}</button>
     </div>
 
-    <!-- ═══ KPI ROW ═══ -->
-    <div class="kpi-grid tm-kpi">
-      <div class="kpi-card">
-        <div class="kpi-bar teal"></div>
-        <div class="kpi-icon-wrap teal-bg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></div>
-        <div class="kpi-label">Available</div>
-        <div class="kpi-value" style="color:var(--success)">{{ availableCount }}</div>
-        <div class="kpi-sub">{{ availableSeats }} seats free</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-bar blue"></div>
-        <div class="kpi-icon-wrap blue-bg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-        <div class="kpi-label">Occupied</div>
-        <div class="kpi-value" style="color:var(--info)">{{ occupiedCount }}</div>
-        <div class="kpi-sub">{{ occupiedGuests }} guests seated</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-bar gold"></div>
-        <div class="kpi-icon-wrap gold-bg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-        <div class="kpi-label">Reserved</div>
-        <div class="kpi-value" style="color:var(--warning)">{{ reservedCount }}</div>
-        <div class="kpi-sub">Today's bookings</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-bar neutral"></div>
-        <div class="kpi-icon-wrap neutral-bg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
-        <div class="kpi-label">Cleaning</div>
-        <div class="kpi-value" style="color:var(--neutral-500)">{{ cleaningCount }}</div>
-        <div class="kpi-sub">Needs attention</div>
-      </div>
+    <!-- ═══ STATUS STRIP ═══
+         Four KPI cards used to occupy the whole first screen, so the floor plan -
+         the thing this page exists for - started below the fold. The same four
+         numbers now ride in one strip, and each one filters the floor rather than
+         just reporting. Tapping "Occupied" is how a waiter finds their tables. -->
+    <div class="tm-strip" role="group" aria-label="Filter floor by status">
+      <button
+        v-for="s in statusSummary"
+        :key="s.key"
+        class="tm-chip"
+        :class="[s.key, { active: statusFilter === s.key }]"
+        :aria-pressed="statusFilter === s.key"
+        @click="toggleStatusFilter(s.key)"
+      >
+        <span class="tm-chip-dot"></span>
+        <span class="tm-chip-num">{{ s.count }}</span>
+        <span class="tm-chip-label">{{ s.label }}</span>
+        <span class="tm-chip-sub">{{ s.sub }}</span>
+      </button>
     </div>
 
     <!-- ═══ FLOOR PLAN ═══ -->
@@ -87,6 +76,17 @@
           <div class="tm-card-body">
             <div class="tm-card-head">
               <span class="tm-table-num">{{ t.number }}</span>
+              <!-- Server identity as a coloured initials badge. Colour is derived
+                   from the name, so the same server is the same colour on every
+                   tile and a waiter can pick out their own section without
+                   reading a single word. -->
+              <span
+                v-if="t.server"
+                class="tm-server-badge"
+                :style="serverColor(t.server)"
+                :title="'Server: ' + t.server"
+                :aria-label="'Server ' + t.server"
+              >{{ serverInitials(t.server) }}</span>
               <!-- Seats as dots — countable at a glance, and it makes a
                    2-seater visibly different from an 8-seater. -->
               <span class="tm-seats" :title="t.capacity + ' seats'" :aria-label="t.capacity + ' seats'">
@@ -97,20 +97,23 @@
 
             <div class="tm-card-name">{{ t.name || ('Table ' + t.number) }}</div>
 
-            <!-- Occupied: how long they have been sitting is the one number a
-                 waiter scans for, so it leads and carries urgency colour. -->
+            <!-- Occupied tiles carry the three numbers table-service POS products
+                 converge on: how long they have sat, how many are sitting, and how
+                 much is on the table. Everything else is one tap away in the panel. -->
             <template v-if="t.status === 'occupied'">
-              <div class="tm-timer" :class="'urg-' + occupancyUrgency(t)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
-                {{ occupancyTimer(t) }}
+              <div class="tm-vitals">
+                <div class="tm-timer" :class="'urg-' + occupancyUrgency(t)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+                  {{ occupancyTimer(t) }}
+                </div>
+                <div v-if="tableOrderTotals[t.id]" class="tm-spend">{{ formatETB(tableOrderTotals[t.id]) }}</div>
               </div>
               <div class="tm-meta-row">
-                <span v-if="t.guests">{{ t.guests }} guest{{ t.guests > 1 ? 's' : '' }}</span>
-                <span v-if="t.server" class="tm-server">{{ t.server }}</span>
-              </div>
-              <div v-if="tableOrderCounts[t.id]" class="tm-order-chip">
-                {{ tableOrderCounts[t.id] }} order{{ tableOrderCounts[t.id] > 1 ? 's' : '' }}
-                <span v-if="tableOrderTotals[t.id]"> &middot; {{ formatETB(tableOrderTotals[t.id]) }}</span>
+                <span v-if="t.guests" class="tm-guests">{{ t.guests }} guest{{ t.guests > 1 ? 's' : '' }}</span>
+                <span v-if="tableOrderCounts[t.id]" class="tm-ordercount">
+                  {{ tableOrderCounts[t.id] }} order{{ tableOrderCounts[t.id] > 1 ? 's' : '' }}
+                </span>
+                <span v-else class="tm-noorder">no order yet</span>
               </div>
             </template>
 
@@ -207,11 +210,16 @@
 
         <!-- Actions -->
         <div class="modal-actions tm-detail-actions">
-          <button v-if="detailTable.status !== 'occupied'" class="btn btn-primary btn-sm" @click="newOrderForTable">
+          <!-- An occupied table used to offer only "Go to Checkout", so a seated
+               party could never be given a second round: the waiter had to leave
+               the floor plan and rebuild the table context by hand. Ordering is
+               now always available, and reads "Add Round" once people are seated,
+               which is what the action actually means at that point. -->
+          <button class="btn btn-primary btn-sm" @click="newOrderForTable">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            New Order
+            {{ detailTable.status === 'occupied' ? 'Add Round' : 'New Order' }}
           </button>
-          <button v-else class="btn btn-outline btn-sm" @click="goToCheckout">
+          <button v-if="detailTable.status === 'occupied'" class="btn btn-outline btn-sm" @click="goToCheckout">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             Go to Checkout
           </button>
@@ -293,6 +301,7 @@ const loading = ref(true)
 const sections = ref(['Patio', 'Main Hall', 'Window', 'VIP Room', 'Bar'])
 const allSections = computed(() => ['All', ...sections.value])
 const activeSection = ref('All')
+const statusFilter = ref('')
 const detailTable = ref(null)
 const detailOrders = ref([])
 const showAddModal = ref(false)
@@ -307,8 +316,47 @@ const newTable = ref({ number: '', name: '', capacity: 4, section: 'Main Hall', 
 const filteredTables = computed(() => {
   let t = tables.value
   if (activeSection.value !== 'All') t = t.filter(x => x.section === activeSection.value)
+  if (statusFilter.value) t = t.filter(x => x.status === statusFilter.value)
   return t
 })
+
+/**
+ * The status strip doubles as the floor filter. Tapping the same chip twice
+ * clears it, so getting back to the whole floor never needs a separate "All"
+ * control competing for space with the four that matter.
+ */
+function toggleStatusFilter(key) {
+  statusFilter.value = statusFilter.value === key ? '' : key
+}
+
+const statusSummary = computed(() => [
+  { key: 'available', label: 'Free', count: availableCount.value, sub: `${availableSeats.value} seats` },
+  { key: 'occupied', label: 'Seated', count: occupiedCount.value, sub: `${occupiedGuests.value} guests` },
+  { key: 'reserved', label: 'Reserved', count: reservedCount.value, sub: 'today' },
+  { key: 'cleaning', label: 'Cleaning', count: cleaningCount.value, sub: 'to reset' }
+])
+
+/**
+ * Stable colour per server name. Hashing the name rather than assigning from a
+ * rota means the mapping survives reloads and needs no storage, and a fixed
+ * saturation/lightness keeps every badge legible against white text in both
+ * themes instead of occasionally landing on yellow.
+ */
+function serverColor(name) {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360
+  return { background: `hsl(${h} 55% 34%)` }
+}
+
+function serverInitials(name) {
+  return String(name || '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+}
 
 const visibleSections = computed(() => {
   if (activeSection.value !== 'All') return [activeSection.value]
@@ -575,6 +623,103 @@ onUnmounted(() => {
   font-size: .78rem;
   color: var(--text-muted);
   font-weight: 400;
+}
+
+/* ═══ STATUS STRIP ═══
+   Replaces the four-card KPI grid. Same numbers, roughly a fifth of the height,
+   and each chip filters the floor. Chips stay 44px tall: the type around them
+   shrank with the 80% root, fingers did not. */
+.tm-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.tm-chip {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 44px;
+  padding: 8px 12px 8px 22px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease);
+}
+.tm-chip:hover { border-color: var(--border-strong); }
+.tm-chip.active { border-color: var(--primary); background: var(--teal-50); }
+.tm-chip-dot {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.tm-chip.available .tm-chip-dot { background: var(--success); }
+.tm-chip.occupied  .tm-chip-dot { background: var(--info); }
+.tm-chip.reserved  .tm-chip-dot { background: var(--warning); }
+.tm-chip.cleaning  .tm-chip-dot { background: var(--neutral-400); }
+.tm-chip-num {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+.tm-chip-label { font-size: .82rem; font-weight: 600; color: var(--text-body); }
+.tm-chip-sub { font-size: .78rem; color: var(--text-muted); margin-left: auto; }
+
+/* ═══ TILE VITALS ═══ */
+.tm-vitals {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 5px;
+}
+/* Spend sits opposite the timer in mono, so the two numbers a waiter compares
+   across a room line up column-wise instead of reflowing with name length. */
+.tm-spend {
+  font-family: var(--font-mono);
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  white-space: nowrap;
+}
+.tm-guests, .tm-ordercount { font-size: .78rem; color: var(--text-muted); }
+.tm-noorder { font-size: .78rem; color: var(--warning-text); font-weight: 600; }
+
+/* Initials badge. 22px is below the 44px touch minimum on purpose - it is a
+   label, not a control; the whole tile is the tap target. */
+.tm-server-badge {
+  margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+  letter-spacing: .02em;
+  flex-shrink: 0;
+}
+
+/* Four chips across stop being readable well before the phone breakpoint - the
+   sub-label collides with the count around 700px - so they go 2-up there and the
+   sub-label drops entirely on phones rather than wrapping to a third line. */
+@media (max-width: 700px) {
+  .tm-strip { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 420px) {
+  .tm-chip-sub { display: none; }
 }
 
 /* KPI icon wraps */
