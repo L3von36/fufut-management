@@ -130,20 +130,58 @@
         <div class="form-group"><label>Eyebrow</label><input v-model="data.signatureCoffee.eyebrow" /></div>
         <div class="form-group"><label>Section Title</label><input v-model="data.signatureCoffee.title" /></div>
       </div>
-      <div v-for="(card, i) in data.signatureCoffee.cards" :key="i" style="margin-top:16px;padding:14px;background:var(--bg-subtle,#f7f7f7);border-radius:8px">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">Coffee Card {{ i + 1 }}</div>
-        <div class="form-row">
-          <div class="form-group"><label>Name</label><input v-model="card.name" /></div>
-          <div class="form-group"><label>Meta (Origin · Roast)</label><input v-model="card.meta" /></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Price (ETB)</label><input v-model="card.price" /></div>
-          <div class="form-group"><label>Badge</label><input v-model="card.badge" /></div>
-        </div>
-        <div class="form-group"><label>Flavor Notes (short, shown on card)</label><input v-model="card.flavor" /></div>
-        <div class="form-group"><label>Full Description (shown in modal)</label><textarea v-model="card.desc" rows="2" /></div>
-        <div class="form-group"><label>Image URL</label><input v-model="card.image" /></div>
+      <div class="form-group"><label>Intro Paragraph</label><textarea v-model="data.signatureCoffee.intro" rows="3" /></div>
+      <div class="form-group"><label>Showcase Image URL (the large product photo)</label><input v-model="data.signatureCoffee.image" /></div>
+
+      <!-- These are the packages the section actually renders. The previous
+           editor here wrote to signatureCoffee.cards, and the website rendered
+           those into a .coffee-grid that no longer exists in the page - so every
+           edit saved successfully and changed nothing on the site. -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
+        <h4 style="margin:0">Packages</h4>
+        <button class="btn btn-sm btn-primary" type="button" @click="addPackage">+ Add Package</button>
       </div>
+
+      <div v-for="(pkg, i) in data.signatureCoffee.packages" :key="i" style="margin-top:12px;padding:14px;background:var(--bg-subtle,#f7f7f7);border-radius:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)">Package {{ i + 1 }}</div>
+          <button class="btn btn-sm btn-ghost" type="button" @click="removePackage(i)">Remove</button>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Name</label><input v-model="pkg.name" /></div>
+          <div class="form-group"><label>Price (ETB)</label><input v-model.number="pkg.price" type="number" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Unit</label><input v-model="pkg.unit" placeholder="/kg" /></div>
+          <div class="form-group">
+            <label>Icon</label>
+            <!-- A key, not markup: the artwork stays in the website so a CMS
+                 field can never inject HTML into the page. -->
+            <select v-model="pkg.icon" class="select">
+              <option value="bean">Bean (raw)</option>
+              <option value="roast">Roast</option>
+              <option value="ground">Ground</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Ribbon (leave empty for none)</label><input v-model="pkg.ribbon" placeholder="Most Popular" /></div>
+          <div class="form-group">
+            <label>Highlight this package</label>
+            <select v-model="pkg.featured" class="select">
+              <option :value="false">No</option>
+              <option :value="true">Yes</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Description</label><textarea v-model="pkg.desc" rows="2" /></div>
+        <div class="form-group"><label>Image URL (shown in the order popup)</label><input v-model="pkg.image" /></div>
+      </div>
+
+      <p v-if="!data.signatureCoffee.packages || !data.signatureCoffee.packages.length"
+         style="margin-top:12px;font-size:13px;color:var(--text-muted)">
+        No packages yet. The website keeps showing its built-in three until at least one is added here.
+      </p>
     </section>
 
     <!-- Menu Section Heading -->
@@ -366,13 +404,12 @@ function moveSection(i, d) {
 const data = reactive({
   hero:     { amharic:'', title:'', subtitle:'', btn1:'', btn2:'' },
   story:    { eyebrow:'', title:'', p1:'', p2:'', badge1Num:'', badge1Label:'', badge2Num:'', badge2Label:'', feat1:'', feat2:'', feat3:'', feat4:'' },
+  // `packages` is what the website renders. `cards` is kept only so an older
+  // saved document round-trips without losing data; nothing reads it any more.
   signatureCoffee: {
-    eyebrow: '', title: '',
-    cards: [
-      { name:'', meta:'', price:'', badge:'', flavor:'', desc:'', image:'' },
-      { name:'', meta:'', price:'', badge:'', flavor:'', desc:'', image:'' },
-      { name:'', meta:'', price:'', badge:'', flavor:'', desc:'', image:'' },
-    ]
+    eyebrow: '', title: '', intro: '', image: '',
+    packages: [],
+    cards: []
   },
   menu:     { script:'', eyebrow:'', title:'' },
   stats:    [{value:0,label:''},{value:0,label:''},{value:0,label:''},{value:0,label:''}],
@@ -437,8 +474,18 @@ function applyContent(json) {
   if (json.signatureCoffee) {
     if (json.signatureCoffee.eyebrow !== undefined) data.signatureCoffee.eyebrow = json.signatureCoffee.eyebrow
     if (json.signatureCoffee.title   !== undefined) data.signatureCoffee.title   = json.signatureCoffee.title
+    if (json.signatureCoffee.intro   !== undefined) data.signatureCoffee.intro   = json.signatureCoffee.intro
+    if (json.signatureCoffee.image   !== undefined) data.signatureCoffee.image   = json.signatureCoffee.image
+    // Replaced wholesale rather than merged by index, so removing a package
+    // actually removes it. The old per-index Object.assign could only ever
+    // overwrite the three slots it started with.
+    if (Array.isArray(json.signatureCoffee.packages)) {
+      data.signatureCoffee.packages.splice(0, data.signatureCoffee.packages.length, ...json.signatureCoffee.packages)
+    }
+    // Carried through untouched so an older document is not silently stripped
+    // on the next save.
     if (Array.isArray(json.signatureCoffee.cards)) {
-      json.signatureCoffee.cards.forEach((c, i) => { if (data.signatureCoffee.cards[i]) Object.assign(data.signatureCoffee.cards[i], c) })
+      data.signatureCoffee.cards.splice(0, data.signatureCoffee.cards.length, ...json.signatureCoffee.cards)
     }
   }
   if (json.menu)          Object.assign(data.menu, json.menu)
@@ -554,6 +601,20 @@ function moveGalleryItem(i, d) {
   if (j < 0 || j >= data.gallery.length) return
   ;[data.gallery[i], data.gallery[j]] = [data.gallery[j], data.gallery[i]]
 }
+
+/**
+ * A new package starts as a plain bean at no price rather than a copy of an
+ * existing one, so a half-edited duplicate cannot reach the website looking
+ * like a real product.
+ */
+function addPackage() {
+  data.signatureCoffee.packages.push({
+    name: '', price: 0, unit: '/kg', icon: 'bean',
+    ribbon: '', featured: false, desc: '',
+    image: data.signatureCoffee.image || ''
+  })
+}
+function removePackage(i) { data.signatureCoffee.packages.splice(i, 1) }
 
 function addTestimonial()      { data.testimonialCards.push({ quote: '', name: '', role: '', avatar: '' }) }
 function removeTestimonial(i)  { data.testimonialCards.splice(i, 1) }
