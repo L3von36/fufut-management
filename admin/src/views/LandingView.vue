@@ -131,7 +131,27 @@
         <div class="form-group"><label>Section Title</label><input v-model="data.signatureCoffee.title" /></div>
       </div>
       <div class="form-group"><label>Intro Paragraph</label><textarea v-model="data.signatureCoffee.intro" rows="3" /></div>
-      <div class="form-group"><label>Showcase Image URL (the large product photo)</label><input v-model="data.signatureCoffee.image" /></div>
+      <div class="form-group">
+        <label>Showcase Photo (the large product image)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input v-model="data.signatureCoffee.image" placeholder="Upload a file, or paste a URL" style="flex:1" />
+          <label class="btn btn-sm btn-outline" style="white-space:nowrap;cursor:pointer">
+            <input type="file" accept="image/*" style="display:none"
+                   :disabled="uploading === 'showcase'"
+                   @change="uploadShowcase" />
+            {{ uploading === 'showcase' ? 'Uploading…' : '📁 Upload' }}
+          </label>
+          <button v-if="data.signatureCoffee.image" class="btn btn-sm btn-ghost" type="button"
+                  @click="data.signatureCoffee.image = ''">Clear</button>
+        </div>
+        <!-- A preview, because a URL field gives no way to tell a working image
+             from a broken one until the site is published. -->
+        <div v-if="data.signatureCoffee.image" style="margin-top:8px;height:120px;border-radius:8px;overflow:hidden;background:var(--bg-subtle,#f7f7f7)">
+          <img :src="data.signatureCoffee.image" style="width:100%;height:100%;object-fit:contain"
+               @error="e => e.target.style.display = 'none'"
+               @load="e => e.target.style.display = ''" />
+        </div>
+      </div>
 
       <!-- These are the packages the section actually renders. The previous
            editor here wrote to signatureCoffee.cards, and the website rendered
@@ -175,7 +195,24 @@
           </div>
         </div>
         <div class="form-group"><label>Description</label><textarea v-model="pkg.desc" rows="2" /></div>
-        <div class="form-group"><label>Image URL (shown in the order popup)</label><input v-model="pkg.image" /></div>
+        <div class="form-group">
+          <label>Package Photo (shown in the order popup)</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input v-model="pkg.image" placeholder="Upload a file, or paste a URL" style="flex:1" />
+            <label class="btn btn-sm btn-outline" style="white-space:nowrap;cursor:pointer">
+              <input type="file" accept="image/*" style="display:none"
+                     :disabled="uploading === 'pkg-' + i"
+                     @change="e => uploadPackageImage(e, i)" />
+              {{ uploading === 'pkg-' + i ? 'Uploading…' : (pkg.image ? '📁 Replace' : '📁 Upload') }}
+            </label>
+            <button v-if="pkg.image" class="btn btn-sm btn-ghost" type="button" @click="pkg.image = ''">Clear</button>
+          </div>
+          <div v-if="pkg.image" style="margin-top:8px;height:100px;border-radius:8px;overflow:hidden;background:var(--bg-subtle,#f7f7f7)">
+            <img :src="pkg.image" style="width:100%;height:100%;object-fit:contain"
+                 @error="e => e.target.style.display = 'none'"
+                 @load="e => e.target.style.display = ''" />
+          </div>
+        </div>
       </div>
 
       <p v-if="!data.signatureCoffee.packages || !data.signatureCoffee.packages.length"
@@ -355,7 +392,7 @@
 
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
-import { apiGet, apiPost } from '../api/index.js'
+import { apiGet, apiPost, apiUpload } from '../api/index.js'
 
 const SITE_ORIGIN = 'https://www.fufutcoffee.com'
 
@@ -615,6 +652,43 @@ function addPackage() {
   })
 }
 function removePackage(i) { data.signatureCoffee.packages.splice(i, 1) }
+
+/**
+ * Which upload is in flight, as a key rather than a boolean, so uploading one
+ * package's photo does not put every other Upload button into a loading state.
+ */
+const uploading = ref('')
+
+async function runUpload(key, file, assign) {
+  if (!file) return
+  uploading.value = key
+  try {
+    const result = await apiUpload(file)
+    // The helper returns the URL already normalised onto the API's own image
+    // route, so what is stored is what the website will fetch.
+    assign(result.url)
+    toast('Image uploaded — remember to publish')
+  } catch (err) {
+    toast('Upload failed: ' + (err.message || 'unknown error'), 'error')
+  } finally {
+    uploading.value = ''
+  }
+}
+
+async function uploadShowcase(e) {
+  const file = e.target.files?.[0]
+  await runUpload('showcase', file, (url) => { data.signatureCoffee.image = url })
+  // Cleared so choosing the same file again still fires a change event.
+  e.target.value = ''
+}
+
+async function uploadPackageImage(e, i) {
+  const file = e.target.files?.[0]
+  await runUpload('pkg-' + i, file, (url) => {
+    if (data.signatureCoffee.packages[i]) data.signatureCoffee.packages[i].image = url
+  })
+  e.target.value = ''
+}
 
 function addTestimonial()      { data.testimonialCards.push({ quote: '', name: '', role: '', avatar: '' }) }
 function removeTestimonial(i)  { data.testimonialCards.splice(i, 1) }
