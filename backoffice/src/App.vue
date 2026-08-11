@@ -1,6 +1,6 @@
 <template>
   <router-view />
-  <div class="toast-container" id="toastContainer"></div>
+  <ToastContainer />
 
   <!-- Global Confirm Dialog -->
   <div v-if="confirmState.visible.value" class="modal-overlay" @click.self="confirmState.handleCancel">
@@ -20,6 +20,7 @@ import { provide } from 'vue'
 import { useToast } from './composables/useToast'
 import { useConfirm } from './composables/useConfirm'
 import { isOnline } from './api'
+import ToastContainer from './components/ToastContainer.vue'
 
 const { toast } = useToast()
 provide('toast', toast)

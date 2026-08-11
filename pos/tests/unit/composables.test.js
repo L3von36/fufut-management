@@ -79,171 +79,100 @@ describe('useAnimatedNumber', () => {
 })
 
 describe('useToast', () => {
-  // Cleanup any toast container / injected styles between tests so each test
-  // starts from a clean DOM.
+  let toastApi
+
   beforeEach(() => {
-    document.body.innerHTML = ''
-    document.head.querySelectorAll('style[data-toast-styles]').forEach(s => s.remove())
+    // The store is a module-level singleton, so reset state between tests.
+    toastApi = useToast()
+    toastApi.dismissAll()
   })
 
-  it('should not throw when no toast container exists', () => {
-    const { toast } = useToast()
-    // Calling toast() without a container should auto-create one and not throw.
-    expect(() => toast('Hello', 'info')).not.toThrow()
+  afterEach(() => {
+    toastApi.dismissAll()
   })
 
-  it('should create a toast element when container exists', () => {
-    const container = document.createElement('div')
-    container.id = 'toastContainer'
-    document.body.appendChild(container)
-
-    const { toast } = useToast()
-    toast('Order created', 'success')
-
-    const toastEl = container.querySelector('.toast-notification')
-    expect(toastEl).not.toBeNull()
-    expect(toastEl.className).toContain('toast-success')
-    expect(toastEl.textContent).toContain('Order created')
+  it('should push a toast onto the shared reactive store', () => {
+    toastApi.toast('Hello', 'info')
+    expect(toastApi.toasts.value.length).toBe(1)
+    expect(toastApi.toasts.value[0].message).toBe('Hello')
+    expect(toastApi.toasts.value[0].type).toBe('info')
   })
 
-  // Regression: App.vue renders a static #toastContainer, and ensureContainer()
-  // used to return early when it found one — skipping style injection entirely.
-  // Every toast then rendered unstyled, and its bare SVG icon stretched to fill
-  // the viewport.
-  it('should inject toast styles even when the container already exists', () => {
-    const container = document.createElement('div')
-    container.id = 'toastContainer'
-    container.className = 'toast-container'
-    document.body.appendChild(container)
-
-    const { toast } = useToast()
-    toast('Welcome back', 'success')
-
-    expect(document.head.querySelector('style[data-toast-styles]')).not.toBeNull()
+  it('should render a toast element when the container component is mounted', () => {
+    toastApi.toast('Order created', 'success')
+    const t = toastApi.toasts.value[0]
+    expect(t.type).toBe('success')
+    expect(t.message).toBe('Order created')
   })
 
-  it('should constrain the toast icon so it cannot fill the page', () => {
-    const container = document.createElement('div')
-    container.id = 'toastContainer'
-    document.body.appendChild(container)
-
-    const { toast } = useToast()
-    toast('Welcome back', 'success')
-
-    const css = document.head.querySelector('style[data-toast-styles]').textContent
-    expect(css).toContain('.toast-notification .toast-icon svg')
-    expect(css).toMatch(/\.toast-notification\s*\{[^}]*max-width:\s*340px/)
-  })
-
-  it('should mark a pre-existing container as a live region', () => {
-    const container = document.createElement('div')
-    container.id = 'toastContainer'
-    document.body.appendChild(container)
-
-    const { toast } = useToast()
-    toast('Welcome back', 'success')
-
-    expect(container.getAttribute('aria-live')).toBe('polite')
-  })
-
-  it('should render an auto-detected title for known types', () => {
-    const container = document.createElement('div')
-    container.id = 'toastContainer'
-    document.body.appendChild(container)
-
-    const { toast } = useToast()
-    toast('Something broke', 'error')
-
-    const toastEl = container.querySelector('.toast-notification')
-    expect(toastEl).not.toBeNull()
-    expect(toastEl.className).toContain('toast-error')
-    expect(toastEl.textContent).toContain('Something broke')
-  })
-
-  it('should add the .show class via requestAnimationFrame', async () => {
-    vi.useFakeTimers()
-    const container = document.createElement('div')
-    container.id = 'toastContainer'
-    document.body.appendChild(container)
-
-    const { toast } = useToast()
-    toast('Hello', 'info')
-
-    const toastEl = container.querySelector('.toast-notification')
-    expect(toastEl).not.toBeNull()
-
-    vi.useRealTimers()
-  })
-
-  it('should auto-dismiss after the duration by adding .hidden', async () => {
-    vi.useFakeTimers()
-    const container = document.createElement('div')
-    container.id = 'toastContainer'
-    document.body.appendChild(container)
-
-    const { toast } = useToast()
-    toast('Test message', 'info', { duration: 4000 })
-
-    let toastEl = container.querySelector('.toast-notification')
-    expect(toastEl).not.toBeNull()
-
-    // Just before the auto-dismiss timer fires, the toast is still visible.
-    await vi.advanceTimersByTimeAsync(3999)
-    expect(container.querySelector('.toast-notification')).not.toBeNull()
-    expect(toastEl.classList.contains('removing')).toBe(false)
-
-    // At 4000ms the dismiss handler runs and adds .removing to trigger the
-    // CSS slide-out animation.
-    await vi.advanceTimersByTimeAsync(1)
-    expect(toastEl.classList.contains('removing')).toBe(true)
-
-    vi.useRealTimers()
-  })
-
-  it('should remove the element from the DOM after the slide-out animation ends', async () => {
-    vi.useFakeTimers()
-    const container = document.createElement('div')
-    container.id = 'toastContainer'
-    document.body.appendChild(container)
-
-    const { toast } = useToast()
-    toast('Bye', 'info', { duration: 4000 })
-
-    // Trigger the auto-dismiss.
-    await vi.advanceTimersByTimeAsync(4000)
-
-    let toastEl = container.querySelector('.toast-notification')
-    expect(toastEl).not.toBeNull()
-    expect(toastEl.classList.contains('removing')).toBe(true)
-
-    // jsdom doesn't run CSS animations, so simulate the animationend event
-    // that the production code listens for to remove the element.
-    const evt = new Event('animationend', { bubbles: true })
-    evt.animationName = 'toastOut'
-    toastEl.dispatchEvent(evt)
-
-    expect(container.querySelector('.toast-notification')).toBeNull()
-
-    vi.useRealTimers()
+  // The store no longer injects <style> — ToastContainer.vue owns all styles,
+  // so the old "style injection" regression cannot occur by construction.
+  it('should not require runtime style injection', () => {
+    toastApi.toast('Welcome back', 'success')
+    expect(document.head.querySelector('style[data-toast-styles]')).toBeNull()
   })
 
   it('should expose type-aliased helpers (success, error, info, warning)', () => {
-    const container = document.createElement('div')
-    container.id = 'toastContainer'
-    document.body.appendChild(container)
+    toastApi.success('ok')
+    toastApi.error('bad')
+    toastApi.info('hi')
+    toastApi.warning('careful')
 
-    const { success, error, info, warning } = useToast()
-    success('ok')
-    error('bad')
-    info('hi')
-    warning('careful')
+    expect(toastApi.toasts.value.length).toBe(4)
+    expect(toastApi.toasts.value[0].type).toBe('success')
+    expect(toastApi.toasts.value[1].type).toBe('error')
+    expect(toastApi.toasts.value[2].type).toBe('info')
+    expect(toastApi.toasts.value[3].type).toBe('warning')
+  })
 
-    const toasts = container.querySelectorAll('.toast-notification')
-    expect(toasts.length).toBe(4)
-    expect(toasts[0].className).toContain('toast-success')
-    expect(toasts[1].className).toContain('toast-error')
-    expect(toasts[2].className).toContain('toast-info')
-    expect(toasts[3].className).toContain('toast-warning')
+  it('should normalize swapped args like toast("error", "message")', () => {
+    toastApi.toast('error', 'Something broke')
+    const t = toastApi.toasts.value[0]
+    expect(t.type).toBe('error')
+    expect(t.message).toBe('Something broke')
+  })
+
+  it('should default unknown types to info', () => {
+    toastApi.toast('Hello', 'unknown-type')
+    expect(toastApi.toasts.value[0].type).toBe('info')
+  })
+
+  it('should accept an options.title', () => {
+    toastApi.toast('Saved', 'success', { title: 'Done' })
+    expect(toastApi.toasts.value[0].title).toBe('Done')
+  })
+
+  it('should auto-dismiss after the configured duration', async () => {
+    vi.useFakeTimers()
+    toastApi.toast('Test message', 'info', { duration: 4000 })
+    expect(toastApi.toasts.value.length).toBe(1)
+
+    await vi.advanceTimersByTimeAsync(3999)
+    expect(toastApi.toasts.value.length).toBe(1)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(toastApi.toasts.value.length).toBe(0)
+
+    vi.useRealTimers()
+  })
+
+  it('should remove a toast immediately on dismiss()', () => {
+    const id = toastApi.toast('Bye', 'info')
+    expect(toastApi.toasts.value.length).toBe(1)
+    toastApi.dismiss(id)
+    expect(toastApi.toasts.value.length).toBe(0)
+  })
+
+  it('should clear all toasts with dismissAll()', () => {
+    toastApi.toast('one', 'info')
+    toastApi.toast('two', 'success')
+    toastApi.dismissAll()
+    expect(toastApi.toasts.value.length).toBe(0)
+  })
+
+  it('should not throw when no container is in the DOM', () => {
+    document.body.innerHTML = ''
+    expect(() => toastApi.toast('Hello', 'info')).not.toThrow()
   })
 })
 

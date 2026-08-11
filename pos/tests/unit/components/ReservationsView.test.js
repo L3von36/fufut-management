@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ReservationsView from '../../../src/views/ReservationsView.vue'
@@ -64,16 +64,8 @@ describe('ReservationsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setActivePinia(createPinia())
-    const c = document.createElement('div')
-    c.id = 'toastContainer'
-    document.body.appendChild(c)
     mockApiPost.mockResolvedValue({ ok: true })
     mockFeeds()
-  })
-
-  afterEach(() => {
-    const c = document.getElementById('toastContainer')
-    if (c) c.remove()
   })
 
   it('builds the table picker from the tables that exist, in number order', async () => {

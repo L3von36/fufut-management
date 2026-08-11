@@ -22,11 +22,6 @@ describe('OrdersView', () => {
     vi.clearAllMocks()
     setActivePinia(createPinia())
 
-    // Create toast container
-    const container = document.createElement('div')
-    container.id = 'toastContainer'
-    document.body.appendChild(container)
-
     mockApiGet.mockImplementation((endpoint) => {
       if (endpoint === 'orders') return Promise.resolve([])
       if (endpoint === 'menu') return Promise.resolve([

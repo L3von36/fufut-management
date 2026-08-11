@@ -70,18 +70,12 @@ describe('KitchenView', () => {
     vi.useFakeTimers()
     setActivePinia(createPinia())
 
-    const container = document.createElement('div')
-    container.id = 'toastContainer'
-    document.body.appendChild(container)
-
     mockApiGet.mockResolvedValue([])
     mockApiPut.mockResolvedValue({ ok: true })
   })
 
   afterEach(() => {
     vi.useRealTimers()
-    const c = document.getElementById('toastContainer')
-    if (c) c.remove()
   })
 
   it('should render the kitchen display with 3 columns', async () => {
