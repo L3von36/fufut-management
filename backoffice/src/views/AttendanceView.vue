@@ -50,7 +50,7 @@
               <td>{{ e.hoursWorked || 0 }}</td>
               <td>{{ e.lateMinutes ? e.lateMinutes + 'm' : '—' }}</td>
               <td>{{ e.earlyLeaveMinutes ? e.earlyLeaveMinutes + 'm' : '—' }}</td>
-              <td><span class="badge" :class="statusClass(e.status)">{{ e.status }}</span></td>
+              <td><span class="badge" :class="statusBadgeClass(e.status)">{{ statusLabel(e.status) }}</span></td>
               <td><button class="btn btn-sm btn-ghost" @click="openSchedule(e)">Schedule</button></td>
             </tr>
             <tr v-if="!entries.length">
@@ -92,6 +92,7 @@
 <script setup>
 import { ref, onMounted, inject } from 'vue'
 import { apiGet, apiPost, TODAY } from '../api'
+import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import BaseButton from '../components/BaseButton.vue'
 
 const toast = inject('toast')
@@ -107,12 +108,6 @@ const from = ref(TODAY())
 const scheduling = ref(null)
 const schedForm = ref({ start: '', end: '', notes: '' })
 
-function statusClass(s) {
-  if (s === 'absent') return 'badge-cancelled'
-  if (s === 'late' || s === 'early-departure') return 'badge-pending'
-  if (s === 'on-leave') return 'badge-pending'
-  return 'badge-success'
-}
 
 onMounted(() => {
   const d = new Date()

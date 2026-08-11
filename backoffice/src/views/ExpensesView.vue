@@ -18,20 +18,22 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount (ETB)</th><th>Paid By</th><th>Actions</th></tr></thead>
-          <tbody>
-            <tr v-for="e in filtered" :key="e.id">
-              <td>{{ e.date }}</td><td><span class="badge badge-pending">{{ e.category }}</span></td>
-              <td>{{ e.description }}</td><td style="font-weight:600;font-family:var(--font-mono)">{{ parseFloat(e.amount||0).toFixed(0) }}</td>
-              <td>{{ e.paidBy || '-' }}</td>
-              <td><button class="btn btn-sm btn-ghost" @click="editExpense(e)">Edit</button><base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteExpense(e.id)" /></td>
-            </tr>
-            <tr v-if="!expenses.length"><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">No expenses found</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <base-table
+        :columns="columns"
+        :rows="filtered"
+        caption="Expenses for the selected period"
+        empty-title="No expenses found"
+        empty-hint="Nothing recorded in this date range."
+      >
+        <template #cell-category="{ row }"><span class="badge badge-neutral">{{ row.category || 'Uncategorised' }}</span></template>
+        <template #cell-amount="{ row }">
+          <span style="font-weight:600;font-family:var(--font-mono)">{{ parseFloat(row.amount||0).toFixed(0) }}</span>
+        </template>
+        <template #cell-actions="{ row }">
+          <button class="btn btn-sm btn-ghost" @click="editExpense(row)">Edit</button>
+          <base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteExpense(row.id)" />
+        </template>
+      </base-table>
     </div>
 
     <div v-if="showForm" class="modal-overlay" @click.self="showForm=false">
@@ -68,6 +70,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
+import BaseTable from '../components/BaseTable.vue'
 import { useButtonState } from '../composables/useButtonState'
 import { toCsv, download } from '../lib/csv'
 
@@ -80,6 +83,16 @@ const dateTo = ref(TODAY())
 const showForm = ref(false)
 const editing = ref(null)
 const form = ref({ date: TODAY(), category: 'Other', description: '', amount: 0, paidBy: '' })
+
+const columns = [
+  { key: 'date', label: 'Date' },
+  { key: 'category', label: 'Category' },
+  { key: 'description', label: 'Description' },
+  { key: 'amount', label: 'Amount (ETB)' },
+  { key: 'paidBy', label: 'Paid By' },
+  { key: 'actions', label: 'Actions' },
+]
+
 
 /**
  * The date range now actually applies.

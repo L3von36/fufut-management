@@ -71,10 +71,19 @@ describe('AttendanceView', () => {
     return w
   }
 
+  /**
+   * The status text changed case when this view adopted the shared badge
+   * mapping: it rendered the raw `late` and now renders `Late`, like every
+   * other status chip in the app. A deliberate display change rather than a
+   * regression, so the assertion is updated rather than the code reverted —
+   * and asserted case-insensitively, because the classification is what
+   * matters here and its capitalisation is a presentation decision that may
+   * move again.
+   */
   it('shows each day with its classification', async () => {
     const w = await open()
     expect(w.text()).toContain('Selam Wondimu')
-    expect(w.text()).toContain('late')
+    expect(w.text()).toMatch(/late/i)
     expect(w.text()).toContain('25m')
   })
 

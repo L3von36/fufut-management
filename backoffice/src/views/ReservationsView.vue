@@ -19,21 +19,26 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Date</th><th>Time</th><th>Guest</th><th>Party</th><th>Table</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead>
-          <tbody>
-            <tr v-for="r in filtered" :key="r.id">
-              <td>{{ r.date }}</td><td>{{ r.time }}</td><td><strong>{{ r.name }}</strong></td>
-              <td>{{ r.guests }}</td><td>{{ r.tableId || '-' }}</td>
-              <td><span class="badge" :class="statusBadgeClass(r.status)">{{ statusLabel(r.status) }}</span></td>
-              <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.notes || '-' }}</td>
-              <td><button class="btn btn-sm btn-ghost" @click="editRes(r)">Edit</button><base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteRes(r.id)" /></td>
-            </tr>
-            <tr v-if="!filtered.length"><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">No reservations</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <base-table
+        :columns="columns"
+        :rows="filtered"
+        caption="Table reservations"
+        empty-title="No reservations"
+        empty-hint="Bookings appear here once taken."
+      >
+        <template #cell-name="{ row }"><strong>{{ row.name }}</strong></template>
+        <template #cell-status="{ row }">
+          <span class="badge" :class="statusBadgeClass(row.status)">{{ statusLabel(row.status) }}</span>
+        </template>
+        <!-- title, so a truncated note can still be read rather than lost -->
+        <template #cell-notes="{ row }">
+          <span class="truncate" :title="row.notes">{{ row.notes || '—' }}</span>
+        </template>
+        <template #cell-actions="{ row }">
+          <button class="btn btn-sm btn-ghost" @click="editRes(row)">Edit</button>
+          <base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteRes(row.id)" />
+        </template>
+      </base-table>
     </div>
 
     <div v-if="showForm" class="modal-overlay" @click.self="showForm=false">
@@ -71,6 +76,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
+import BaseTable from '../components/BaseTable.vue'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { useButtonState } from '../composables/useButtonState'
 
@@ -83,6 +89,18 @@ const statusFilter = ref('')
 const showForm = ref(false)
 const editing = ref(null)
 const form = ref({ name: '', guests: 2, date: TODAY(), time: '19:00', tableId: '', status: 'new', notes: '' })
+
+const columns = [
+  { key: 'date', label: 'Date' },
+  { key: 'time', label: 'Time' },
+  { key: 'name', label: 'Guest' },
+  { key: 'guests', label: 'Party' },
+  { key: 'tableId', label: 'Table' },
+  { key: 'status', label: 'Status' },
+  { key: 'notes', label: 'Notes' },
+  { key: 'actions', label: 'Actions' },
+]
+
 
 const filtered = computed(() => reservations.value.filter(r => {
   if (dateFilter.value && r.date !== dateFilter.value) return false

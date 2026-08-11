@@ -11,20 +11,20 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Date</th><th>Staff</th><th>Start</th><th>End</th><th>Role</th><th>Actions</th></tr></thead>
-          <tbody>
-            <tr v-for="s in shifts" :key="s.id">
-              <td>{{ s.date }}</td><td><strong>{{ s.staffName || s.staffId }}</strong></td>
-              <td>{{ s.start }}</td><td>{{ s.end || '-' }}</td>
-              <td><span class="badge badge-pending">{{ s.role || '-' }}</span></td>
-              <td><button class="btn btn-sm btn-ghost" @click="editShift(s)">Edit</button><base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => handleDelete(s.id)" /></td>
-            </tr>
-            <tr v-if="!shifts.length"><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">No shifts found</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <base-table
+        :columns="columns"
+        :rows="shifts"
+        caption="Rostered shifts"
+        empty-title="No shifts found"
+        empty-hint="Add a shift to build the roster."
+      >
+        <template #cell-staffName="{ row }"><strong>{{ row.staffName || row.staffId }}</strong></template>
+        <template #cell-role="{ row }"><span class="badge badge-neutral">{{ row.role || '—' }}</span></template>
+        <template #cell-actions="{ row }">
+          <button class="btn btn-sm btn-ghost" @click="editShift(row)">Edit</button>
+          <base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => handleDelete(row.id)" />
+        </template>
+      </base-table>
     </div>
 
     <div v-if="showForm" class="modal-overlay" @click.self="showForm=false">
@@ -57,6 +57,7 @@
 <script setup>
 import { ref, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
+import BaseTable from '../components/BaseTable.vue'
 import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
@@ -68,6 +69,16 @@ const dateTo = ref(TODAY())
 const showForm = ref(false)
 const editing = ref(null)
 const form = ref({ date: TODAY(), staffId: '', start: '09:00', end: '' })
+
+const columns = [
+  { key: 'date', label: 'Date' },
+  { key: 'staffName', label: 'Staff' },
+  { key: 'start', label: 'Start' },
+  { key: 'end', label: 'End' },
+  { key: 'role', label: 'Role' },
+  { key: 'actions', label: 'Actions' },
+]
+
 
 onMounted(() => { const d = new Date(); d.setDate(d.getDate()-7); dateFrom.value = d.toISOString().slice(0,10); loadShifts() })
 

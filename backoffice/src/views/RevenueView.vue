@@ -22,18 +22,20 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Date</th><th>Orders</th><th>Revenue (ETB)</th><th>Cash</th><th>Card/Mobile</th></tr></thead>
-          <tbody>
-            <tr v-for="day in dailyBreakdown" :key="day.date">
-              <td>{{ day.date }}</td><td>{{ day.count }}</td><td style="font-weight:600;font-family:var(--font-mono)">{{ day.revenue.toFixed(0) }}</td>
-              <td>{{ day.cash.toFixed(0) }}</td><td>{{ day.card.toFixed(0) }}</td>
-            </tr>
-            <tr v-if="!dailyBreakdown.length"><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted)">No data</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <base-table
+        :columns="columns"
+        :rows="dailyBreakdown"
+        row-id="date"
+        caption="Revenue by day"
+        empty-title="No data"
+        empty-hint="No orders in this date range."
+      >
+        <template #cell-revenue="{ row }">
+          <span style="font-weight:600;font-family:var(--font-mono)">{{ row.revenue.toFixed(0) }}</span>
+        </template>
+        <template #cell-cash="{ row }">{{ row.cash.toFixed(0) }}</template>
+        <template #cell-card="{ row }">{{ row.card.toFixed(0) }}</template>
+      </base-table>
     </div>
   </div>
 </template>
@@ -41,6 +43,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { apiGet, TODAY } from '../api'
+import BaseTable from '../components/BaseTable.vue'
 import { localDate } from '../lib/datetime'
 import BaseButton from '../components/BaseButton.vue'
 let _Chart = null
@@ -60,6 +63,15 @@ const expenses = ref([])
 const dateFrom = ref(TODAY())
 const dateTo = ref(TODAY())
 const dailyBreakdown = ref([])
+
+const columns = [
+  { key: 'date', label: 'Date' },
+  { key: 'count', label: 'Orders' },
+  { key: 'revenue', label: 'Revenue (ETB)' },
+  { key: 'cash', label: 'Cash' },
+  { key: 'card', label: 'Card/Mobile' },
+]
+
 let charts = {}
 
 onUnmounted(() => {

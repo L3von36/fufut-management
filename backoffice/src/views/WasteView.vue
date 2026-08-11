@@ -42,19 +42,23 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Date</th><th>Item</th><th>Category</th><th>Quantity</th><th>Unit</th><th>Reason</th><th>Actions</th></tr></thead>
-          <tbody>
-            <tr v-for="item in items" :key="item.id">
-              <td>{{ item.date }}</td><td>{{ item.itemName }}</td><td><span class="badge badge-pending">{{ item.category }}</span></td>
-              <td style="font-weight:600;font-family:var(--font-mono)">{{ item.quantity }}</td><td>{{ item.unit }}</td><td>{{ item.reason || '-' }}</td>
-              <td><button class="btn btn-sm btn-ghost" @click="editItem(item)">Edit</button><base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteItem(item.id)" /></td>
-            </tr>
-            <tr v-if="!items.length"><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted)">No waste logged</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <base-table
+        :columns="columns"
+        :rows="items"
+        caption="Waste recorded in the selected period"
+        empty-title="No waste logged"
+        empty-hint="Nothing recorded in this date range."
+      >
+        <template #cell-itemName="{ row }">{{ row.itemName || row.name || '—' }}</template>
+        <template #cell-category="{ row }"><span class="badge badge-neutral">{{ row.category || 'Uncategorised' }}</span></template>
+        <template #cell-quantity="{ row }">
+          <span style="font-weight:600;font-family:var(--font-mono)">{{ row.qty ?? row.quantity }}</span>
+        </template>
+        <template #cell-actions="{ row }">
+          <button class="btn btn-sm btn-ghost" @click="editItem(row)">Edit</button>
+          <base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteItem(row.id)" />
+        </template>
+      </base-table>
     </div>
 
     <div v-if="showForm" class="modal-overlay" @click.self="showForm=false">
@@ -89,6 +93,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
+import BaseTable from '../components/BaseTable.vue'
 import { useButtonState } from '../composables/useButtonState'
 let _Chart = null
 async function _loadChart() {
@@ -110,6 +115,17 @@ const dateTo = ref(TODAY())
 const showForm = ref(false)
 const editing = ref(null)
 const form = ref({ date: TODAY(), category: 'Produce', itemName: '', quantity: 0, unit: 'kg', reason: '' })
+
+const columns = [
+  { key: 'date', label: 'Date' },
+  { key: 'itemName', label: 'Item' },
+  { key: 'category', label: 'Category' },
+  { key: 'quantity', label: 'Quantity' },
+  { key: 'unit', label: 'Unit' },
+  { key: 'reason', label: 'Reason' },
+  { key: 'actions', label: 'Actions' },
+]
+
 let chart = null
 
 /**

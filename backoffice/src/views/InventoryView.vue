@@ -15,21 +15,31 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Name</th><th>Category</th><th>Quantity</th><th>Unit</th><th>Min Level</th><th>Cost/Unit</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody>
-            <tr v-for="item in filtered" :key="item.id">
-              <td>{{ item.name }}</td><td>{{ item.category }}</td>
-              <td style="font-weight:600;font-family:var(--font-mono)">{{ item.quantity }}</td><td>{{ item.unit }}</td><td>{{ item.minLevel }}</td>
-              <td style="font-family:var(--font-mono)">{{ parseFloat(item.costPerUnit||0).toFixed(0) }}</td>
-              <td><span class="badge" :class="parseInt(item.quantity||0) <= 0 ? 'badge-cancelled' : parseInt(item.quantity||0) <= parseInt(item.minLevel||0) ? 'badge-low' : 'badge-success'">{{ parseInt(item.quantity||0) <= 0 ? 'Out' : parseInt(item.quantity||0) <= parseInt(item.minLevel||0) ? 'Low' : 'OK' }}</span></td>
-              <td><button class="btn btn-sm btn-ghost" @click="editItem(item)">Edit</button><base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteItem(item.id)" /></td>
-            </tr>
-            <tr v-if="!filtered.length"><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">No items found</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <base-table
+        :columns="columns"
+        :rows="filtered"
+        sticky-first
+        caption="Stock items and their levels"
+        empty-title="No items found"
+        empty-hint="Raw materials appear here once they are added."
+      >
+        <template #cell-quantity="{ row }">
+          <span style="font-weight:600;font-family:var(--font-mono)">{{ qty(row) }}</span>
+        </template>
+        <template #cell-minLevel="{ row }">{{ row.minLevel ?? row.min_level ?? '—' }}</template>
+        <template #cell-costPerUnit="{ row }">
+          <!-- toFixed(0) hid the decimals: ETB 12.50 displayed as 13, and a
+               cost that is wrong by half a birr is wrong on every portion. -->
+          <span style="font-family:var(--font-mono)">{{ unitCost(row) }}</span>
+        </template>
+        <template #cell-status="{ row }">
+          <span class="badge" :class="stockClass(row)">{{ stockLabel(row) }}</span>
+        </template>
+        <template #cell-actions="{ row }">
+          <button class="btn btn-sm btn-ghost" @click="editItem(row)">Edit</button>
+          <base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteItem(row.id)" />
+        </template>
+      </base-table>
     </div>
 
     <div v-if="showForm" class="modal-overlay" @click.self="showForm=false">
@@ -66,6 +76,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import BaseTable from '../components/BaseTable.vue'
 import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
@@ -76,6 +87,36 @@ const search = ref('')
 const showForm = ref(false)
 const editing = ref(null)
 const form = ref({ name: '', category: 'Produce', quantity: 0, unit: 'kg', minLevel: 0, costPerUnit: 0 })
+
+const columns = [
+  { key: 'name', label: 'Name' },
+  { key: 'category', label: 'Category' },
+  { key: 'quantity', label: 'Quantity' },
+  { key: 'unit', label: 'Unit' },
+  { key: 'minLevel', label: 'Min Level' },
+  { key: 'costPerUnit', label: 'Cost/Unit' },
+  { key: 'status', label: 'Status' },
+  { key: 'actions', label: 'Actions' },
+]
+
+// The API returns snake_case and `stock`; the view read only camelCase and
+// `quantity`, so these cells were blank against real data.
+function qty(r) { return Number(r.quantity ?? r.stock ?? 0) }
+function minOf(r) { return Number(r.minLevel ?? r.min_level ?? 0) }
+function unitCost(r) {
+  const c = Number(r.costPerUnit ?? r.avg_cost ?? r.cost ?? 0)
+  // Two places: a half-birr error compounds over every portion sold.
+  return c ? c.toFixed(2) : '0.00'
+}
+function stockClass(r) {
+  if (qty(r) <= 0) return 'badge-cancelled'
+  return qty(r) <= minOf(r) ? 'badge-low' : 'badge-success'
+}
+function stockLabel(r) {
+  if (qty(r) <= 0) return 'Out'
+  return qty(r) <= minOf(r) ? 'Low' : 'OK'
+}
+
 
 const filtered = computed(() => items.value.filter(i => !search.value || i.name?.toLowerCase().includes(search.value.toLowerCase())))
 const lowItems = computed(() => items.value.filter(i => parseInt(i.quantity||0) > 0 && parseInt(i.quantity||0) <= parseInt(i.minLevel||0)))

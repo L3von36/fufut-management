@@ -20,20 +20,24 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Date</th><th>Staff ID</th><th>Clock In</th><th>Clock Out</th><th>Duration</th><th>Status</th></tr></thead>
-          <tbody>
-            <tr v-for="e in filtered" :key="e.id">
-              <td>{{ e.date }}</td><td><strong>{{ e.staffId }}</strong></td>
-              <td>{{ e.clockIn }}</td><td>{{ e.clockOut || '-' }}</td>
-              <td>{{ e.duration || '-' }}</td>
-              <td><span class="badge" :class="!e.clockOut ? 'badge-pending' : 'badge-success'">{{ !e.clockOut ? 'Active' : 'Completed' }}</span></td>
-            </tr>
-            <tr v-if="!filtered.length"><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">No time entries</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <base-table
+        :columns="columns"
+        :rows="filtered"
+        caption="Time clock entries for the selected day"
+        empty-title="No time entries"
+        empty-hint="Nobody clocked in on this date."
+      >
+        <!-- The API returns snake_case; the original read only camelCase, so
+             these cells were blank against real data. -->
+        <template #cell-staffId="{ row }"><strong>{{ row.staffId || row.staff_id }}</strong></template>
+        <template #cell-clockIn="{ row }">{{ row.clockIn || row.clock_in || '—' }}</template>
+        <template #cell-clockOut="{ row }">{{ row.clockOut || row.clock_out || '—' }}</template>
+        <template #cell-status="{ row }">
+          <span class="badge" :class="isOpen(row) ? 'badge-pending' : 'badge-success'">
+            {{ isOpen(row) ? 'Active' : 'Completed' }}
+          </span>
+        </template>
+      </base-table>
     </div>
   </div>
 </template>
@@ -41,9 +45,23 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, TODAY } from '../api'
+import BaseTable from '../components/BaseTable.vue'
 
 const entries = ref([])
 const dateFilter = ref(TODAY())
+
+const columns = [
+  { key: 'date', label: 'Date' },
+  { key: 'staffId', label: 'Staff' },
+  { key: 'clockIn', label: 'Clock In' },
+  { key: 'clockOut', label: 'Clock Out' },
+  { key: 'duration', label: 'Duration' },
+  { key: 'status', label: 'Status' },
+]
+
+/** Still on the clock. The API uses snake_case; the view read only camelCase. */
+function isOpen(e) { return !(e.clockOut || e.clock_out) }
+
 
 /**
  * The KPIs describe the day being looked at, not always today.
