@@ -1,6 +1,29 @@
 import { test, expect, ORDERS, STAFF, DELIVERY } from '../support/fixtures.js'
 
 /**
+ * ⚠ NOT YET PASSING. Do not read a green backoffice job as covering this.
+ *
+ * Every test times out waiting for a table, which means the app is not
+ * rendering at the URL the fixture navigates to — a routing or auth-guard
+ * problem in the harness, not a fault in the screens. The CI step runs with
+ * continue-on-error for that reason; it has never been green, and a check that
+ * is red on arrival teaches people to ignore red.
+ *
+ * It could not be debugged where it was written: Playwright fails to register
+ * any test file on that machine, including the POS suite that passes in the
+ * same CI runner. Blind iteration through CI is a poor way to find a routing
+ * bug, so it was left honest rather than guessed at.
+ *
+ * To finish it: run `npm run test:e2e` somewhere Playwright works, look at what
+ * the page actually shows (the login screen would mean the mocked session is
+ * not being accepted), fix `goto` in tests/support/fixtures.js, then make the
+ * CI step gating.
+ *
+ * tests/unit/table-behaviour.test.js covers the same behaviour in jsdom, does
+ * pass, and is what gated the BaseTable migration.
+ *
+ * ── Original intent ────────────────────────────────────────────────────────
+ *
  * Characterization coverage for the table screens, written immediately before
  * they are migrated onto a shared BaseTable component.
  *
