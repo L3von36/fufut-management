@@ -28,39 +28,34 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-scroll table-sticky-first">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th><th>Staff</th><th>In</th><th>Out</th>
-              <th>Scheduled</th><th>Hours</th><th>Late</th><th>Early</th><th>Status</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="e in entries" :key="e.id">
-              <td style="white-space:nowrap">{{ e.date }}</td>
-              <td><strong>{{ e.staffName || e.staff_id }}</strong>
-                <div v-if="e.role" style="font-size:.7rem;color:var(--text-muted)">{{ e.role }}</div>
-              </td>
-              <td>{{ e.clock_in || '—' }}</td>
-              <td>{{ e.clock_out || '—' }}</td>
-              <td style="font-size:.75rem;color:var(--text-muted)">
-                {{ e.scheduled_start ? e.scheduled_start + '–' + (e.scheduled_end || '?') : 'not set' }}
-              </td>
-              <td>{{ e.hoursWorked || 0 }}</td>
-              <td>{{ e.lateMinutes ? e.lateMinutes + 'm' : '—' }}</td>
-              <td>{{ e.earlyLeaveMinutes ? e.earlyLeaveMinutes + 'm' : '—' }}</td>
-              <td><span class="badge" :class="statusBadgeClass(e.status)">{{ statusLabel(e.status) }}</span></td>
-              <td><button class="btn btn-sm btn-ghost" @click="openSchedule(e)">Schedule</button></td>
-            </tr>
-            <tr v-if="!entries.length">
-              <td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted)">
-                {{ loaded ? 'No time clock entries in this period' : 'Loading…' }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <base-table
+        :columns="columns"
+        :rows="entries"
+        sticky-first
+        caption="Attendance for the selected period"
+        :empty-title="loaded ? 'No time clock entries in this period' : 'Loading…'"
+      >
+        <template #cell-staffName="{ row: e }">
+          <strong>{{ e.staffName || e.staff_id }}</strong>
+          <div v-if="e.role" style="font-size:.7rem;color:var(--text-muted)">{{ e.role }}</div>
+        </template>
+        <template #cell-clock_in="{ row: e }">{{ e.clock_in || '—' }}</template>
+        <template #cell-clock_out="{ row: e }">{{ e.clock_out || '—' }}</template>
+        <template #cell-scheduled="{ row: e }">
+          <span style="font-size:.75rem;color:var(--text-muted)">
+            {{ e.scheduled_start ? e.scheduled_start + '–' + (e.scheduled_end || '?') : 'not set' }}
+          </span>
+        </template>
+        <template #cell-hoursWorked="{ row: e }">{{ e.hoursWorked || 0 }}</template>
+        <template #cell-lateMinutes="{ row: e }">{{ e.lateMinutes ? e.lateMinutes + 'm' : '—' }}</template>
+        <template #cell-earlyLeaveMinutes="{ row: e }">{{ e.earlyLeaveMinutes ? e.earlyLeaveMinutes + 'm' : '—' }}</template>
+        <template #cell-status="{ row: e }">
+          <span class="badge" :class="statusBadgeClass(e.status)">{{ statusLabel(e.status) }}</span>
+        </template>
+        <template #cell-actions="{ row: e }">
+          <button class="btn btn-sm btn-ghost" @click="openSchedule(e)">Schedule</button>
+        </template>
+      </base-table>
       <div class="pagination"><span>{{ entries.length }} day(s)</span></div>
     </div>
 
@@ -94,6 +89,7 @@ import { ref, onMounted, inject } from 'vue'
 import { apiGet, apiPost, TODAY } from '../api'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import BaseButton from '../components/BaseButton.vue'
+import BaseTable from '../components/BaseTable.vue'
 
 const toast = inject('toast')
 
@@ -107,6 +103,19 @@ const to = ref(TODAY())
 const from = ref(TODAY())
 const scheduling = ref(null)
 const schedForm = ref({ start: '', end: '', notes: '' })
+
+const columns = [
+  { key: 'date', label: 'Date', class: 'nowrap' },
+  { key: 'staffName', label: 'Staff' },
+  { key: 'clock_in', label: 'In' },
+  { key: 'clock_out', label: 'Out' },
+  { key: 'scheduled', label: 'Scheduled' },
+  { key: 'hoursWorked', label: 'Hours' },
+  { key: 'lateMinutes', label: 'Late' },
+  { key: 'earlyLeaveMinutes', label: 'Early' },
+  { key: 'status', label: 'Status' },
+  { key: 'actions', label: '' },
+]
 
 
 onMounted(() => {

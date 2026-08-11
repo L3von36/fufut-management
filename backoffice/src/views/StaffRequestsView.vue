@@ -29,89 +29,48 @@
       You cannot approve your own request — somebody else has to. Rejecting requires a reason.
     </p>
 
-    <!-- ─── Leave ─── -->
-    <div v-if="tab === 'leave'" class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Staff</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Paid</th><th>Reason</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-            <tr v-for="r in rows" :key="r.id">
-              <td><strong>{{ r.staff_name || r.staff_id }}</strong></td>
-              <td>{{ r.type }}</td>
-              <td>{{ r.start_date }}</td>
-              <td>{{ r.end_date }}</td>
-              <td>{{ r.days }}</td>
-              <td>{{ r.paid ? 'Paid' : 'Unpaid' }}</td>
-              <td style="max-width:200px;font-size:.78rem">{{ r.reason || '—' }}</td>
-              <td><span class="badge" :class="statusClass(r.status)">{{ r.status }}</span></td>
-              <td><div style="display:flex;gap:4px" v-if="r.status === 'pending'">
-                <button class="btn btn-sm btn-primary" @click="decide('leave', r, true)">Approve</button>
-                <button class="btn btn-sm btn-ghost" @click="openReject('leave', r)">Reject</button>
-              </div></td>
-            </tr>
-            <tr v-if="!rows.length"><td colspan="9" class="empty">{{ emptyText }}</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ─── Overtime ─── -->
-    <div v-if="tab === 'overtime'" class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Staff</th><th>Date</th><th>Hours</th><th>Kind</th><th>Rate</th><th>Amount</th><th>Reason</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-            <tr v-for="r in rows" :key="r.id">
-              <td><strong>{{ r.staff_name || r.staff_id }}</strong></td>
-              <td>{{ r.date }}</td>
-              <td>{{ r.hours }}</td>
-              <td>{{ (r.kind || 'normal').replace('_', ' ') }}</td>
-              <td style="font-size:.78rem;color:var(--text-muted)">
-                {{ r.hourly_rate ? 'ETB ' + Math.round(r.hourly_rate) + ' × ' + r.multiplier : '—' }}
-              </td>
-              <td><strong>ETB {{ Math.round(r.amount || 0) }}</strong></td>
-              <td style="max-width:180px;font-size:.78rem">{{ r.reason || '—' }}</td>
-              <td><span class="badge" :class="statusClass(r.status)">{{ r.status }}</span></td>
-              <td><div style="display:flex;gap:4px" v-if="r.status === 'pending'">
-                <button class="btn btn-sm btn-primary" @click="decide('overtime', r, true)">Approve</button>
-                <button class="btn btn-sm btn-ghost" @click="openReject('overtime', r)">Reject</button>
-              </div></td>
-            </tr>
-            <tr v-if="!rows.length"><td colspan="9" class="empty">{{ emptyText }}</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ─── Adjustments ─── -->
-    <div v-if="tab === 'adjustments'" class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Staff</th><th>Date</th><th>Type</th><th>Amount</th><th>Taxable</th><th>Reason</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-            <tr v-for="r in rows" :key="r.id">
-              <td><strong>{{ r.staff_name || r.staff_id }}</strong></td>
-              <td>{{ r.date }}</td>
-              <td>{{ r.type }}</td>
-              <td>
-                <!-- Sign carries the meaning: a deduction is stored negative. -->
-                <strong :style="{ color: r.amount < 0 ? 'var(--danger)' : 'var(--success)' }">
-                  {{ r.amount < 0 ? '−' : '+' }}ETB {{ Math.abs(Math.round(r.amount || 0)) }}
-                </strong>
-              </td>
-              <td>{{ r.taxable ? 'Yes' : 'No' }}</td>
-              <td style="max-width:200px;font-size:.78rem">{{ r.reason || '—' }}</td>
-              <td><span class="badge" :class="statusClass(r.status)">{{ r.status }}</span></td>
-              <td><div style="display:flex;gap:4px" v-if="r.status === 'pending'">
-                <button class="btn btn-sm btn-primary" @click="decide('adjustments', r, true)">Approve</button>
-                <button class="btn btn-sm btn-ghost" @click="openReject('adjustments', r)">Reject</button>
-              </div></td>
-            </tr>
-            <tr v-if="!rows.length"><td colspan="8" class="empty">{{ emptyText }}</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <!--
+      One table, three shapes. All three tabs are row-per-record with the same
+      staff / reason / status / decide columns; only the middle differs. Three
+      near-identical copies is how the reject button ended up wired to a
+      different resource per copy, so the columns vary by tab and the markup
+      does not.
+    -->
+    <base-table
+      :columns="columns"
+      :rows="rows"
+      :caption="`${TABS.find(t => t.key === tab).label} requests`"
+      :empty-title="emptyText"
+    >
+      <template #cell-staff_name="{ row }"><strong>{{ row.staff_name || row.staff_id }}</strong></template>
+      <template #cell-kind="{ row }">{{ (row.kind || 'normal').replace('_', ' ') }}</template>
+      <template #cell-paid="{ row }">{{ row.paid ? 'Paid' : 'Unpaid' }}</template>
+      <template #cell-taxable="{ row }">{{ row.taxable ? 'Yes' : 'No' }}</template>
+      <template #cell-rate="{ row }">
+        <span style="font-size:.78rem;color:var(--text-muted)">
+          {{ row.hourly_rate ? 'ETB ' + Math.round(row.hourly_rate) + ' × ' + row.multiplier : '—' }}
+        </span>
+      </template>
+      <template #cell-otAmount="{ row }"><strong>ETB {{ Math.round(row.amount || 0) }}</strong></template>
+      <!-- Sign carries the meaning: a deduction is stored negative. -->
+      <template #cell-amount="{ row }">
+        <strong :style="{ color: row.amount < 0 ? 'var(--danger)' : 'var(--success)' }">
+          {{ row.amount < 0 ? '−' : '+' }}ETB {{ Math.abs(Math.round(row.amount || 0)) }}
+        </strong>
+      </template>
+      <template #cell-reason="{ row }">
+        <span class="truncate" :title="row.reason" style="font-size:.78rem">{{ row.reason || '—' }}</span>
+      </template>
+      <template #cell-status="{ row }">
+        <span class="badge" :class="statusBadgeClass(row.status)">{{ statusLabel(row.status) }}</span>
+      </template>
+      <template #cell-actions="{ row }">
+        <div style="display:flex;gap:4px" v-if="row.status === 'pending'">
+          <button class="btn btn-sm btn-primary" @click="decide(tab, row, true)">Approve</button>
+          <button class="btn btn-sm btn-ghost" @click="openReject(tab, row)">Reject</button>
+        </div>
+      </template>
+    </base-table>
 
     <!-- ─── New request ─── -->
     <div v-if="showForm" class="modal-overlay" @click.self="showForm=false">
@@ -219,6 +178,8 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, TODAY } from '../api'
+import BaseTable from '../components/BaseTable.vue'
+import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import BaseButton from '../components/BaseButton.vue'
 
 const toast = inject('toast')
@@ -241,6 +202,47 @@ const rejectReason = ref('')
 const pending = ref({ leave: 0, overtime: 0, adjustments: 0 })
 const form = ref(blank())
 
+/**
+ * Columns per tab. The three record types share staff, reason, status and the
+ * decide buttons; only the middle columns differ, so the shape is data rather
+ * than three copies of the same markup.
+ */
+const COLUMNS = {
+  leave: [
+    { key: 'staff_name', label: 'Staff' },
+    { key: 'type', label: 'Type' },
+    { key: 'start_date', label: 'From' },
+    { key: 'end_date', label: 'To' },
+    { key: 'days', label: 'Days' },
+    { key: 'paid', label: 'Paid' },
+    { key: 'reason', label: 'Reason' },
+    { key: 'status', label: 'Status' },
+    { key: 'actions', label: '' },
+  ],
+  overtime: [
+    { key: 'staff_name', label: 'Staff' },
+    { key: 'date', label: 'Date' },
+    { key: 'hours', label: 'Hours' },
+    { key: 'kind', label: 'Kind' },
+    { key: 'rate', label: 'Rate' },
+    { key: 'otAmount', label: 'Amount' },
+    { key: 'reason', label: 'Reason' },
+    { key: 'status', label: 'Status' },
+    { key: 'actions', label: '' },
+  ],
+  adjustments: [
+    { key: 'staff_name', label: 'Staff' },
+    { key: 'date', label: 'Date' },
+    { key: 'type', label: 'Type' },
+    { key: 'amount', label: 'Amount' },
+    { key: 'taxable', label: 'Taxable' },
+    { key: 'reason', label: 'Reason' },
+    { key: 'status', label: 'Status' },
+    { key: 'actions', label: '' },
+  ],
+}
+const columns = computed(() => COLUMNS[tab.value] || COLUMNS.leave)
+
 function blank() {
   return {
     staffId: '', type: 'annual', paid: true,
@@ -256,11 +258,6 @@ const emptyText = computed(() =>
     : 'Loading…'
 )
 
-function statusClass(s) {
-  if (s === 'approved') return 'badge-success'
-  if (s === 'rejected' || s === 'cancelled') return 'badge-cancelled'
-  return 'badge-pending'
-}
 
 function pendingCount(key) {
   return pending.value[key] || 0

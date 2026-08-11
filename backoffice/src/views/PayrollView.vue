@@ -33,23 +33,25 @@
         Audit Log.
       </p>
 
-      <table class="mini-table">
-        <thead><tr><th>Setting</th><th>Value</th><th></th></tr></thead>
-        <tbody>
-          <tr v-for="s in editableSettings" :key="s.key">
-            <td>
-              <strong>{{ s.label || s.key }}</strong>
-              <div style="font-size:.7rem;color:var(--text-muted)">{{ s.description || s.key }}</div>
-            </td>
-            <td>
-              <input v-model="draft[s.key]" class="input input-sm" :style="isJson(s.value) ? 'width:100%;font-family:var(--font-mono);font-size:.7rem' : 'width:120px'" />
-            </td>
-            <td>
-              <button class="btn btn-sm btn-primary" :disabled="draft[s.key] === s.value" @click="saveSetting(s)">Save</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <base-table
+        :columns="settingColumns"
+        :rows="editableSettings"
+        row-id="key"
+        caption="Payroll rates and tax bands"
+        empty-title="No configurable rates found"
+      >
+        <template #cell-label="{ row: s }">
+          <strong>{{ s.label || s.key }}</strong>
+          <div style="font-size:.7rem;color:var(--text-muted)">{{ s.description || s.key }}</div>
+        </template>
+        <template #cell-value="{ row: s }">
+          <input v-model="draft[s.key]" class="input input-sm"
+            :style="isJson(s.value) ? 'width:100%;font-family:var(--font-mono);font-size:.7rem' : 'width:120px'" />
+        </template>
+        <template #cell-actions="{ row: s }">
+          <button class="btn btn-sm btn-primary" :disabled="draft[s.key] === s.value" @click="saveSetting(s)">Save</button>
+        </template>
+      </base-table>
 
       <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <button v-if="unverified" class="btn btn-primary" @click="confirmRates">
@@ -80,40 +82,39 @@
       </div>
 
       <div class="table-wrap">
-        <div class="table-scroll table-sticky-first">
-          <table>
-            <thead>
-              <tr>
-                <th>Staff</th><th>Base</th><th>Overtime</th><th>Bonuses</th><th>Deductions</th>
-                <th>Gross</th><th>Tax</th><th>Pension</th><th>Net</th><th>Tips</th><th>Days</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="l in result.lines" :key="l.staffId">
-                <td><strong>{{ l.staffName }}</strong></td>
-                <td>{{ money(l.baseSalary) }}</td>
-                <td>{{ l.overtimePay ? money(l.overtimePay) : '—' }}</td>
-                <td>{{ l.bonuses ? money(l.bonuses) : '—' }}</td>
-                <td>{{ l.deductions ? '−' + money(l.deductions) : '—' }}</td>
-                <td>{{ money(l.grossPay) }}</td>
-                <td>{{ money(l.incomeTax) }}</td>
-                <td>{{ money(l.pensionEmployee) }}</td>
-                <td><strong>{{ money(l.netPay) }}</strong></td>
-                <!--
-                  Shown, never added. A tip is the guest's money given to a
-                  person: it is not payroll, is not taxed here, and is in none
-                  of the totals to the left.
-                -->
-                <td :title="'Tips earned — not part of pay and not taxed here'">
-                  <span v-if="l.tipsEarned" class="badge badge-pending">{{ money(l.tipsEarned) }}</span>
-                  <span v-else style="color:var(--text-muted)">—</span>
-                </td>
-                <td style="font-size:.75rem">{{ l.daysWorked }}<span v-if="l.daysAbsent" style="color:var(--danger)"> / {{ l.daysAbsent }} abs</span></td>
-                <td><button class="btn btn-sm btn-ghost" @click="printPayslip(l)" title="Print payslip">🖨</button></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <base-table
+          :columns="payslipColumns"
+          :rows="result.lines"
+          row-id="staffId"
+          sticky-first
+          caption="Payslips for the period"
+          empty-title="No payslips in this run"
+        >
+          <template #cell-staffName="{ row: l }"><strong>{{ l.staffName }}</strong></template>
+          <template #cell-baseSalary="{ row: l }">{{ money(l.baseSalary) }}</template>
+          <template #cell-overtimePay="{ row: l }">{{ l.overtimePay ? money(l.overtimePay) : '—' }}</template>
+          <template #cell-bonuses="{ row: l }">{{ l.bonuses ? money(l.bonuses) : '—' }}</template>
+          <template #cell-deductions="{ row: l }">{{ l.deductions ? '−' + money(l.deductions) : '—' }}</template>
+          <template #cell-grossPay="{ row: l }">{{ money(l.grossPay) }}</template>
+          <template #cell-incomeTax="{ row: l }">{{ money(l.incomeTax) }}</template>
+          <template #cell-pensionEmployee="{ row: l }">{{ money(l.pensionEmployee) }}</template>
+          <template #cell-netPay="{ row: l }"><strong>{{ money(l.netPay) }}</strong></template>
+          <!--
+            Shown, never added. A tip is the guest's money given to a person: it
+            is not payroll, is not taxed here, and is in none of the totals to
+            the left.
+          -->
+          <template #cell-tipsEarned="{ row: l }">
+            <span v-if="l.tipsEarned" class="badge badge-neutral" title="Tips earned — not part of pay and not taxed here">{{ money(l.tipsEarned) }}</span>
+            <span v-else style="color:var(--text-muted)">—</span>
+          </template>
+          <template #cell-daysWorked="{ row: l }">
+            <span style="font-size:.75rem">{{ l.daysWorked }}<span v-if="l.daysAbsent" style="color:var(--danger)"> / {{ l.daysAbsent }} abs</span></span>
+          </template>
+          <template #cell-actions="{ row: l }">
+            <button class="btn btn-sm btn-ghost" @click="printPayslip(l)" title="Print payslip">🖨</button>
+          </template>
+        </base-table>
         <div class="pagination">
           <span>{{ result.lines.length }} payslip(s) · {{ result.period.start }} to {{ result.period.end }}</span>
         </div>
@@ -128,27 +129,28 @@
     <!-- ─── Past runs ─── -->
     <div class="table-wrap" style="margin-top:20px">
       <div class="table-toolbar"><h3 style="font-size:.9rem">Previous runs</h3></div>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Period</th><th>Status</th><th>Gross</th><th>Tax</th><th>Net</th><th>Confirmed?</th><th></th></tr></thead>
-          <tbody>
-            <tr v-for="r in runs" :key="r.id">
-              <td>{{ r.period_start }} → {{ r.period_end }}</td>
-              <td><span class="badge" :class="r.status === 'paid' ? 'badge-success' : 'badge-pending'">{{ r.status }}</span></td>
-              <td>{{ money(r.gross_total) }}</td>
-              <td>{{ money(r.tax_total) }}</td>
-              <td><strong>{{ money(r.net_total) }}</strong></td>
-              <td>
-                <span class="badge" :class="r.provisional ? 'badge-cancelled' : 'badge-success'">
-                  {{ r.provisional ? 'Provisional' : 'Confirmed rates' }}
-                </span>
-              </td>
-              <td><button class="btn btn-sm btn-ghost" @click="openRun(r)">View</button></td>
-            </tr>
-            <tr v-if="!runs.length"><td colspan="7" class="empty">No payroll has been run yet</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <base-table
+        :columns="runColumns"
+        :rows="runs"
+        caption="Previous payroll runs"
+        empty-title="No payroll has been run yet"
+      >
+        <template #cell-period="{ row: r }">{{ r.period_start }} → {{ r.period_end }}</template>
+        <template #cell-status="{ row: r }">
+          <span class="badge" :class="statusBadgeClass(r.status)">{{ statusLabel(r.status) }}</span>
+        </template>
+        <template #cell-gross_total="{ row: r }">{{ money(r.gross_total) }}</template>
+        <template #cell-tax_total="{ row: r }">{{ money(r.tax_total) }}</template>
+        <template #cell-net_total="{ row: r }"><strong>{{ money(r.net_total) }}</strong></template>
+        <template #cell-provisional="{ row: r }">
+          <span class="badge" :class="r.provisional ? 'badge-pending' : 'badge-success'">
+            {{ r.provisional ? 'Provisional' : 'Confirmed rates' }}
+          </span>
+        </template>
+        <template #cell-actions="{ row: r }">
+          <button class="btn btn-sm btn-ghost" @click="openRun(r)">View</button>
+        </template>
+      </base-table>
     </div>
   </div>
 </template>
@@ -157,6 +159,8 @@
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut } from '../api'
 import BaseButton from '../components/BaseButton.vue'
+import BaseTable from '../components/BaseTable.vue'
+import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { printReport } from '../lib/print'
 
 const toast = inject('toast')
@@ -166,6 +170,37 @@ const draft = ref({})
 const showRates = ref(false)
 const result = ref(null)
 const runs = ref([])
+
+const settingColumns = [
+  { key: 'label', label: 'Setting' },
+  { key: 'value', label: 'Value' },
+  { key: 'actions', label: '' },
+]
+
+const payslipColumns = [
+  { key: 'staffName', label: 'Staff' },
+  { key: 'baseSalary', label: 'Base' },
+  { key: 'overtimePay', label: 'Overtime' },
+  { key: 'bonuses', label: 'Bonuses' },
+  { key: 'deductions', label: 'Deductions' },
+  { key: 'grossPay', label: 'Gross' },
+  { key: 'incomeTax', label: 'Tax' },
+  { key: 'pensionEmployee', label: 'Pension' },
+  { key: 'netPay', label: 'Net' },
+  { key: 'tipsEarned', label: 'Tips' },
+  { key: 'daysWorked', label: 'Days' },
+  { key: 'actions', label: '' },
+]
+
+const runColumns = [
+  { key: 'period', label: 'Period' },
+  { key: 'status', label: 'Status' },
+  { key: 'gross_total', label: 'Gross' },
+  { key: 'tax_total', label: 'Tax' },
+  { key: 'net_total', label: 'Net' },
+  { key: 'provisional', label: 'Confirmed?' },
+  { key: 'actions', label: '' },
+]
 
 /** Default to the calendar month just gone, which is what payroll usually covers. */
 const now = new Date()

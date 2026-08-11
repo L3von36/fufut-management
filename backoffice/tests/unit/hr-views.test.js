@@ -167,10 +167,17 @@ describe('StaffRequestsView', () => {
     return w
   }
 
+  /**
+   * The status chip changed case when this view adopted the shared badge
+   * mapping — raw `pending` became `Pending`, like every other status in the
+   * app. A display change, not a regression, so the visible assertion is
+   * case-insensitive while the query-string one stays exact: the value sent to
+   * the API is a protocol detail and must not drift.
+   */
   it('opens on leave awaiting a decision', async () => {
     const w = await open()
     expect(w.text()).toContain('Selam Wondimu')
-    expect(w.text()).toContain('pending')
+    expect(w.text()).toMatch(/pending/i)
     expect(mockApiGet).toHaveBeenCalledWith(expect.stringContaining('status=pending'))
   })
 
@@ -320,12 +327,25 @@ describe('PayrollView', () => {
     expect(w.text()).toMatch(/does not change any figure/i)
   })
 
+
+/**
+ * The rates table is now the shared BaseTable, so `.mini-table` no longer
+ * exists. Selecting on its caption instead — which is what the table is
+ * *called*, not how it happens to be built, so this survives the next refactor
+ * too. The assertions below are unchanged; only the handle moved.
+ */
+function tableByCaption(w, re) {
+  const t = w.findAll('table').find((el) => re.test(el.find('caption').exists() ? el.find('caption').text() : ''))
+  if (!t) throw new Error(`no table captioned ${re}`)
+  return t
+}
+
   it('keeps the confirmation flag out of the editable rates table', async () => {
     // It is a control, toggled by its own button — not a rate to be typed over.
     const w = await open()
     await w.findAll('button').find((b) => /rates/i.test(b.text())).trigger('click')
     await flushPromises()
-    expect(w.find('.mini-table').text()).not.toContain('_unverified')
+    expect(tableByCaption(w, /rates/i).text()).not.toContain('_unverified')
   })
 
   /**
@@ -337,9 +357,10 @@ describe('PayrollView', () => {
     await w.findAll('button').find((b) => /rates/i.test(b.text())).trigger('click')
     await flushPromises()
 
-    const bandInput = w.find('.mini-table').findAll('input').at(-1)
+    const rates = tableByCaption(w, /rates/i)
+    const bandInput = rates.findAll('input').at(-1)
     await bandInput.setValue('[{broken')
-    await w.find('.mini-table').findAll('button').at(-1).trigger('click')
+    await rates.findAll('button').at(-1).trigger('click')
     await flushPromises()
 
     expect(mockApiPut).not.toHaveBeenCalled()

@@ -23,24 +23,32 @@
     </p>
 
     <div class="table-wrap">
-      <div class="table-scroll table-sticky-first">
-        <table>
-          <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>What changed</th></tr></thead>
-          <tbody>
-            <tr v-for="entry in entries" :key="entry.id">
-              <td style="font-family:var(--font-mono);font-size:.75rem;white-space:nowrap">{{ when(entry.at) }}</td>
-              <td>
-                <strong>{{ entry.actor_name || '—' }}</strong>
-                <div v-if="entry.actor_role" style="font-size:.7rem;color:var(--text-muted)">{{ entry.actor_role }}</div>
-              </td>
-              <td><span class="badge" :class="actionClass(entry.action)">{{ entry.action }}</span></td>
-              <td>
-                {{ label(entry.entity) }}
-                <div v-if="entry.entity_id" style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)">
-                  {{ entry.entity_id }}
-                </div>
-              </td>
-              <td class="changes">
+      <base-table
+        :columns="columns"
+        :rows="entries"
+        sticky-first
+        caption="System audit trail"
+        :empty-title="loaded ? 'No entries for these filters' : 'Loading…'"
+        :empty-hint="loaded ? 'Try widening the date range.' : ''"
+      >
+        <template #cell-at="{ row: entry }">
+          <span style="font-family:var(--font-mono);font-size:.75rem;white-space:nowrap">{{ when(entry.at) }}</span>
+        </template>
+        <template #cell-actor_name="{ row: entry }">
+          <strong>{{ entry.actor_name || '—' }}</strong>
+          <div v-if="entry.actor_role" style="font-size:.7rem;color:var(--text-muted)">{{ entry.actor_role }}</div>
+        </template>
+        <template #cell-action="{ row: entry }">
+          <span class="badge" :class="actionClass(entry.action)">{{ entry.action }}</span>
+        </template>
+        <template #cell-entity="{ row: entry }">
+          {{ label(entry.entity) }}
+          <div v-if="entry.entity_id" style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)">
+            {{ entry.entity_id }}
+          </div>
+        </template>
+        <template #cell-changes="{ row: entry }">
+              <div class="changes">
                 <!--
                   before/after hold only the fields that moved, so this renders a
                   readable diff rather than a wall of JSON. That is the whole
@@ -54,16 +62,9 @@
                 </div>
                 <div v-if="entry.reason" class="reason">{{ entry.reason }}</div>
                 <span v-if="!entry.after && !entry.reason" style="color:var(--text-muted)">—</span>
-              </td>
-            </tr>
-            <tr v-if="!entries.length">
-              <td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted)">
-                {{ loaded ? 'No entries for these filters' : 'Loading…' }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              </div>
+        </template>
+      </base-table>
       <!--
         The limit was hardcoded at 200 with nothing saying so, so the 201st
         entry was simply invisible — and on a log, "there is nothing older"
@@ -86,6 +87,7 @@ import { ref, computed, onMounted } from 'vue'
 import { apiGet, TODAY } from '../api'
 import { localDayStartUtc, localDayEndUtc, localDateTime } from '../lib/datetime'
 import BaseButton from '../components/BaseButton.vue'
+import BaseTable from '../components/BaseTable.vue'
 
 /**
  * This screen existed before the audit log did: it called `apiGet('audit')`,
@@ -103,6 +105,14 @@ const ENTITIES = ['orders', 'payments', 'tips', 'inventory', 'recipes', 'purchas
 const ACTIONS = ['create', 'update', 'void', 'refund', 'adjust', 'verify']
 
 const entries = ref([])
+
+const columns = [
+  { key: 'at', label: 'When' },
+  { key: 'actor_name', label: 'Who' },
+  { key: 'action', label: 'Action' },
+  { key: 'entity', label: 'Record' },
+  { key: 'changes', label: 'What changed' },
+]
 const loaded = ref(false)
 const limit = ref(200)
 

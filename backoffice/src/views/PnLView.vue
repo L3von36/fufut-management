@@ -46,28 +46,32 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>Category</th><th>Amount (ETB)</th><th>% of Revenue</th></tr></thead>
-          <tbody>
-            <tr><td><strong>Revenue</strong></td><td><strong>{{ revenue.toFixed(0) }}</strong></td><td>100%</td></tr>
-            <tr><td>Cost of Goods Sold</td><td style="color:var(--danger)">-{{ cog.toFixed(0) }}</td><td>{{ cogPct }}%</td></tr>
-            <tr><td><strong>Gross Profit</strong></td><td><strong style="color:var(--success)">{{ grossProfit.toFixed(0) }}</strong></td><td>{{ margin }}%</td></tr>
-            <tr v-for="(amt, cat) in expenseBreakdown" :key="cat">
-              <td style="padding-left:32px">{{ cat }}</td><td style="color:var(--danger)">-{{ amt.toFixed(0) }}</td><td>{{ ((amt/revenue)*100).toFixed(1) }}%</td></tr>
-            <tr style="border-top:2px solid var(--border)"><td><strong>Net Profit</strong></td><td><strong :style="{color: netProfit >= 0 ? 'var(--success)' : 'var(--danger)'}">{{ netProfit >= 0 ? '' : '-' }}{{ Math.abs(netProfit).toFixed(0) }}</strong></td><td>{{ ((netProfit/revenue)*100).toFixed(1) }}%</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <base-table
+        :columns="columns"
+        :rows="statement"
+        row-id="label"
+        caption="Profit and loss statement"
+        empty-title="No data for this period"
+      >
+        <template #cell-label="{ row }">
+          <strong v-if="row.strong">{{ row.label }}</strong>
+          <span v-else :style="row.indent ? 'padding-left:20px;display:inline-block' : ''">{{ row.label }}</span>
+        </template>
+        <template #cell-amount="{ row }">
+          <strong v-if="row.strong" :style="row.color ? `color:${row.color}` : ''">{{ row.amount }}</strong>
+          <span v-else :style="row.color ? `color:${row.color}` : ''">{{ row.amount }}</span>
+        </template>
+      </base-table>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { apiGet, TODAY } from '../api'
 import { localDate } from '../lib/datetime'
 import BaseButton from '../components/BaseButton.vue'
+import BaseTable from '../components/BaseTable.vue'
 let _Chart = null
 async function _loadChart() {
   if (!_Chart) {
@@ -87,6 +91,43 @@ const netProfit = ref(0)
 const margin = ref(0)
 const cogPct = ref(0)
 const expenseBreakdown = ref({})
+
+const columns = [
+  { key: 'label', label: 'Category' },
+  { key: 'amount', label: 'Amount (ETB)' },
+  { key: 'pct', label: '% of Revenue' },
+]
+
+/**
+ * The statement as data.
+ *
+ * A P&L is read top to bottom and the order carries the meaning, so the lines
+ * are built here rather than hand-written in the template. That also makes the
+ * percentages computable in one place: they were inline expressions dividing by
+ * `revenue`, which produced "Infinity%" on a day with no sales.
+ */
+const statement = computed(() => {
+  const rev = revenue.value
+  const pct = (n) => (rev > 0 ? ((n / rev) * 100).toFixed(1) + '%' : '—')
+  const money = (n) => Math.abs(n).toFixed(0)
+
+  const lines = [
+    { label: 'Revenue', amount: money(rev), pct: rev > 0 ? '100%' : '—', strong: true },
+    { label: 'Cost of Goods Sold', amount: '-' + money(cog.value), pct: pct(cog.value), color: 'var(--danger)' },
+    { label: 'Gross Profit', amount: money(grossProfit.value), pct: pct(grossProfit.value), strong: true, color: 'var(--success)' },
+  ]
+  for (const [cat, amt] of Object.entries(expenseBreakdown.value)) {
+    lines.push({ label: cat, amount: '-' + money(amt), pct: pct(amt), indent: true, color: 'var(--danger)' })
+  }
+  lines.push({
+    label: 'Net Profit',
+    amount: (netProfit.value < 0 ? '-' : '') + money(netProfit.value),
+    pct: pct(netProfit.value),
+    strong: true,
+    color: netProfit.value >= 0 ? 'var(--success)' : 'var(--danger)',
+  })
+  return lines
+})
 const dateFrom = ref(TODAY())
 const dateTo = ref(TODAY())
 

@@ -42,27 +42,36 @@
 
     <!-- Table View -->
     <div v-else class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th></th><th>Name</th><th>Category</th><th>Price (ETB)</th><th>Cost (ETB)</th><th>Modifiers</th><th>Available</th><th>Actions</th></tr></thead>
-          <tbody>
-            <tr v-for="item in filtered" :key="item.id">
-              <td style="width:50px;padding:4px 8px">
-                <img :src="item.image || getPlaceholder(item)" :alt="item.name"
-                  style="width:40px;height:40px;border-radius:6px;object-fit:cover" loading="lazy" />
-              </td>
-              <td><strong>{{ item.name }}</strong></td>
-              <td><span class="badge badge-pending">{{ item.category }}</span></td>
-              <td style="font-weight:600;font-family:var(--font-mono)">{{ parseFloat(item.price||0).toFixed(0) }}</td>
-              <td style="font-family:var(--font-mono)">{{ parseFloat(item.cost||0).toFixed(0) }}</td>
-              <td>{{ (item.modifiers||[]).join(', ') || '-' }}</td>
-              <td><span class="badge" :class="item.available !== false ? 'badge-success' : 'badge-cancelled'">{{ item.available !== false ? 'Yes' : 'No' }}</span></td>
-              <td><button class="btn btn-sm btn-ghost" @click.stop="editItem(item)">Edit</button><base-button :text="item.available !== false ? 'Hide' : 'Show'" variant="btn-ghost" extra-class="btn-sm" :on-click="() => toggleAvailable(item)" /></td>
-            </tr>
-            <tr v-if="!filtered.length"><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">No items found</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <base-table
+        :columns="columns"
+        :rows="filtered"
+        caption="Menu items"
+        empty-title="No items found"
+        :empty-hint="search ? 'Try a different search.' : ''"
+      >
+        <template #cell-image="{ row: item }">
+          <img :src="item.image || getPlaceholder(item)" :alt="item.name"
+            style="width:40px;height:40px;border-radius:var(--radius-sm,6px);object-fit:cover" loading="lazy" />
+        </template>
+        <template #cell-name="{ row: item }"><strong>{{ item.name }}</strong></template>
+        <template #cell-category="{ row: item }"><span class="badge badge-neutral">{{ item.category }}</span></template>
+        <template #cell-price="{ row: item }">
+          <span style="font-weight:600;font-family:var(--font-mono)">{{ parseFloat(item.price||0).toFixed(0) }}</span>
+        </template>
+        <template #cell-cost="{ row: item }">
+          <span style="font-family:var(--font-mono)">{{ parseFloat(item.cost||0).toFixed(0) }}</span>
+        </template>
+        <template #cell-modifiers="{ row: item }">{{ (item.modifiers||[]).join(', ') || '—' }}</template>
+        <template #cell-available="{ row: item }">
+          <span class="badge" :class="item.available !== false ? 'badge-success' : 'badge-cancelled'">
+            {{ item.available !== false ? 'Yes' : 'No' }}
+          </span>
+        </template>
+        <template #cell-actions="{ row: item }">
+          <button class="btn btn-sm btn-ghost" @click.stop="editItem(item)">Edit</button>
+          <base-button :text="item.available !== false ? 'Hide' : 'Show'" variant="btn-ghost" extra-class="btn-sm" :on-click="() => toggleAvailable(item)" />
+        </template>
+      </base-table>
     </div>
 
     <!-- Form Modal -->
@@ -107,6 +116,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut } from '../api'
+import BaseTable from '../components/BaseTable.vue'
 import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
@@ -119,6 +129,17 @@ const showForm = ref(false)
 const editing = ref(null)
 const form = ref({ name: '', category: 'Coffee', price: 0, cost: 0, image: '' })
 const modifiersStr = ref('')
+
+const columns = [
+  { key: 'image', label: '', width: '56px' },
+  { key: 'name', label: 'Name' },
+  { key: 'category', label: 'Category' },
+  { key: 'price', label: 'Price (ETB)' },
+  { key: 'cost', label: 'Cost (ETB)' },
+  { key: 'modifiers', label: 'Modifiers' },
+  { key: 'available', label: 'Available' },
+  { key: 'actions', label: 'Actions' },
+]
 
 const foodImages = [
   '/assets/menu-1488477181946.jpg','/assets/menu-1512058564366.jpg','/assets/menu-1514432324607.jpg',
