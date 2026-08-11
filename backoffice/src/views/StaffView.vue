@@ -31,7 +31,23 @@
                 <span v-if="s.email">{{ s.email }}</span>
                 <span v-else class="badge badge-cancelled" title="This account cannot sign in">no email — cannot sign in</span>
               </td>
-              <td><span class="badge badge-pending">{{ s.role }}</span></td>
+              <!--
+                Changed in place. Opening a modal to alter one field is the
+                slow path, and the modal's dropdown was the thing that appeared
+                broken. Bound to canonical values, which is what the server
+                stores and what both permission matrices key on.
+              -->
+              <td>
+                <select
+                  class="select select-sm role-select"
+                  :value="canonical(s.role)"
+                  :disabled="savingRole === s.id"
+                  @change="changeRole(s, $event.target.value)"
+                >
+                  <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
+                </select>
+                <span v-if="savingRole === s.id" class="hint">saving…</span>
+              </td>
               <td>{{ s.phone || '-' }}</td>
               <td><span class="badge" :class="(s.status || 'active') === 'active' ? 'badge-success' : 'badge-cancelled'">{{ s.status || 'active' }}</span></td>
               <td>
@@ -62,7 +78,12 @@
             <div class="form-group"><label>Phone</label><input v-model="form.phone" /></div>
           </div>
           <div class="form-row">
-            <div class="form-group"><label>Role</label><select v-model="form.role" class="select"><option>manager</option><option>head-chef</option><option>assistant-chef</option><option>head-waiter</option><option>cashier</option><option>delivery-staff</option><option>cleaner</option><option>accountant</option></select></div>
+            <div class="form-group">
+              <label>Role</label>
+              <select v-model="form.role" class="select">
+                <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
+              </select>
+            </div>
             <div class="form-group">
               <label>Status</label>
               <select v-model="form.status" class="select"><option value="active">active</option><option value="inactive">inactive</option></select>
@@ -154,6 +175,36 @@ const pwTarget = ref(null)
 const pwValue = ref('')
 const issued = ref(null)
 const copied = ref(false)
+const savingRole = ref(null)
+
+/**
+ * Canonical value, readable label.
+ *
+ * The value is what the server stores and what both permission matrices key on;
+ * the label is what a manager should be reading. Previously the options were
+ * raw canonical strings and the stored roles were title case, so nothing
+ * matched and every dropdown rendered blank.
+ */
+const ROLES = [
+  { value: 'manager', label: 'Manager' },
+  { value: 'head-chef', label: 'Head Chef' },
+  { value: 'assistant-chef', label: 'Assistant Chef' },
+  { value: 'head-waiter', label: 'Head Waiter' },
+  { value: 'cashier', label: 'Cashier' },
+  { value: 'delivery-staff', label: 'Delivery Staff' },
+  { value: 'cleaner', label: 'Cleaner' },
+  { value: 'accountant', label: 'Accountant' },
+]
+
+/**
+ * Tolerate whatever is stored. The server normalises on write now, but rows
+ * written before that still hold "Head Chef", and a dropdown that cannot
+ * display an existing value is the bug this replaces.
+ */
+function canonical(role) {
+  const key = String(role || '').trim().toLowerCase().replace(/[\s_]+/g, '-')
+  return ROLES.some(r => r.value === key) ? key : ''
+}
 
 function blankForm() {
   return { firstName: '', lastName: '', email: '', role: 'cashier', phone: '', status: 'active', password: '' }
@@ -175,12 +226,40 @@ function editStaff(s) {
   form.value = {
     ...blankForm(),
     firstName: s.firstName, lastName: s.lastName, email: s.email || '',
-    role: s.role, phone: s.phone || '', status: s.status || 'active',
+    // Canonicalised, or a row still holding "Head Chef" selects nothing and the
+    // dropdown reads blank — the defect that made this look like no feature.
+    role: canonical(s.role) || 'cashier',
+    phone: s.phone || '', status: s.status || 'active',
   }
   showForm.value = true
 }
 
 function openAdd() { editing.value = null; form.value = blankForm(); showForm.value = true }
+
+/**
+ * Change one person's role from the table.
+ *
+ * Sends only the id and the role, so an inline change cannot carry stale values
+ * for the other fields from whenever this list was loaded. Reverts the row on
+ * failure rather than leaving the screen showing a change the server refused.
+ */
+async function changeRole(s, role) {
+  const previous = canonical(s.role)
+  if (!role || role === previous) return
+  savingRole.value = s.id
+  try {
+    await apiPut('staff', { id: s.id, role })
+    s.role = role
+    const label = ROLES.find(r => r.value === role)?.label || role
+    toast(`${s.firstName} is now ${label}`)
+  } catch (e) {
+    s.role = previous
+    toast(e.message || 'Could not change the role', 'error')
+    await loadStaff()
+  } finally {
+    savingRole.value = null
+  }
+}
 
 async function saveStaff() {
   if (!form.value.email) { toast('An email is required — it is what they sign in with', 'error'); return }
@@ -245,6 +324,7 @@ async function copyPassword() {
 
 <style scoped>
 .hint { display: block; font-size: .72rem; color: var(--text-muted); margin-top: 3px; }
+.role-select { width: auto; min-width: 140px; }
 .pw-issued {
   margin: 12px 0; padding: 16px; border-radius: 8px; text-align: center;
   background: var(--surface-2, rgba(0,0,0,.05)); border: 1px solid var(--border, #ddd);
