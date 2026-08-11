@@ -14,6 +14,20 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    /**
+     * The timezone is pinned in the npm script, not here.
+     *
+     * This app serves a business in Addis Ababa (UTC+3) and stores timestamps
+     * in UTC, so almost every date assertion depends on the gap between the
+     * two. Left to the runner's zone the same test passes locally and fails in
+     * CI — a 22:30 UTC stamp is a 01:30 sale in Addis and a 22:30 sale in
+     * London, and both are correct renderings. That is not hypothetical; it is
+     * how this note came to be.
+     *
+     * `test.env` cannot fix it: Node reads TZ once at process start and caches
+     * it, so setting it after the runner has booted changes nothing. It has to
+     * be set before node launches, which is why package.json uses cross-env.
+     */
     include: ['tests/unit/**/*.{test,spec}.{js,ts}'],
     setupFiles: ['./tests/setup.js'],
     coverage: {

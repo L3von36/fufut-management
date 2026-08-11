@@ -7,10 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "test:all": "vitest run && playwright test"
+    "test": "cross-env TZ=Africa/Addis_Ababa vitest run",
+    "test:watch": "cross-env TZ=Africa/Addis_Ababa vitest",
+    "test:e2e": "cross-env TZ=Africa/Addis_Ababa playwright test",
+    "test:all": "npm test && npm run test:e2e"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
@@ -23,6 +23,7 @@
     "@playwright/test": "^1.62.1",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/test-utils": "^2.4.11",
+    "cross-env": "^10.1.0",
     "jsdom": "^30.0.1",
     "vite": "^8.1.1",
     "vitest": "^4.1.10"
