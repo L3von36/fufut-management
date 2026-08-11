@@ -17,7 +17,7 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-scroll">
+      <div class="table-scroll table-sticky-first">
         <table>
           <thead><tr><th>Order ID</th><th>Customer</th><th>Address</th><th>Items</th><th>Total</th><th>Status</th><th>Driver</th><th>Actions</th></tr></thead>
           <tbody>
@@ -25,7 +25,7 @@
               <td style="font-family:var(--font-mono);font-size:.78rem">{{ d.orderId }}</td>
               <td><strong>{{ d.customerName }}</strong></td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ d.address }}</td>
               <td>{{ d.items }}</td><td style="font-weight:600;font-family:var(--font-mono)">ETB {{ parseFloat(d.total||0).toFixed(0) }}</td>
-              <td><span class="badge" :class="'badge-'+d.status">{{ d.status }}</span></td>
+              <td><span class="badge" :class="statusBadgeClass(d.status)">{{ statusLabel(d.status) }}</span></td>
               <td>{{ d.driverId || '-' }}</td>
               <td><button class="btn btn-sm btn-ghost" @click="editDelivery(d)">Status</button></td>
             </tr>
@@ -59,6 +59,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
+import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')

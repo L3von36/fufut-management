@@ -26,7 +26,7 @@
             <tr v-for="r in filtered" :key="r.id">
               <td>{{ r.date }}</td><td>{{ r.time }}</td><td><strong>{{ r.name }}</strong></td>
               <td>{{ r.guests }}</td><td>{{ r.tableId || '-' }}</td>
-              <td><span class="badge" :class="'badge-'+r.status">{{ r.status }}</span></td>
+              <td><span class="badge" :class="statusBadgeClass(r.status)">{{ statusLabel(r.status) }}</span></td>
               <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.notes || '-' }}</td>
               <td><button class="btn btn-sm btn-ghost" @click="editRes(r)">Edit</button><base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => deleteRes(r.id)" /></td>
             </tr>
@@ -71,6 +71,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
+import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')

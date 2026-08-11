@@ -80,7 +80,7 @@
       </div>
 
       <div class="table-wrap">
-        <div class="table-scroll">
+        <div class="table-scroll table-sticky-first">
           <table>
             <thead>
               <tr>
@@ -337,12 +337,5 @@ async function openRun(r) {
 </script>
 
 <style scoped>
-.summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 16px; }
-.stat { padding: 12px; text-align: center; }
-.stat-num { font-size: 1.3rem; font-weight: 700; }
-.stat-lbl { font-size: .72rem; color: var(--text-muted); }
-.mini-table { width: 100%; font-size: .8rem; }
-.mini-table th, .mini-table td { padding: 6px 8px; text-align: left; vertical-align: top; }
-.empty { text-align: center; padding: 32px; color: var(--text-muted); }
 .link-btn { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
 </style>

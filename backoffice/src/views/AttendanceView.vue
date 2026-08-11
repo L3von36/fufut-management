@@ -28,7 +28,7 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-scroll">
+      <div class="table-scroll table-sticky-first">
         <table>
           <thead>
             <tr>
@@ -179,8 +179,4 @@ async function saveSchedule() {
 </script>
 
 <style scoped>
-.summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 16px; }
-.stat { padding: 12px; text-align: center; }
-.stat-num { font-size: 1.5rem; font-weight: 700; }
-.stat-lbl { font-size: .72rem; color: var(--text-muted); }
 </style>

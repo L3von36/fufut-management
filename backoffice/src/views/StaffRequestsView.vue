@@ -376,6 +376,4 @@ async function confirmReject() {
   background: var(--danger, #e74c3c); color: #fff; border-radius: 999px;
   padding: 1px 7px; font-size: .68rem; font-weight: 700;
 }
-.empty { text-align: center; padding: 32px; color: var(--text-muted); }
-.hint { display: block; font-size: .72rem; color: var(--text-muted); margin-top: 4px; }
 </style>

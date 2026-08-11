@@ -50,7 +50,7 @@
             <h3>Table {{ selectedTable.number || selectedTable.id }}</h3>
             <div class="modal-sub">{{ selectedTable.seats }} seats</div>
           </div>
-          <span class="badge table-status-badge" :class="'badge-' + statusBadgeClass">
+          <span class="badge table-status-badge" :class="selectedBadgeClass">
             {{ (selectedTable.status || 'available').toUpperCase() }}
           </span>
         </div>
@@ -91,7 +91,7 @@
           <div v-for="order in tableOrders(selectedTable.id)" :key="order.id" class="table-order-card">
             <div class="order-card-top">
               <span class="order-id">#{{ order.id }}</span>
-              <span class="badge" :class="'badge-' + order.status">{{ order.status }}</span>
+              <span class="badge" :class="statusBadgeClass(order.status)">{{ statusLabel(order.status) }}</span>
             </div>
             <div class="order-items">{{ order.items }}</div>
             <div class="order-card-footer">
@@ -125,6 +125,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
+import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { localTime } from '../lib/datetime'
 import { useSSE } from '../composables/useSSE'
 import { useButtonState } from '../composables/useButtonState'
@@ -148,23 +149,9 @@ const statusCounts = computed(() => {
   return c
 })
 
-/**
- * Occupied is a table doing its job, not a failure.
- *
- * It mapped to `badge-cancelled`, so a busy table showed the same red as a
- * cancelled order — the one colour that means "something went wrong". On a
- * floor plan at a glance that reads as a problem to go and fix.
- */
-const statusBadgeClass = computed(() => {
-  const s = selectedTable.value?.status
-  if (s === 'available') return 'success'
-  // Blue: in use. `badge-info` does not exist in styles.css — `badge-new` is
-  // the blue one, and a class that is not defined renders as an unstyled span.
-  if (s === 'occupied') return 'new'
-  if (s === 'reserved') return 'pending'
-  if (s === 'cleaning') return 'pending'
-  return 'new'
-})
+// The local mapping moved into composables/useStatusBadge.js, so the floor plan
+// and every other status chip in the app now agree on what a colour means.
+const selectedBadgeClass = computed(() => statusBadgeClass(selectedTable.value?.status))
 
 function tableOrders(tableId) {
   const id = tableId?.toString()

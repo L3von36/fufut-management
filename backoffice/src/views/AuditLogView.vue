@@ -23,7 +23,7 @@
     </p>
 
     <div class="table-wrap">
-      <div class="table-scroll">
+      <div class="table-scroll table-sticky-first">
         <table>
           <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>What changed</th></tr></thead>
           <tbody>
@@ -64,13 +64,25 @@
           </tbody>
         </table>
       </div>
-      <div class="pagination"><span>{{ entries.length }} entr{{ entries.length === 1 ? 'y' : 'ies' }}</span></div>
+      <!--
+        The limit was hardcoded at 200 with nothing saying so, so the 201st
+        entry was simply invisible — and on a log, "there is nothing older"
+        and "we stopped looking" are very different claims.
+      -->
+      <div class="pagination">
+        <span>
+          {{ entries.length }} entr{{ entries.length === 1 ? 'y' : 'ies' }}
+          <template v-if="atCeiling"> — the most recent {{ MAX_LIMIT }}. Narrow the dates to see further back.</template>
+          <template v-else-if="atLimit"> — showing the most recent {{ limit }}, there may be more</template>
+        </span>
+        <button v-if="atLimit" class="btn btn-sm btn-secondary" @click="showMore">Show more</button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { apiGet, TODAY } from '../api'
 import { localDayStartUtc, localDayEndUtc, localDateTime } from '../lib/datetime'
 import BaseButton from '../components/BaseButton.vue'
@@ -92,6 +104,23 @@ const ACTIONS = ['create', 'update', 'void', 'refund', 'adjust', 'verify']
 
 const entries = ref([])
 const loaded = ref(false)
+const limit = ref(200)
+
+// A full page is the only signal the server gives that more may exist — the
+// endpoint returns rows, not a total — so this is "there may be more", not
+// "there are more", and it is worded that way on screen.
+const atLimit = computed(() => entries.value.length >= limit.value && limit.value < MAX_LIMIT)
+const atCeiling = computed(() => entries.value.length >= MAX_LIMIT)
+
+// Capped at what the endpoint will actually return (MAX_LIMIT = 500 in
+// handlers/audit.js). Asking for more would clamp server-side and the button
+// would keep offering to fetch rows that never arrive.
+const MAX_LIMIT = 500
+
+function showMore() {
+  limit.value = Math.min(limit.value + 200, MAX_LIMIT)
+  loadAudit()
+}
 const entity = ref('')
 const action = ref('')
 const fromDate = ref(TODAY())
@@ -129,15 +158,13 @@ async function loadAudit() {
   const params = new URLSearchParams()
   if (entity.value) params.set('entity', entity.value)
   if (action.value) params.set('action', action.value)
-  // The column is a full ISO timestamp, so a bare date would exclude everything
-  // after midnight on the closing day.
   // A local calendar day converted to the UTC instants that bracket it. The
   // literal `Z` suffix meant midnight *UTC*, which is 03:00 in Addis — so a
   // filter for "today" silently excluded the first three hours of it, and
   // anything logged just after midnight was invisible.
   if (fromDate.value) params.set('from', localDayStartUtc(fromDate.value))
   if (toDate.value) params.set('to', localDayEndUtc(toDate.value))
-  params.set('limit', '200')
+  params.set('limit', String(limit.value))
 
   try {
     const res = await apiGet(`audit?${params.toString()}`)
