@@ -128,6 +128,14 @@ jobs:
       # that looked like a quiet day.
       - name: Test Backoffice
         run: cd backoffice && npm test
+      # Browser coverage for the table screens. Runs here rather than locally:
+      # Playwright fails to register any test file on the maintainer's Windows
+      # machine — including the POS suite that passes in this same runner — so
+      # CI is the only place these actually execute.
+      - name: Install Playwright browser
+        run: cd backoffice && npx playwright install --with-deps chromium
+      - name: E2E Backoffice
+        run: cd backoffice && npx playwright test --reporter=list
       - run: cp backoffice/index.html.source backoffice/index.html
       - name: Build Backoffice
         env:

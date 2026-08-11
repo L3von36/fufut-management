@@ -14,52 +14,51 @@
       <div class="summary-card"><div class="num">{{ roleCounts }}</div><div class="lbl">Roles</div></div>
     </div>
 
-    <div class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>ID</th><th>Name</th><th>Email (sign-in)</th><th>Role</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody>
-            <tr v-for="s in filtered" :key="s.id">
-              <td style="font-family:var(--font-mono);font-size:.78rem">{{ s.id }}</td>
-              <td><strong>{{ s.firstName }} {{ s.lastName }}</strong></td>
-              <!--
-                Sign-in is by email, so an account without one cannot log in at
-                all. It used to be absent from this screen entirely, which made
-                that failure invisible until the person tried.
-              -->
-              <td>
-                <span v-if="s.email">{{ s.email }}</span>
-                <span v-else class="badge badge-cancelled" title="This account cannot sign in">no email — cannot sign in</span>
-              </td>
-              <!--
-                Changed in place. Opening a modal to alter one field is the
-                slow path, and the modal's dropdown was the thing that appeared
-                broken. Bound to canonical values, which is what the server
-                stores and what both permission matrices key on.
-              -->
-              <td>
-                <select
-                  class="select select-sm role-select"
-                  :value="canonical(s.role)"
-                  :disabled="savingRole === s.id"
-                  @change="changeRole(s, $event.target.value)"
-                >
-                  <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
-                </select>
-                <span v-if="savingRole === s.id" class="hint">saving…</span>
-              </td>
-              <td>{{ s.phone || '-' }}</td>
-              <td><span class="badge" :class="(s.status || 'active') === 'active' ? 'badge-success' : 'badge-cancelled'">{{ s.status || 'active' }}</span></td>
-              <td>
-                <button class="btn btn-sm btn-ghost" @click="editStaff(s)">Edit</button>
-                <button class="btn btn-sm btn-ghost" @click="openPassword(s)">Set password</button>
-              </td>
-            </tr>
-            <tr v-if="!filtered.length"><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted)">No staff found</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <base-table
+      :columns="columns"
+      :rows="filtered"
+      caption="Staff accounts and their roles"
+      empty-title="No staff found"
+      :empty-hint="search ? 'Try a different search.' : ''"
+    >
+      <template #cell-id="{ row }">
+        <span style="font-family:var(--font-mono);font-size:.78rem">{{ row.id }}</span>
+      </template>
+      <template #cell-name="{ row }"><strong>{{ row.firstName }} {{ row.lastName }}</strong></template>
+      <!--
+        Sign-in is by email, so an account without one cannot log in at all. It
+        used to be absent from this screen entirely, which made that failure
+        invisible until the person tried.
+      -->
+      <template #cell-email="{ row }">
+        <span v-if="row.email">{{ row.email }}</span>
+        <span v-else class="badge badge-cancelled" title="This account cannot sign in">no email — cannot sign in</span>
+      </template>
+      <!--
+        Changed in place. Opening a modal to alter one field is the slow path,
+        and the modal's dropdown was the thing that appeared broken. Bound to
+        canonical values, which is what the server stores and what both
+        permission matrices key on.
+      -->
+      <template #cell-role="{ row }">
+        <select
+          class="select select-sm role-select"
+          :value="canonical(row.role)"
+          :disabled="savingRole === row.id"
+          @change="changeRole(row, $event.target.value)"
+        >
+          <option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option>
+        </select>
+        <span v-if="savingRole === row.id" class="hint">saving…</span>
+      </template>
+      <template #cell-status="{ row }">
+        <span class="badge" :class="statusBadgeClass(row.status || 'active')">{{ row.status || 'active' }}</span>
+      </template>
+      <template #cell-actions="{ row }">
+        <button class="btn btn-sm btn-ghost" @click="editStaff(row)">Edit</button>
+        <button class="btn btn-sm btn-ghost" @click="openPassword(row)">Set password</button>
+      </template>
+    </base-table>
 
     <div v-if="showForm" class="modal-overlay" @click.self="showForm=false">
       <div class="modal">
@@ -163,6 +162,8 @@
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut } from '../api'
 import { useButtonState } from '../composables/useButtonState'
+import BaseTable from '../components/BaseTable.vue'
+import { statusBadgeClass } from '../composables/useStatusBadge'
 
 const toast = inject('toast')
 const btnState = useButtonState({ successDuration: 2000 })
@@ -205,6 +206,16 @@ function canonical(role) {
   const key = String(role || '').trim().toLowerCase().replace(/[\s_]+/g, '-')
   return ROLES.some(r => r.value === key) ? key : ''
 }
+
+const columns = [
+  { key: 'id', label: 'ID' },
+  { key: 'name', label: 'Name' },
+  { key: 'email', label: 'Email (sign-in)' },
+  { key: 'role', label: 'Role' },
+  { key: 'phone', label: 'Phone' },
+  { key: 'status', label: 'Status' },
+  { key: 'actions', label: 'Actions' },
+]
 
 function blankForm() {
   return { firstName: '', lastName: '', email: '', role: 'cashier', phone: '', status: 'active', password: '' }

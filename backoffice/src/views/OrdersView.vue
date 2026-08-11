@@ -26,53 +26,52 @@
       <div class="summary-card"><div class="num">{{ avgOrder.toFixed(0) }}</div><div class="lbl">Avg Order</div></div>
     </div>
 
-    <div class="table-wrap">
-      <div class="table-scroll table-sticky-first">
-        <table>
-          <thead><tr><th>Order ID</th><th>Table</th><th>Items</th><th>Total (ETB)</th><th>Status</th><th>Payment</th><th>Time</th></tr></thead>
-          <tbody>
-            <tr v-for="o in pageRows" :key="o.id">
-              <td style="font-family:var(--font-mono);font-size:.78rem">{{ o.id }}</td>
-              <td>{{ o.tableId || '-' }}</td>
-              <!-- title so a truncated order is readable on hover rather than
-                   just cut off with no way to see the rest -->
-              <td class="truncate" :title="o.items">{{ o.items }}</td>
-              <td style="font-weight:600;font-family:var(--font-mono)">{{ parseFloat(o.total||0).toFixed(0) }}</td>
-              <td><span class="badge" :class="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></td>
-              <!-- Cash is a payment method, not a pending state. It was amber,
-                   which reads as "not settled yet" against a green card badge. -->
-              <td><span class="badge badge-neutral">{{ o.payment || '—' }}</span></td>
-              <td style="font-size:.78rem">{{ localTime(o.created, true) || '-' }}</td>
-            </tr>
-            <tr v-if="!filtered.length">
-              <td colspan="7" class="table-empty">
-                <div class="table-empty-title">No orders</div>
-                <div class="table-empty-hint">{{ statusFilter || search ? 'Try clearing the filters.' : 'Orders will appear here as they are taken.' }}</div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!--
-        Every order was rendered into the DOM at once. That is fine at 39 rows
-        and is a frozen tab at ten thousand — and this table has no upper bound,
-        because it grows by every order the restaurant ever takes.
-      -->
-      <div v-if="filtered.length > PAGE_SIZE" class="pagination">
-        <button class="btn btn-sm btn-secondary" :disabled="page === 1" @click="page--">Previous</button>
-        <span>{{ rangeLabel }} of {{ filtered.length }}</span>
-        <button class="btn btn-sm btn-secondary" :disabled="page >= pageCount" @click="page++">Next</button>
-      </div>
-    </div>
+    <!--
+      Pagination matters here: the table grows by every order the restaurant
+      ever takes, and rendering all of them was fine at 39 rows and a frozen tab
+      at ten thousand.
+    -->
+    <base-table
+      :columns="columns"
+      :rows="filtered"
+      sticky-first
+      paginated
+      caption="Orders, most recent first"
+      empty-title="No orders"
+      :empty-hint="statusFilter || search ? 'Try clearing the filters.' : 'Orders will appear here as they are taken.'"
+    >
+      <template #cell-id="{ row }">
+        <span style="font-family:var(--font-mono);font-size:.78rem">{{ row.id }}</span>
+      </template>
+      <!-- title so a truncated order is readable on hover rather than cut off
+           with no way to see the rest -->
+      <template #cell-items="{ row }">
+        <span class="truncate" :title="row.items">{{ row.items }}</span>
+      </template>
+      <template #cell-total="{ row }">
+        <span style="font-weight:600;font-family:var(--font-mono)">{{ parseFloat(row.total||0).toFixed(0) }}</span>
+      </template>
+      <template #cell-status="{ row }">
+        <span class="badge" :class="statusBadgeClass(row.status)">{{ statusLabel(row.status) }}</span>
+      </template>
+      <!-- Cash is a payment method, not a pending state. It was amber, which
+           reads as "not settled yet" against a green card badge. -->
+      <template #cell-payment="{ row }">
+        <span class="badge badge-neutral">{{ row.payment || '—' }}</span>
+      </template>
+      <template #cell-created="{ row }">
+        <span style="font-size:.78rem">{{ localTime(row.created, true) || '-' }}</span>
+      </template>
+    </base-table>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { apiGet } from '../api'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { localTime } from '../lib/datetime'
+import BaseTable from '../components/BaseTable.vue'
 
 const orders = ref([])
 const statusFilter = ref('')
@@ -103,19 +102,17 @@ const totalRevenue = computed(() =>
 const avgOrder = computed(() => trading.value.length ? totalRevenue.value / trading.value.length : 0)
 const excludedCount = computed(() => filtered.value.length - trading.value.length)
 
-// ─── Pagination ───
-const PAGE_SIZE = 50
-const page = ref(1)
-const pageCount = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)))
-const pageRows = computed(() => filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
-const rangeLabel = computed(() => {
-  const first = (page.value - 1) * PAGE_SIZE + 1
-  return `${first}–${Math.min(page.value * PAGE_SIZE, filtered.value.length)}`
-})
-
-// Filtering to fewer pages while on a later one would otherwise leave the user
-// staring at an empty table with no obvious cause.
-watch(filtered, () => { if (page.value > pageCount.value) page.value = 1 })
+// Column order and headings; every cell body is overridden by a slot above.
+// Pagination and the page-reset-on-filter behaviour moved into BaseTable.
+const columns = [
+  { key: 'id', label: 'Order ID' },
+  { key: 'tableId', label: 'Table' },
+  { key: 'items', label: 'Items' },
+  { key: 'total', label: 'Total (ETB)' },
+  { key: 'status', label: 'Status' },
+  { key: 'payment', label: 'Payment' },
+  { key: 'created', label: 'Time' },
+]
 
 onMounted(loadOrders)
 async function loadOrders() { try { orders.value = await apiGet('orders') } catch (e) { console.error(e) } }

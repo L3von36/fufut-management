@@ -16,24 +16,33 @@
       <div class="summary-card"><div class="num">{{ filtered.filter(d => d.status === 'in-transit').length }}</div><div class="lbl">In Transit</div></div>
     </div>
 
-    <div class="table-wrap">
-      <div class="table-scroll table-sticky-first">
-        <table>
-          <thead><tr><th>Order ID</th><th>Customer</th><th>Address</th><th>Items</th><th>Total</th><th>Status</th><th>Driver</th><th>Actions</th></tr></thead>
-          <tbody>
-            <tr v-for="d in filtered" :key="d.id">
-              <td style="font-family:var(--font-mono);font-size:.78rem">{{ d.orderId }}</td>
-              <td><strong>{{ d.customerName }}</strong></td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ d.address }}</td>
-              <td>{{ d.items }}</td><td style="font-weight:600;font-family:var(--font-mono)">ETB {{ parseFloat(d.total||0).toFixed(0) }}</td>
-              <td><span class="badge" :class="statusBadgeClass(d.status)">{{ statusLabel(d.status) }}</span></td>
-              <td>{{ d.driverId || '-' }}</td>
-              <td><button class="btn btn-sm btn-ghost" @click="editDelivery(d)">Status</button></td>
-            </tr>
-            <tr v-if="!filtered.length"><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted)">No delivery orders</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <base-table
+      :columns="columns"
+      :rows="filtered"
+      sticky-first
+      caption="Delivery jobs"
+      empty-title="No delivery orders"
+      empty-hint="Delivery orders taken at the till appear here."
+    >
+      <template #cell-orderId="{ row }">
+        <span style="font-family:var(--font-mono);font-size:.78rem">{{ row.orderId }}</span>
+      </template>
+      <template #cell-customerName="{ row }"><strong>{{ row.customerName || row.customer }}</strong></template>
+      <!-- title, so a truncated address can still be read rather than simply
+           being cut off with no way to recover it -->
+      <template #cell-address="{ row }">
+        <span class="truncate" :title="row.address">{{ row.address }}</span>
+      </template>
+      <template #cell-total="{ row }">
+        <span style="font-weight:600;font-family:var(--font-mono)">ETB {{ parseFloat(row.total||0).toFixed(0) }}</span>
+      </template>
+      <template #cell-status="{ row }">
+        <span class="badge" :class="statusBadgeClass(row.status)">{{ statusLabel(row.status) }}</span>
+      </template>
+      <template #cell-actions="{ row }">
+        <button class="btn btn-sm btn-ghost" @click="editDelivery(row)">Status</button>
+      </template>
+    </base-table>
 
     <div v-if="showForm" class="modal-overlay" @click.self="showForm=false">
       <div class="modal">
@@ -60,6 +69,7 @@
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
+import BaseTable from '../components/BaseTable.vue'
 import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
@@ -69,6 +79,18 @@ const statusFilter = ref('')
 const showForm = ref(false)
 const editing = ref(null)
 const form = ref({ status: 'pending', driverId: '' })
+
+const columns = [
+  { key: 'orderId', label: 'Order ID' },
+  { key: 'customerName', label: 'Customer' },
+  { key: 'address', label: 'Address' },
+  { key: 'items', label: 'Items' },
+  { key: 'total', label: 'Total' },
+  { key: 'status', label: 'Status' },
+  { key: 'driverId', label: 'Driver' },
+  { key: 'actions', label: 'Actions' },
+]
+
 
 const filtered = computed(() => deliveries.value.filter(d => !statusFilter.value || d.status === statusFilter.value))
 
