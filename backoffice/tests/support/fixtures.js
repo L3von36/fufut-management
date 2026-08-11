@@ -86,9 +86,22 @@ export const test = base.extend({
   /** A page already past the login screen. */
   app: async ({ page, mockApi }, use) => {
     await use({
+      /**
+       * The dev server serves the app under `/backoffice/` — vite.config.js
+       * sets that base and the router is created with it. Navigating to
+       * `/app/orders` matches no route, so the app boots and renders nothing,
+       * which presents as every assertion finding zero rows rather than as a
+       * routing error.
+       *
+       * CI builds production with `--base /`, so this prefix is a property of
+       * the dev server the tests run against, not of the deployed site.
+       */
       async goto(view) {
-        await page.goto(`/app/${view}`)
+        await page.goto(`/backoffice/app/${view}`)
         await page.waitForLoadState('networkidle')
+        // The router restores the session before rendering a guarded route, so
+        // waiting for the table is what tells us the guard actually passed.
+        await page.locator('table, .table-empty').first().waitFor({ timeout: 10000 })
       },
       mockApi,
       page,
