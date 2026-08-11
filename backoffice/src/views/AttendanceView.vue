@@ -146,8 +146,13 @@ async function load() {
       apiGet(`attendance?${params.toString()}`),
       staff.value.length ? Promise.resolve(staff.value) : apiGet('staff').catch(() => []),
     ])
-    entries.value = res.entries || []
-    summary.value = res.summary || {}
+    // `res.entries` is only safe when `res` is an object. Handed a bare array —
+    // which is what several of these endpoints return — it resolves to
+    // Array.prototype.entries, a *function*, and the table renders empty with
+    // no error. AuditLogView already guards the same two shapes; this now
+    // matches it.
+    entries.value = Array.isArray(res) ? res : (res?.entries || [])
+    summary.value = (Array.isArray(res) ? null : res?.summary) || {}
     if (!staff.value.length) staff.value = Array.isArray(people) ? people : []
   } catch (e) {
     console.error(e)

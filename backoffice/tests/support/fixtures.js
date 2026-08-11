@@ -46,7 +46,14 @@ const DEFAULTS = {
   tables: [],
   shifts: [],
   timeclock: [],
-  menu: { categories: [] },
+  // Flat, which is what GET /api/menu returns to this client — the handler
+  // flattens the categorised structure before sending. `{categories:[…]}` makes
+  // MenuView throw on `menu.value.map`, and PnLView swallows the same error in a
+  // catch and silently drops the whole expense half of the statement.
+  menu: [
+    { id: 'M1', name: 'Macchiato', category: 'Hot Drinks', price: 60, cost: 18, available: true, modifiers: ['Hot'] },
+    { id: 'M2', name: 'Tea', category: 'Hot Drinks', price: 30, cost: 5, available: false, modifiers: [] },
+  ],
   audit: { ok: true, entries: [] },
   settings: { ok: true, settings: [] },
   payroll: { ok: true, runs: [] },

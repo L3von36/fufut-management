@@ -9,15 +9,33 @@ import { test, expect, ORDERS, STAFF, DELIVERY } from '../support/fixtures.js'
  * continue-on-error for that reason; it has never been green, and a check that
  * is red on arrival teaches people to ignore red.
  *
- * It could not be debugged where it was written: Playwright fails to register
- * any test file on that machine, including the POS suite that passes in the
- * same CI runner. Blind iteration through CI is a poor way to find a routing
- * bug, so it was left honest rather than guessed at.
+ * It still cannot be run on the maintainer's machine. The failure is now
+ * pinned down further than "fails to register": even a two-line spec importing
+ * `test` straight from '@playwright/test' is rejected with "Playwright Test did
+ * not expect test() to be called here". There is exactly one copy of
+ * @playwright/test (1.62.1) and it resolves to the same path from both the spec
+ * and the fixture directories, so the usual causes — duplicate versions, a
+ * global install, a stale npx cache — are all ruled out. It is something about
+ * how the runner loads modules in this environment, not about this suite.
  *
- * To finish it: run `npm run test:e2e` somewhere Playwright works, look at what
- * the page actually shows (the login screen would mean the mocked session is
- * not being accepted), fix `goto` in tests/support/fixtures.js, then make the
- * CI step gating.
+ * What has been established since, by driving a real Chromium against the dev
+ * server with a mock API instead of the runner:
+ *
+ *   - The screens themselves are fine. Orders, Delivery, Staff, Audit, P&L,
+ *     Staff Requests, Payroll and Attendance all render through BaseTable with
+ *     captions, correct rows, no unstyled badges, and `data-label` on every
+ *     cell. The 22:30 UTC order shows as 01:30, so the timezone handling is
+ *     right in a browser and not only in jsdom.
+ *   - `picked_up` and `out_for_delivery` now compute real badge colours.
+ *   - Two genuine bugs were found this way and fixed: AttendanceView assigning
+ *     Array.prototype.entries when the endpoint returns a bare array, and the
+ *     doubled manifest path in index.html.
+ *
+ * So a red run here is a fault in this harness, not evidence against the
+ * screens. To finish it: get the runner working, then look at what the page
+ * actually shows (the login screen would mean the mocked session is not being
+ * accepted), fix `goto` in tests/support/fixtures.js, and make the CI step
+ * gating.
  *
  * tests/unit/table-behaviour.test.js covers the same behaviour in jsdom, does
  * pass, and is what gated the BaseTable migration.

@@ -72,6 +72,28 @@ describe('AttendanceView', () => {
   }
 
   /**
+   * Found in a browser, not here: the table was rendering empty while Vue
+   * warned that `rows` had been given a Function.
+   *
+   * The view read `res.entries`, which is right for `{ok, entries:[…]}` but
+   * silently wrong for a bare array — `[].entries` is Array.prototype.entries,
+   * a function, so the assignment succeeded and the screen simply showed no
+   * attendance. A restaurant reading that would conclude nobody clocked in.
+   *
+   * Both shapes are in use across these endpoints, so both are asserted.
+   */
+  it('renders rows when the endpoint returns a bare array', async () => {
+    mockApiGet.mockImplementation((e) => {
+      if (e.startsWith('attendance')) return Promise.resolve(ATTENDANCE.entries)
+      if (e === 'staff') return Promise.resolve(STAFF)
+      return Promise.resolve([])
+    })
+    const w = await open()
+    expect(w.findAll('tbody tr')).toHaveLength(2)
+    expect(w.text()).toContain('Selam Wondimu')
+  })
+
+  /**
    * The status text changed case when this view adopted the shared badge
    * mapping: it rendered the raw `late` and now renders `Late`, like every
    * other status chip in the app. A deliberate display change rather than a

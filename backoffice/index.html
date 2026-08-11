@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -14,8 +14,16 @@
     
     
     
-    <link rel="manifest" href="/backoffice/manifest.json" />
-    <title>FU FUT COFFEE â€” Back Office</title>
+    <!-- Vite prepends `base` to a root-relative href, so the literal
+         "/backoffice/manifest.json" that used to be here was served as
+         "/backoffice/backoffice/manifest.json" — which 404s into index.html,
+         and the browser reports that as "Manifest: Syntax error". Writing the
+         path without the base lets vite add it once: "/backoffice/manifest.json"
+         in dev, "/manifest.json" under the production `--base /`.
+         (%BASE_URL% does not work here — vite substitutes it and then still
+         prefixes the leading slash, reproducing the doubling.) -->
+    <link rel="manifest" href="/manifest.json" />
+    <title>FU FUT COFFEE — Back Office</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

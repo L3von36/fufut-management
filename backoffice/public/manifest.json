@@ -2,25 +2,26 @@
   "name": "FU FUT COFFEE — Back Office",
   "short_name": "FUFUT BO",
   "description": "Ethiopian restaurant back office management",
-  "start_url": "/backoffice/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#FAFAF8",
   "theme_color": "#0F7B78",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/backoffice/favicon.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml"
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/assets/logo.png",
-      "sizes": "192x192",
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
       "type": "image/png"
     },
     {
-      "src": "/assets/logo.png",
-      "sizes": "512x512",
+      "src": "/favicon-128x128.png",
+      "sizes": "128x128",
       "type": "image/png"
     }
   ]
