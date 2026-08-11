@@ -6,6 +6,7 @@
         <select v-model="filter" class="select">
           <option value="">All dishes</option>
           <option value="none">Missing a recipe</option>
+          <option value="provisional">Needs real quantities</option>
           <option value="thin">Margin under 50%</option>
         </select>
         <button v-if="canEdit" class="btn btn-primary" @click="openNew()">+ New Recipe</button>
@@ -23,6 +24,20 @@
     </div>
     <div v-else-if="recipes.length" class="alert-banner success">
       ✅ Every menu item has a recipe
+    </div>
+
+    <!--
+      Separate from the "no recipe" banner above, and deliberately not merged
+      with it: a dish with no recipe consumes nothing, while a dish with an
+      estimated one consumes the wrong amount. The second is easier to miss
+      because every figure on the row looks finished.
+    -->
+    <div v-if="provisionalRecipes.length" class="alert-banner warning">
+      ⚠ {{ provisionalRecipes.length }} recipe(s) still use estimated quantities — their
+      cost and margin are guesses until the kitchen weighs them.
+      <button class="btn btn-sm btn-outline" style="margin-left:8px" @click="filter = 'provisional'">
+        Show them
+      </button>
     </div>
 
     <div class="summary-grid">
@@ -46,6 +61,12 @@
               <td data-label="Dish">
                 <strong>{{ r.menu_item_name || r.name }}</strong>
                 <span v-if="r.variant" class="badge badge-pending" style="margin-left:6px">{{ r.variant }}</span>
+                <span
+                  v-if="r.provisional"
+                  class="badge badge-pending"
+                  style="margin-left:6px"
+                  title="Quantities are estimates, not weighed. Revise this recipe with the real amounts."
+                >estimated</span>
               </td>
               <td data-label="Ver">v{{ r.version }}</td>
               <td data-label="Lines">{{ r.lineCount }}</td>
@@ -54,8 +75,18 @@
               <td data-label="Total Cost">ETB {{ fmt(r.cost.totalCost) }}</td>
               <td data-label="Price">{{ r.menu_item_price != null ? 'ETB ' + fmt(r.menu_item_price) : '—' }}</td>
               <td data-label="Gross Margin">
-                <span v-if="r.margin" class="badge" :class="marginClass(r.margin.grossMarginPct)">
-                  ETB {{ fmt(r.margin.grossMargin) }} ({{ r.margin.grossMarginPct }}%)
+                <!--
+                  A margin computed from a guessed weight is a guessed margin.
+                  The tilde is there so it cannot be read off this screen and
+                  quoted into a pricing decision as though it were measured.
+                -->
+                <span
+                  v-if="r.margin"
+                  class="badge"
+                  :class="marginClass(r.margin.grossMarginPct)"
+                  :title="r.provisional ? 'Provisional — derived from estimated quantities' : undefined"
+                >
+                  {{ r.provisional ? '≈ ' : '' }}ETB {{ fmt(r.margin.grossMargin) }} ({{ r.margin.grossMarginPct }}%)
                 </span>
                 <span v-else style="color:var(--text-muted)">—</span>
               </td>
@@ -296,10 +327,16 @@ const withoutRecipe = computed(() => {
   return menuItems.value.filter(m => !covered.has(String(m.id)))
 })
 
+// Flagged by the seeding that created them: the ingredient list is right, the
+// amounts are estimates. Cleared automatically when a corrected version is
+// saved, because the version INSERT omits the column and it defaults to 0.
+const provisionalRecipes = computed(() => recipes.value.filter(r => r.provisional))
+
 const filteredRecipes = computed(() => {
   if (filter.value === 'thin') {
     return recipes.value.filter(r => r.margin && r.margin.grossMarginPct != null && r.margin.grossMarginPct < 50)
   }
+  if (filter.value === 'provisional') return provisionalRecipes.value
   if (filter.value === 'none') return []
   return recipes.value
 })

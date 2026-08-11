@@ -176,6 +176,69 @@ describe('RecipesView', () => {
     expect(w.find('.modal').text()).toContain('stocked in kg')
   })
 
+  /**
+   * 35 of the 41 live recipes carry quantities I estimated, flagged
+   * `provisional = 1`. The ingredient lists are sound; the amounts are guesses,
+   * so every cost and margin derived from them is a guess too.
+   *
+   * The flag was already returned by the API and shown nowhere, which is the
+   * worst of both: the kitchen cannot tell which dishes need real weights, and
+   * the costs on this screen read as measured fact. These tests exist so the
+   * distinction cannot quietly disappear again.
+   */
+  const withProvisional = (endpoint) => {
+    if (endpoint === 'recipes') {
+      return Promise.resolve({
+        recipes: [
+          { ...RECIPES.recipes[0], provisional: 1 },
+          {
+            ...RECIPES.recipes[0], id: 'RC9', menu_item_id: 'M-tea',
+            menu_item_name: 'Tea', name: 'Tea', provisional: 0,
+          },
+        ],
+      })
+    }
+    return recipesRoutes(endpoint)
+  }
+
+  it('marks a recipe whose quantities are still estimates', async () => {
+    mockApiGet.mockImplementation(withProvisional)
+    const w = await open()
+    const rows = w.findAll('tbody tr')
+    const macch = rows.find((r) => r.text().includes('Macchiato'))
+    const tea = rows.find((r) => r.text().includes('Tea'))
+    expect(macch.text()).toMatch(/estimate/i)
+    expect(tea.text()).not.toMatch(/estimate/i)
+  })
+
+  it('says how many recipes still need real quantities', async () => {
+    mockApiGet.mockImplementation(withProvisional)
+    const w = await open()
+    expect(w.text()).toMatch(/1[\s\S]{0,40}estimated/i)
+  })
+
+  it('can narrow the list to just those needing real quantities', async () => {
+    mockApiGet.mockImplementation(withProvisional)
+    const w = await open()
+    const select = w.find('select')
+    await select.setValue('provisional')
+    const rows = w.findAll('tbody tr')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].text()).toContain('Macchiato')
+  })
+
+  /**
+   * A cost computed from a guessed weight is a guessed cost. Presenting it in
+   * the same style as a measured one is how an estimate gets quoted back as
+   * fact in a price decision.
+   */
+  it('does not present a provisional margin as settled', async () => {
+    mockApiGet.mockImplementation(withProvisional)
+    const w = await open()
+    const macch = w.findAll('tbody tr').find((r) => r.text().includes('Macchiato'))
+    expect(macch.html()).toMatch(/provisional|estimate/i)
+  })
+
   it('keeps recipe editing away from the assistant chef', async () => {
     currentRole = 'assistant-chef'
     const w = await open()
