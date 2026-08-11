@@ -169,17 +169,30 @@ export const ROLE_PERMISSIONS = {
   // 'staff' is absent deliberately: editing colleague accounts lives in the
   // backoffice, alongside Shifts, Time Clock and the audit log. Time Clock here
   // still reads the staff list to show who is on shift.
-  manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout'],
+  manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control'],
   // menu-mgmt is granted for one action: taking a dish off when the kitchen has
   // run out. The screen itself hides adding, editing, deleting, cost and margin
   // from anyone but a manager, and the API only lets this role write the
   // availability flag - so the grant cannot widen into repricing.
-  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt'],
-  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory'],
+  // Recipes, stock control, suppliers and purchases are all food cost, which is
+  // the head chef's responsibility. They write recipes and stock; suppliers and
+  // purchases are read-only for them — seeing what arrived and at what price is
+  // part of the job, committing the business to a vendor is not. This mirrors
+  // the server matrix in fufut-api/src/auth.js; if the two disagree, the screen
+  // renders and every request on it fails.
+  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases'],
+  // Cooks from the recipes, does not set them. Two people adjusting the same
+  // counts is how a stock take stops reconciling.
+  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes'],
   'head-waiter': ['tables', 'orders', 'dashboard', 'menu-view', 'reservations', 'checkout'],
   cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout'],
   'delivery-staff': ['delivery', 'dashboard'],
-  cleaner: ['waste', 'dashboard']
+  cleaner: ['waste', 'dashboard'],
+  // §47's seventh role. Reads the financial picture and changes almost none of
+  // it — the server matrix grants write on expenses alone, so every other
+  // screen here is deliberately view-only. No operational screens: an
+  // accountant has no business seating a table or sending a ticket.
+  accountant: ['dashboard', 'reports', 'revenue', 'pnl', 'expenses', 'analytics', 'orders', 'purchases', 'suppliers']
 }
 
 export const ROLE_DEFAULT_VIEW = {
@@ -189,7 +202,8 @@ export const ROLE_DEFAULT_VIEW = {
   'head-waiter': 'tables',
   cashier: 'cashdrawer',
   'delivery-staff': 'delivery',
-  cleaner: 'waste'
+  cleaner: 'waste',
+  accountant: 'reports'
 }
 
 export const NAV_ITEMS = [
@@ -205,6 +219,10 @@ export const NAV_ITEMS = [
   { view: 'pnl', label: 'P&L', icon: 'chart-bar', section: 'Finance' },
   { view: 'cashdrawer', label: 'Cash Drawer', icon: 'cash', section: 'Finance' },
   { view: 'inventory', label: 'Inventory', icon: 'package', section: 'Stock' },
+  { view: 'recipes', label: 'Recipes', icon: 'book', section: 'Stock' },
+  { view: 'stock-control', label: 'Stock Control', icon: 'chart-bar', section: 'Stock' },
+  { view: 'suppliers', label: 'Suppliers', icon: 'truck', section: 'Stock' },
+  { view: 'purchases', label: 'Purchases', icon: 'wallet', section: 'Stock' },
   { view: 'waste', label: 'Waste Log', icon: 'trash-2', section: 'Stock' },
   { view: 'shifts', label: 'Shifts', icon: 'clock', section: 'HR' },
   { view: 'timeclock', label: 'Time Clock', icon: 'fingerprint', section: 'HR' },

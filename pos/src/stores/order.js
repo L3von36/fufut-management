@@ -82,6 +82,19 @@ export const useOrderStore = defineStore('order', () => {
   const orderType = ref('dine-in')      // dine-in | takeaway | delivery
   const tableNum = ref('')
   const customerName = ref('')
+  // Takeaway needs a number to call when the food is ready; delivery needs
+  // somewhere to take it and a fee that the guest actually pays. These used to
+  // be written into the order notes, which the kitchen reads and the driver
+  // never sees — and the delivery job is built from these fields.
+  const customerPhone = ref('')
+  const deliveryAddress = ref('')
+  const deliveryFee = ref(0)
+
+  // ─── Payment evidence (§9) ───
+  // A transfer reference and the R2 key of its screenshot. Both belong to the
+  // payment rather than the order, and travel on the payment breakdown.
+  const paymentReference = ref('')
+  const paymentEvidenceKey = ref('')
   const checkoutStep = ref('cart')      // cart | payment | processing | success
   const lastOrderId = ref(null)
   const lastOrderError = ref(null)
@@ -134,9 +147,21 @@ export const useOrderStore = defineStore('order', () => {
     return Math.round(subtotal.value * pct / 100 * 100) / 100
   })
 
+  /**
+   * A delivery fee is charged to the guest, so it belongs in what they pay.
+   * It is not discountable and is not part of the tip base — a percentage tip
+   * is on the food, not on the trip — which is why it is added after both.
+   */
+  const chargedDeliveryFee = computed(() =>
+    orderType.value === 'delivery' ? Math.max(0, Number(deliveryFee.value) || 0) : 0
+  )
+
   // ─── Phase 2: Grand Total ───
   const grandTotal = computed(() => {
-    return Math.max(0, subtotal.value - calculatedDiscount.value + calculatedTip.value)
+    return Math.max(
+      0,
+      subtotal.value - calculatedDiscount.value + calculatedTip.value + chargedDeliveryFee.value
+    )
   })
 
   // ─── Phase 2: Split Validation ───
@@ -328,7 +353,17 @@ export const useOrderStore = defineStore('order', () => {
       customerName.value = ''
       // Notes belong to the order they were written for — never carry them over.
       notes.value = ''
+      // Neither does a previous guest's phone number or address. Carrying these
+      // to the next order would send the next delivery to the wrong house.
+      customerPhone.value = ''
+      deliveryAddress.value = ''
+      deliveryFee.value = 0
     }
+    // Always cleared, even when the order context is kept: carrying one guest's
+    // transfer reference onto the next bill would attach their payment proof to
+    // somebody else's order.
+    paymentReference.value = ''
+    paymentEvidenceKey.value = ''
     lastOrderId.value = null
     lastOrderError.value = null
     // Phase 2 resets
@@ -370,17 +405,27 @@ export const useOrderStore = defineStore('order', () => {
     }))
   }
 
+  /** Methods whose evidence is worth capturing — a transfer, not cash. */
+  const EVIDENCE_METHODS = ['telebirr', 'cbe', 'bank']
+
   /** Build payment breakdown for payload */
   function buildPaymentBreakdown() {
     if (splitEnabled.value && splitPayments.value.length > 0) {
       return splitPayments.value.map(p => ({
         method: p.method,
-        amount: Math.round(p.amount * 100) / 100
+        amount: Math.round(p.amount * 100) / 100,
+        // On a split bill the reference and screenshot describe the transfer
+        // leg specifically, so they attach to that leg rather than to the cash
+        // handed over alongside it.
+        reference: EVIDENCE_METHODS.includes(p.method) ? (paymentReference.value || undefined) : undefined,
+        evidenceKey: EVIDENCE_METHODS.includes(p.method) ? (paymentEvidenceKey.value || undefined) : undefined
       }))
     }
     return [{
       method: paymentMethod.value,
       amount: Math.round(grandTotal.value * 100) / 100,
+      reference: paymentReference.value || undefined,
+      evidenceKey: paymentEvidenceKey.value || undefined,
       tendered: paymentMethod.value === 'cash' ? tendered.value : undefined,
       change: paymentMethod.value === 'cash' ? changeDue.value : undefined
     }]
@@ -460,6 +505,11 @@ export const useOrderStore = defineStore('order', () => {
       type: orderType.value,
       tableNum: tableNum.value || undefined,
       customer: customerName.value || 'Walk-in',
+      customerPhone: customerPhone.value || undefined,
+      // The API builds the delivery job from these; on any other order type
+      // they are omitted rather than sent empty.
+      address: orderType.value === 'delivery' ? (deliveryAddress.value || undefined) : undefined,
+      deliveryFee: chargedDeliveryFee.value || undefined,
       // Order-level notes (allergies, prep instructions) must reach the kitchen.
       notes: notes.value?.trim() || undefined,
       // Phase 2: Tip
@@ -502,6 +552,12 @@ export const useOrderStore = defineStore('order', () => {
     paymentMethod,
     tendered,
     orderType,
+    customerPhone,
+    deliveryAddress,
+    deliveryFee,
+    chargedDeliveryFee,
+    paymentReference,
+    paymentEvidenceKey,
     tableNum,
     customerName,
     checkoutStep,

@@ -9,6 +9,7 @@
         </select>
         <button class="btn btn-primary" @click="openAdd">+ Add Expense</button>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
+        <button class="btn btn-outline" @click="printExpenses" title="Print expense record">🖨</button>
       </div>
     </div>
 
@@ -77,6 +78,7 @@
 import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useFormValidation } from '../composables/useFormValidation'
+import { printReport } from '../lib/print'
 
 const toast = inject('toast')
 const confirmDelete = inject('confirm')
@@ -92,6 +94,32 @@ const { errors: vErrors, validate } = useFormValidation(schema)
 const filteredExpenses = computed(() => !filter.value ? expenses.value : expenses.value.filter(e => e.category === filter.value))
 const categoryTotals = computed(() => { const m={}; for(const e of filteredExpenses.value){ m[e.category]=(m[e.category]||0)+parseFloat(e.amount||0) }; return Object.entries(m).map(([c,t])=>({category:c,total:t})) })
 const allTotal = computed(() => filteredExpenses.value.reduce((s,e)=>s+parseFloat(e.amount||0),0))
+
+/**
+ * Expense record for the accountant — §53.
+ *
+ * Prints what is on screen, filter included, because "show me August's gas" is
+ * how the request actually arrives and printing the unfiltered list would make
+ * the reader do the filtering again by hand.
+ */
+function printExpenses() {
+  const ok = printReport({
+    title: 'Expense record',
+    subtitle: filter.value ? `Category: ${filter.value}` : 'All categories',
+    summary: [
+      ['Entries', filteredExpenses.value.length],
+      ['Total', `ETB ${allTotal.value.toFixed(0)}`],
+      ...categoryTotals.value.map(ct => [ct.category, `ETB ${ct.total.toFixed(0)}`]),
+    ],
+    headers: ['Date', 'Category', 'Description', 'Method', 'Recorded by', 'Amount'],
+    rows: filteredExpenses.value.map(e => [
+      e.date || '—', e.category || '—', e.description || '—',
+      e.payment_method || '—', e.recorded_by_name || '—',
+      `ETB ${parseFloat(e.amount || 0).toFixed(0)}`,
+    ]),
+  })
+  if (!ok) toast('Allow pop-ups for this site to print', 'error')
+}
 onMounted(()=>{form.value.date=new Date().toISOString().slice(0,10);loadData()})
 async function loadData() { try { expenses.value = await apiGet('expenses') } catch (e) { console.error(e) } }
 function openAdd() { editing.value=null; form.value={category:'',description:'',amount:0,date:new Date().toISOString().slice(0,10)}; showModal.value=true }

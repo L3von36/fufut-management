@@ -11,6 +11,99 @@ describe('Order Store', () => {
     setActivePinia(createPinia())
   })
 
+  /**
+   * Takeaway and delivery capture. Before these fields existed, an address had
+   * to be typed into the order notes — where the kitchen saw it and the driver
+   * did not — and the delivery job the API builds had nothing to read.
+   */
+  describe('takeaway and delivery details', () => {
+    it('charges a delivery fee on a delivery', () => {
+      const store = useOrderStore()
+      addMacchiato(store)
+      store.orderType = 'delivery'
+      store.deliveryFee = 50
+
+      expect(store.grandTotal).toBe(180)
+    })
+
+    it('ignores a stale fee once the order is no longer a delivery', () => {
+      // Switching type after typing a fee must not leave the guest paying for a
+      // trip nobody is making.
+      const store = useOrderStore()
+      addMacchiato(store)
+      store.deliveryFee = 50
+      store.orderType = 'takeaway'
+
+      expect(store.chargedDeliveryFee).toBe(0)
+      expect(store.grandTotal).toBe(130)
+    })
+
+    it('does not tip on the delivery fee', () => {
+      // A percentage tip is on the food, not on the trip — so the fee is added
+      // after the tip is worked out, never inside its base.
+      const store = useOrderStore()
+      addMacchiato(store)
+      store.orderType = 'delivery'
+      store.deliveryFee = 50
+      store.setTipPercent(10)
+
+      expect(store.calculatedTip).toBe(13)      // 10% of 130, not of 180
+      expect(store.grandTotal).toBe(193)        // 130 + 13 + 50
+    })
+
+    it('does not discount the delivery fee', () => {
+      const store = useOrderStore()
+      addMacchiato(store)
+      store.orderType = 'delivery'
+      store.deliveryFee = 50
+      store.setDiscount('percentage', 10, 'Loyalty')
+
+      expect(store.calculatedDiscount).toBe(13) // 10% of the food
+      expect(store.grandTotal).toBe(167)        // 130 − 13 + 50
+    })
+
+    it('sends the address and phone the delivery job is built from', () => {
+      const store = useOrderStore()
+      addMacchiato(store)
+      store.orderType = 'delivery'
+      store.customerPhone = '0911223344'
+      store.deliveryAddress = 'Bole, behind the Total station'
+      store.deliveryFee = 50
+
+      const payload = store.buildOrderPayload()
+      expect(payload.customerPhone).toBe('0911223344')
+      expect(payload.address).toBe('Bole, behind the Total station')
+      expect(payload.deliveryFee).toBe(50)
+    })
+
+    it('omits the address on an order that is not a delivery', () => {
+      const store = useOrderStore()
+      addMacchiato(store)
+      store.orderType = 'takeaway'
+      store.customerPhone = '0911223344'
+      store.deliveryAddress = 'left over from the last order'
+
+      const payload = store.buildOrderPayload()
+      expect(payload.address).toBeUndefined()
+      expect(payload.customerPhone).toBe('0911223344')
+    })
+
+    it('clears the phone and address between orders', () => {
+      // Carrying these over would send the next delivery to the wrong house.
+      const store = useOrderStore()
+      store.orderType = 'delivery'
+      store.customerPhone = '0911223344'
+      store.deliveryAddress = 'Bole'
+      store.deliveryFee = 50
+
+      store.resetCheckout()
+
+      expect(store.customerPhone).toBe('')
+      expect(store.deliveryAddress).toBe('')
+      expect(store.deliveryFee).toBe(0)
+    })
+  })
+
   describe('tip defaults', () => {
     // Regression: tipType defaulted to 'percentage' at 10%, so a fresh cart
     // quietly billed ETB 143 for a 130 ETB coffee before anyone chose a tip.

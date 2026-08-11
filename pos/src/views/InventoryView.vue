@@ -200,7 +200,21 @@ async function saveItem() {
   if (!validate(form.value)) { toast('Please fix the errors', 'error'); return }
   try {
     if (editing.value) {
-      await apiPut('inventory/' + editing.value.id, form.value)
+      // The catalogue record and the quantity are two different acts now. The
+      // server refuses a quantity inside a PUT, so the edit sends everything
+      // except the count, and a changed count becomes its own audited
+      // adjustment — which is what makes "why is this 19.8?" answerable later.
+      const { quantity, stock, ...catalogue } = form.value
+      await apiPut('inventory/' + editing.value.id, catalogue)
+
+      const previous = Number(editing.value.quantity ?? editing.value.stock ?? 0)
+      const wanted = Number(quantity)
+      if (Number.isFinite(wanted) && Math.abs(wanted - previous) > 1e-9) {
+        await apiPost(`inventory/${editing.value.id}/adjust`, {
+          newQty: wanted,
+          reason: 'Corrected from the inventory screen',
+        })
+      }
       toast('Item updated')
     } else {
       await apiPost('inventory', form.value)
@@ -208,16 +222,37 @@ async function saveItem() {
     }
     showModal.value = false
     await loadData()
-  } catch (e) { console.error(e); toast('Failed to save', 'error') }
+  } catch (e) { console.error(e); toast(e?.message || 'Failed to save', 'error') }
 }
 
+/**
+ * Stock changes go through the ledger, never by writing a new quantity.
+ *
+ * This used to PUT the whole item with `quantity` set to the new figure, which
+ * overwrote the previous value and left no record of who changed it or why. The
+ * server now refuses a direct write to `stock` and takes the change as a signed
+ * movement instead, so the ± buttons post a delta and a reason.
+ *
+ * The reason is fixed for these buttons because they exist for one purpose —
+ * correcting a count at the shelf. Anything needing an explanation of its own
+ * (spoilage, breakage) belongs in Waste or in a full stock count.
+ */
 async function quickAdjust(item, delta) {
-  const newQty = Math.max(0, parseInt(item.quantity||0) + delta)
   try {
-    await apiPut('inventory/' + item.id, { ...item, quantity: newQty })
-    item.quantity = newQty
-    toast(`${delta > 0 ? '+' : ''}${delta} ${item.name}`)
-  } catch (e) { console.error(e); toast('Adjust failed', 'error') }
+    const res = await apiPost(`inventory/${item.id}/adjust`, {
+      qty: delta,
+      reason: 'Quick adjustment from the inventory screen',
+    })
+    // Trust the server's balance rather than recomputing locally: it is the
+    // ledger total, and it accounts for anything else posted since this screen
+    // loaded.
+    item.quantity = res.stock
+    item.stock = res.stock
+    toast(`${delta > 0 ? '+' : ''}${delta} ${item.name} — now ${res.stock} ${res.unit || ''}`.trim())
+  } catch (e) {
+    console.error(e)
+    toast(e?.message || 'Adjust failed', 'error')
+  }
 }
 
 async function handleDelete(item) {

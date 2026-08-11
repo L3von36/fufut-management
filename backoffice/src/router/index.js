@@ -20,6 +20,12 @@ const AuditLogView = () => import('../views/AuditLogView.vue')
 const SettingsView = () => import('../views/SettingsView.vue')
 const PipelineView = () => import('../views/PipelineView.vue')
 const TablesView = () => import('../views/TablesView.vue')
+// The HR cluster the backoffice owns. Time Clock records the stamps;
+// Attendance judges them, Staff Requests approves what people claim, and
+// Payroll turns both into pay.
+const AttendanceView = () => import('../views/AttendanceView.vue')
+const StaffRequestsView = () => import('../views/StaffRequestsView.vue')
+const PayrollView = () => import('../views/PayrollView.vue')
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -44,6 +50,9 @@ const routes = [
       { path: 'reservations', name: 'reservations', component: ReservationsView },
       { path: 'delivery', name: 'delivery', component: DeliveryView },
       { path: 'orders', name: 'orders', component: OrdersView },
+      { path: 'attendance', name: 'attendance', component: AttendanceView },
+      { path: 'staff-requests', name: 'staff-requests', component: StaffRequestsView },
+      { path: 'payroll', name: 'payroll', component: PayrollView },
       { path: 'audit', name: 'audit', component: AuditLogView },
       { path: 'settings', name: 'settings', component: SettingsView },
       { path: 'pipeline', name: 'pipeline', component: PipelineView },

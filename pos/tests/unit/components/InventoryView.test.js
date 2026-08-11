@@ -34,7 +34,10 @@ const ITEMS = () => ([
   { id: 'I2', name: 'Oat Milk', category: 'Dairy', quantity: 40, minLevel: 5, unit: 'L', cost: 120 }
 ])
 
-const globalConfig = { global: { provide: { toast: vi.fn(), confirm: vi.fn(() => Promise.resolve(true)) } } }
+// Named rather than inline so tests can assert what the chef was actually told
+// — a refused adjustment has to say so, not fail silently.
+const toastSpy = vi.fn()
+const globalConfig = { global: { provide: { toast: toastSpy, confirm: vi.fn(() => Promise.resolve(true)) } } }
 
 const modalInputs = (w) => w.find('.modal').findAll('input')
 
@@ -72,7 +75,10 @@ describe('InventoryView', () => {
       const w = await open()
       await w.findAll('button').find(b => b.text() === '+1').trigger('click')
       await flushPromises()
-      expect(mockApiPut).toHaveBeenCalledWith('inventory/I1', expect.objectContaining({ quantity: 3 }))
+      expect(mockApiPost).toHaveBeenCalledWith(
+        'inventory/I1/adjust',
+        expect.objectContaining({ qty: 1 })
+      )
     })
 
     // Removing an item from the catalogue is a different act from recording
@@ -178,26 +184,124 @@ describe('InventoryView', () => {
     expect(w.find('.field-error').exists()).toBe(true)
   })
 
-  // Quick adjust is the control a chef uses mid-service, so it has to send the
-  // new figure rather than the delta.
-  it('adjusts stock by one and sends the resulting quantity', async () => {
+  /**
+   * Quick adjust used to PUT the whole item with a new `quantity`, which
+   * overwrote the previous figure and recorded nothing about who changed it.
+   * Stock now moves only through the ledger, so the button posts a signed
+   * delta and a reason and the server returns the resulting balance.
+   */
+  it('posts a signed delta rather than overwriting the quantity', async () => {
+    mockApiPost.mockResolvedValue({ ok: true, stock: 3, unit: 'kg' })
     const w = await open()
     await w.findAll('button').find(b => b.text() === '+1').trigger('click')
     await flushPromises()
 
-    expect(mockApiPut).toHaveBeenCalledWith('inventory/I1', expect.objectContaining({ quantity: 3 }))
+    expect(mockApiPost).toHaveBeenCalledWith(
+      'inventory/I1/adjust',
+      expect.objectContaining({ qty: 1 })
+    )
+    // The old write path must not be used at all — a PUT carrying a quantity is
+    // now refused by the server.
+    expect(mockApiPut).not.toHaveBeenCalled()
   })
 
-  it('never adjusts stock below zero', async () => {
+  it('sends a reason with every adjustment', async () => {
+    // An adjustment with no reason cannot be told apart from a mistake later,
+    // and the server refuses one.
+    mockApiPost.mockResolvedValue({ ok: true, stock: 3, unit: 'kg' })
+    const w = await open()
+    await w.findAll('button').find(b => b.text() === '+1').trigger('click')
+    await flushPromises()
+
+    const [, body] = mockApiPost.mock.calls.find(c => c[0].endsWith('/adjust'))
+    expect(body.reason).toBeTruthy()
+  })
+
+  it('shows the balance the server reports rather than a locally computed one', async () => {
+    // Another movement may have posted since this screen loaded, so the ledger
+    // total is the only figure that is actually current.
+    mockApiPost.mockResolvedValue({ ok: true, stock: 7, unit: 'kg' })
+    const w = await open()
+    await w.findAll('button').find(b => b.text() === '+1').trigger('click')
+    await flushPromises()
+
+    expect(w.text()).toContain('7')
+  })
+
+  it('sends a decrement as a negative delta', async () => {
     mockApiGet.mockResolvedValue([
-      { id: 'I3', name: 'Vanilla Syrup', category: 'Syrups', quantity: 0, minLevel: 2, unit: 'btl', cost: 50 }
+      { id: 'I3', name: 'Vanilla Syrup', category: 'Syrups', quantity: 0, minLevel: 2, unit: 'bottle', cost: 50 }
     ])
+    mockApiPost.mockResolvedValue({ ok: true, stock: 0, unit: 'bottle' })
     const w = mount(InventoryView, globalConfig)
     await flushPromises()
 
     await w.findAll('button').find(b => b.text().includes('1') && b.text() !== '+1').trigger('click')
     await flushPromises()
 
-    expect(mockApiPut).toHaveBeenCalledWith('inventory/I3', expect.objectContaining({ quantity: 0 }))
+    expect(mockApiPost).toHaveBeenCalledWith(
+      'inventory/I3/adjust',
+      expect.objectContaining({ qty: -1 })
+    )
+  })
+
+  /**
+   * The negative-stock guard moved to the server, where it belongs: the client
+   * clamping at zero meant a decrement below zero silently did nothing and the
+   * chef saw a success toast. The server now refuses it and says by how much.
+   */
+  it('surfaces the server’s refusal instead of silently clamping', async () => {
+    mockApiGet.mockResolvedValue([
+      { id: 'I3', name: 'Vanilla Syrup', category: 'Syrups', quantity: 0, minLevel: 2, unit: 'bottle', cost: 50 }
+    ])
+    mockApiPost.mockRejectedValue(new Error('Vanilla Syrup: only 0 bottle in stock, cannot remove 1'))
+    const w = mount(InventoryView, globalConfig)
+    await flushPromises()
+
+    await w.findAll('button').find(b => b.text().includes('1') && b.text() !== '+1').trigger('click')
+    await flushPromises()
+
+    expect(toastSpy).toHaveBeenCalledWith(
+      expect.stringContaining('only 0 bottle in stock'),
+      'error'
+    )
+  })
+
+  /**
+   * Editing an item is now two acts: the catalogue record, and — only if the
+   * count changed — an audited adjustment. A quantity inside the PUT is
+   * refused, so it must not be sent.
+   */
+  it('keeps the quantity out of a catalogue edit', async () => {
+    const w = await open()
+    await w.findAll('button').find(b => b.text() === 'Edit').trigger('click')
+    await flushPromises()
+
+    const nameInput = modalInputs(w).find(i => i.element.value === 'Espresso Beans')
+    await nameInput.setValue('Espresso Beans (Dark)')
+    await w.findAll('button').find(b => /save|update/i.test(b.text())).trigger('click')
+    await flushPromises()
+
+    const [, body] = mockApiPut.mock.calls.find(c => c[0] === 'inventory/I1')
+    expect(body.name).toBe('Espresso Beans (Dark)')
+    expect(body).not.toHaveProperty('quantity')
+    // The count did not change, so no adjustment should have been raised.
+    expect(mockApiPost.mock.calls.filter(c => c[0].endsWith('/adjust'))).toHaveLength(0)
+  })
+
+  it('raises an adjustment when an edit changes the count', async () => {
+    const w = await open()
+    await w.findAll('button').find(b => b.text() === 'Edit').trigger('click')
+    await flushPromises()
+
+    const qtyInput = modalInputs(w).find(i => i.element.value === '2')
+    await qtyInput.setValue('19.8')
+    await w.findAll('button').find(b => /save|update/i.test(b.text())).trigger('click')
+    await flushPromises()
+
+    expect(mockApiPost).toHaveBeenCalledWith(
+      'inventory/I1/adjust',
+      expect.objectContaining({ newQty: 19.8 })
+    )
   })
 })

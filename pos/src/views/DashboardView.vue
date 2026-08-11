@@ -258,6 +258,94 @@ async function loadDashboard() {
   }
 }
 
+/**
+ * Manager and accountant tiles, from the server's own aggregation.
+ *
+ * Summing `o.total` in the browser overstates the day: since tips are stored,
+ * `total` is what the guest handed over and includes money that is not the
+ * restaurant's. `/api/reports/dashboard` returns `netSales` with the tip
+ * already subtracted, and reports tips as their own figure — which is the
+ * separation §14 asks for and the reason this is not computed here.
+ *
+ * It also means the tiles cover the whole trading picture (sales by order type,
+ * pending deliveries, supplier balance) rather than only what this screen
+ * happened to have already fetched.
+ */
+async function loadManagerKpis() {
+  try {
+    const r = await apiGet('reports/dashboard?period=day')
+    const low = r.operations.lowStockItems
+    kpis.value = [
+      {
+        label: 'Today Sales', value: `ETB ${Math.round(r.sales.netSales)}`,
+        // Stated on the tile: the headline figure is not the cash taken.
+        sub: `${r.sales.orders} orders · excludes ETB ${Math.round(r.tips)} tips`,
+        bar: 'teal', icon: ICONS.revenue,
+      },
+      {
+        label: 'Dine-in / Takeaway / Delivery',
+        value: `${r.byOrderType.dineIn.orders}/${r.byOrderType.takeaway.orders}/${r.byOrderType.delivery.orders}`,
+        sub: `ETB ${Math.round(r.byOrderType.dineIn.net)} · ${Math.round(r.byOrderType.takeaway.net)} · ${Math.round(r.byOrderType.delivery.net)}`,
+        bar: 'blue', icon: ICONS.orders,
+      },
+      {
+        label: 'Expenses', value: `ETB ${Math.round(r.expenses)}`,
+        sub: `Sales less expenses: ETB ${Math.round(r.grossOfExpenses)}`,
+        bar: 'yellow', icon: ICONS.expenses,
+      },
+      {
+        label: 'Low Stock', value: `${low}`,
+        sub: low ? `${low} at or below reorder point` : 'All stocked',
+        bar: low ? 'yellow' : 'teal', color: low ? 'var(--danger)' : '', icon: ICONS.stock,
+      },
+      {
+        label: 'Kitchen / Deliveries',
+        value: `${r.operations.pendingKitchenOrders}/${r.operations.pendingDeliveries}`,
+        sub: 'Open tickets · runs outstanding',
+        bar: 'blue', icon: ICONS.orders,
+      },
+      {
+        label: 'Owed to Suppliers', value: `ETB ${Math.round(r.supplierBalance)}`,
+        sub: r.supplierBalance > 0 ? 'Outstanding on purchases' : 'Nothing outstanding',
+        bar: r.supplierBalance > 0 ? 'yellow' : 'teal', icon: ICONS.expenses,
+      },
+    ]
+  } catch (e) {
+    // The provisional tiles set by the caller stay on screen. A dashboard that
+    // is briefly approximate beats one that is empty.
+    console.error(e)
+  }
+}
+
+/**
+ * Cashier tiles.
+ *
+ * The old version split the day by `o.payment === 'cash'` against `'card'`.
+ * That string is a summary — a split bill stores "cash+telebirr" — so a split
+ * matched neither bucket and vanished, and Telebirr, CBE and bank transfers
+ * were all counted as neither cash nor card. The real amounts per method live
+ * in the payments table and are what `paymentMethods` reports.
+ */
+async function loadCashierKpis() {
+  try {
+    const r = await apiGet('reports/dashboard?period=day')
+    const method = (name) => r.paymentMethods.find(m => m.method === name) || { total: 0, count: 0 }
+    const cash = method('cash')
+    const digital = r.paymentMethods
+      .filter(m => ['telebirr', 'cbe', 'bank', 'card', 'mobile'].includes(m.method))
+      .reduce((s, m) => ({ total: s.total + m.total, count: s.count + m.count }), { total: 0, count: 0 })
+
+    kpis.value = [
+      { label: 'Today Sales', value: `ETB ${Math.round(r.sales.netSales)}`, sub: `${r.sales.orders} orders · excludes tips`, bar: 'teal', icon: ICONS.revenue },
+      { label: 'Cash Taken',  value: `ETB ${Math.round(cash.total)}`,       sub: `${cash.count} payment(s)`,                 bar: 'blue', icon: ICONS.cash },
+      { label: 'Digital',     value: `ETB ${Math.round(digital.total)}`,    sub: `${digital.count} transfer(s)`,             bar: 'gold', icon: ICONS.expenses },
+      { label: 'Avg Order',   value: `ETB ${Math.round(r.sales.averageOrder)}`, sub: 'Per transaction',                      bar: 'teal', icon: ICONS.revenue },
+    ]
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 function buildKpis() {
   const role = auth.roleKey
   const rev = todayOrders.value.reduce((s, o) => s + parseFloat(o.total||0), 0)
@@ -267,14 +355,18 @@ function buildKpis() {
   const readyOrd = todayOrders.value.filter(o => o.status === 'ready').length
   const low = lowStockItems.value.length
 
-  if (role === 'manager') {
+  if (role === 'manager' || role === 'accountant') {
     showCharts.value = true
+    // Provisional tiles from what is already loaded, replaced the moment the
+    // reports endpoint answers. Without this the dashboard is blank on every
+    // load rather than briefly approximate.
     kpis.value = [
-      { label: 'Today Revenue',    value: `ETB ${rev.toFixed(0)}`, sub: `${todayOrders.value.length} orders today`, bar: 'teal',   icon: ICONS.revenue },
-      { label: 'New Orders',       value: `${newOrd}`,             sub: `${newOrd} pending`,                        bar: 'blue',   icon: ICONS.orders  },
-      { label: 'Today Expenses',   value: `ETB ${exp.toFixed(0)}`, sub: `${todayExpenses.value.length} entries`,    bar: 'yellow', icon: ICONS.expenses },
-      { label: 'Low Stock Alerts', value: `${low}`,                sub: `${low} items need reorder`,               bar: low ? 'yellow' : 'teal', color: low ? 'var(--danger)' : '', icon: ICONS.stock }
+      { label: 'Today Revenue',    value: `ETB ${rev.toFixed(0)}`, sub: 'Loading…',                              bar: 'teal',   icon: ICONS.revenue },
+      { label: 'Orders',           value: `${todayOrders.value.length}`, sub: `${newOrd} new`,                   bar: 'blue',   icon: ICONS.orders  },
+      { label: 'Today Expenses',   value: `ETB ${exp.toFixed(0)}`, sub: `${todayExpenses.value.length} entries`, bar: 'yellow', icon: ICONS.expenses },
+      { label: 'Low Stock Alerts', value: `${low}`,                sub: `${low} items need reorder`,             bar: low ? 'yellow' : 'teal', color: low ? 'var(--danger)' : '', icon: ICONS.stock }
     ]
+    loadManagerKpis()
   } else if (role === 'head-chef') {
     showRecentOrders.value = false
     kpis.value = [
@@ -285,14 +377,11 @@ function buildKpis() {
     ]
   } else if (role === 'cashier') {
     showCharts.value = true
-    const cashOrd = todayOrders.value.filter(o => o.payment === 'cash')
-    const cardOrd = todayOrders.value.filter(o => o.payment === 'card')
     kpis.value = [
-      { label: 'Today Revenue', value: `ETB ${rev.toFixed(0)}`,                                                                            sub: `${todayOrders.value.length} orders`,                                          bar: 'teal',   icon: ICONS.revenue  },
-      { label: 'Cash Orders',   value: `${cashOrd.length}`,                                                                                sub: `ETB ${cashOrd.reduce((s,o)=>s+parseFloat(o.total||0),0).toFixed(0)}`,        bar: 'blue',   icon: ICONS.cash     },
-      { label: 'Card / Mobile', value: `${cardOrd.length}`,                                                                                sub: `ETB ${cardOrd.reduce((s,o)=>s+parseFloat(o.total||0),0).toFixed(0)}`,        bar: 'gold',   icon: ICONS.expenses },
-      { label: 'Avg Order',     value: `ETB ${todayOrders.value.length ? (rev/todayOrders.value.length).toFixed(0) : 0}`,                 sub: 'Per transaction',                                                            bar: 'teal',   icon: ICONS.revenue  }
+      { label: 'Today Revenue', value: `ETB ${rev.toFixed(0)}`, sub: 'Loading…', bar: 'teal', icon: ICONS.revenue },
+      { label: 'Orders',        value: `${todayOrders.value.length}`, sub: `${newOrd} new`, bar: 'blue', icon: ICONS.orders },
     ]
+    loadCashierKpis()
   } else if (role === 'head-waiter') {
     // A waiter has no inventory permission, so loadDashboard never fetches it
     // and `low` is structurally always 0. Showing a Low Stock tile here would
@@ -320,8 +409,12 @@ function buildKpis() {
     showRecentOrders.value = false
     showLowStock.value = false
     apiGet('delivery').then(del => {
-      const pending = del.filter(d => d.status === 'pending').length
-      const transit = del.filter(d => d.status === 'in-transit').length
+      // The lifecycle statuses are new/confirmed/preparing/ready/assigned/
+      // picked_up/out_for_delivery/delivered. The old filters looked for
+      // 'pending' and 'in-transit', which the state machine never produces, so
+      // both tiles read zero however busy the evening was.
+      const pending = del.filter(d => ['new', 'confirmed', 'preparing', 'ready', 'assigned'].includes(d.status)).length
+      const transit = del.filter(d => ['picked_up', 'out_for_delivery'].includes(d.status)).length
       const done    = del.filter(d => d.status === 'delivered').length
       kpis.value = [
         { label: 'Pending Pickups', value: `${pending}`, sub: 'Awaiting driver', bar: 'teal', icon: ICONS.delivery },

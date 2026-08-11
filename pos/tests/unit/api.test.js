@@ -253,8 +253,8 @@ describe('API Client', () => {
     // 20 since Staff was removed: editing colleague accounts belongs in the
     // backoffice, not on a shared floor tablet. The HR section remains for
     // Shifts and Time Clock.
-    it('NAV_ITEMS should have 20 items across defined sections', () => {
-      expect(NAV_ITEMS.length).toBe(20)
+    it('NAV_ITEMS covers the defined sections', () => {
+      expect(NAV_ITEMS.length).toBe(24)
       expect(NAV_ITEMS.map(n => n.view)).not.toContain('staff')
       const sections = [...new Set(NAV_ITEMS.map(n => n.section))]
       expect(sections).toContain('Overview')
@@ -264,6 +264,37 @@ describe('API Client', () => {
       expect(sections).toContain('Stock')
       expect(sections).toContain('HR')
       expect(sections).toContain('Analytics')
+    })
+
+    /**
+     * A nav entry no role can open renders a link that bounces straight back to
+     * the default view, which reads as a broken app rather than a missing
+     * permission. Asserting reachability catches that; asserting a count only
+     * catches somebody adding a screen.
+     */
+    it('every nav item is reachable by at least one role', () => {
+      const granted = new Set(Object.values(ROLE_PERMISSIONS).flat())
+      const unreachable = NAV_ITEMS.map(n => n.view).filter(v => !granted.has(v))
+      expect(unreachable).toEqual([])
+    })
+
+    /**
+     * The stock screens consume the recipe and ledger engine. Without them
+     * nothing can enter a BOM, and a sale therefore consumes no ingredients —
+     * the engine sits inert with no way to switch it on.
+     */
+    it('exposes the stock intelligence screens to the roles that own food cost', () => {
+      for (const view of ['recipes', 'stock-control', 'suppliers', 'purchases']) {
+        expect(ROLE_PERMISSIONS.manager).toContain(view)
+      }
+      expect(ROLE_PERMISSIONS['head-chef']).toContain('recipes')
+      expect(ROLE_PERMISSIONS['head-chef']).toContain('stock-control')
+      // Cooks from recipes, does not set them or commit spend.
+      expect(ROLE_PERMISSIONS['assistant-chef']).toContain('recipes')
+      expect(ROLE_PERMISSIONS['assistant-chef']).not.toContain('purchases')
+      // Money screens stay away from the floor and the kitchen door.
+      expect(ROLE_PERMISSIONS.cleaner).not.toContain('purchases')
+      expect(ROLE_PERMISSIONS['delivery-staff']).not.toContain('suppliers')
     })
 
     it('TODAY should return a date string in YYYY-MM-DD format', () => {

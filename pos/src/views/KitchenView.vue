@@ -93,6 +93,10 @@
                    addition, not a replacement: if the granular path were the
                    only path it would be slower than today and staff would stop
                    using the screen during a rush. -->
+              <!-- §53. The digital board is the source of truth, but a paper
+                   ticket still goes up on the rail in most kitchens, and until
+                   now there was no way to produce one. -->
+              <button class="btn btn-sm btn-outline" @click="printTicket(o)" title="Print kitchen ticket">🖨</button>
               <base-button text="Start All" variant="btn-primary" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'preparing')" />
             </div>
           </div>
@@ -233,6 +237,7 @@ import { useAudioAlerts } from '../composables/useAudioAlerts'
 import { useButtonState } from '../composables/useButtonState'
 import { useAuthStore } from '../stores/auth'
 import { useSSE } from '../composables/useSSE'
+import { kitchenTicket } from '../lib/print'
 
 const toast = inject('toast')
 const auth = useAuthStore()
@@ -268,6 +273,19 @@ const itemsByOrder = computed(() => {
 
 function trackedLines(order) {
   return itemsByOrder.value.get(order.id) || []
+}
+
+/**
+ * Paper ticket for the rail.
+ *
+ * Uses the tracked lines where they exist — they carry the modifiers and the
+ * per-line notes — and falls back to the order's summary string for an order
+ * that predates per-item tracking, so an old ticket still prints something
+ * usable rather than a blank.
+ */
+function printTicket(order) {
+  const ok = kitchenTicket(order, trackedLines(order))
+  if (!ok) toast('Allow pop-ups for this site to print tickets', 'error')
 }
 
 function parseModifiers(raw) {

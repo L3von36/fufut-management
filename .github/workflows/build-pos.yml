@@ -122,6 +122,12 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backoffice/package-lock.json
       - run: cd backoffice && npm ci
+      # Gates the deploy, exactly as test-pos gates build-pos. The backoffice
+      # had no suite at all until the HR screens were added, which is how
+      # AuditLogView shipped calling a 404 endpoint and rendering an empty table
+      # that looked like a quiet day.
+      - name: Test Backoffice
+        run: cd backoffice && npm test
       - run: cp backoffice/index.html.source backoffice/index.html
       - name: Build Backoffice
         env:

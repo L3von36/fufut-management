@@ -28,6 +28,13 @@ const PipelineView = () => import('../views/PipelineView.vue')
 const RevenueView = () => import('../views/RevenueView.vue')
 const AnalyticsView = () => import('../views/AnalyticsView.vue')
 const CheckoutView = () => import('../views/CheckoutView.vue')
+// Stock intelligence. These consume the recipe/ledger engine: without them the
+// engine is inert, because nothing can enter a BOM and a sale therefore
+// consumes nothing.
+const RecipesView = () => import('../views/RecipesView.vue')
+const SuppliersView = () => import('../views/SuppliersView.vue')
+const PurchasesView = () => import('../views/PurchasesView.vue')
+const StockControlView = () => import('../views/StockControlView.vue')
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -66,7 +73,11 @@ const routes = [
       { path: 'pipeline', name: 'pipeline', component: PipelineView },
       { path: 'revenue', name: 'revenue', component: RevenueView },
       { path: 'analytics', name: 'analytics', component: AnalyticsView },
-      { path: 'checkout', name: 'checkout', component: CheckoutView }
+      { path: 'checkout', name: 'checkout', component: CheckoutView },
+      { path: 'recipes', name: 'recipes', component: RecipesView },
+      { path: 'suppliers', name: 'suppliers', component: SuppliersView },
+      { path: 'purchases', name: 'purchases', component: PurchasesView },
+      { path: 'stock-control', name: 'stock-control', component: StockControlView }
     ]
   }
 ]

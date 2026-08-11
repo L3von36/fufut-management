@@ -27,9 +27,29 @@ if (typeof window !== 'undefined') {
   window.addEventListener('offline', () => setOnline(false))
 }
 
+/**
+ * The API explains its refusals in the response body — "You cannot approve your
+ * own overtime claim", "A reason is required to reject", "Only a manager can
+ * change business settings". This used to throw the status line instead, so
+ * every one of those became "POST /api/overtime/OT1/decide 403" on screen and
+ * the actual reason was lost.
+ *
+ * The status line is kept as the fallback for a non-JSON failure, where it is
+ * the only information there is.
+ */
 async function tryFetch(url, options) {
   const r = await fetch(url, options)
-  if (!r.ok) throw new Error(`${options?.method || 'GET'} ${url} ${r.status}`)
+  if (!r.ok) {
+    let message = `${options?.method || 'GET'} ${url} ${r.status}`
+    try {
+      const ct = r.headers.get('content-type') || ''
+      if (ct.includes('application/json')) {
+        const body = await r.json()
+        if (body && body.error) message = body.error
+      }
+    } catch { /* body was not readable — keep the status line */ }
+    throw new Error(message)
+  }
   return r.json()
 }
 
@@ -71,13 +91,23 @@ export async function apiDelete(endpoint, id) {
 }
 
 export const ROLE_PERMISSIONS = {
-  manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'pipeline', 'tables'],
+  manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'pipeline', 'tables', 'attendance', 'staff-requests', 'payroll'],
   'head-chef': ['dashboard', 'orders', 'inventory', 'waste', 'reports', 'pipeline'],
   'assistant-chef': ['dashboard', 'orders', 'inventory'],
   'head-waiter': ['dashboard', 'orders', 'tables', 'reservations', 'delivery', 'reports', 'pipeline'],
   cashier: ['dashboard', 'orders', 'tables', 'reports', 'timeclock', 'reservations', 'revenue'],
   'delivery-staff': ['dashboard', 'delivery'],
-  cleaner: ['dashboard', 'waste']
+  cleaner: ['dashboard', 'waste'],
+  /**
+   * §47's accountant. Reads the financial picture including the HR records they
+   * need at month end; the server matrix grants write on expenses alone, so
+   * every other screen here is view-only.
+   *
+   * Deliberately no `settings`: the tax bands are theirs to advise on, and a
+   * manager applies them, which keeps the change and its audit entry with the
+   * person answerable for it.
+   */
+  accountant: ['dashboard', 'reports', 'pnl', 'revenue', 'expenses', 'orders', 'attendance', 'payroll', 'audit']
 }
 
 export const ROLE_DEFAULT_VIEW = {
@@ -87,7 +117,8 @@ export const ROLE_DEFAULT_VIEW = {
   'head-waiter': 'tables',
   cashier: 'orders',
   'delivery-staff': 'delivery',
-  cleaner: 'waste'
+  cleaner: 'waste',
+  accountant: 'reports'
 }
 
 export const NAV_ITEMS = [
@@ -107,6 +138,9 @@ export const NAV_ITEMS = [
   { view: 'staff', label: 'Staff', icon: 'users', section: 'HR' },
   { view: 'shifts', label: 'Shifts', icon: 'clock', section: 'HR' },
   { view: 'timeclock', label: 'Time Clock', icon: 'fingerprint', section: 'HR' },
+  { view: 'attendance', label: 'Attendance', icon: 'calendar', section: 'HR' },
+  { view: 'staff-requests', label: 'Leave & Overtime', icon: 'file-text', section: 'HR' },
+  { view: 'payroll', label: 'Payroll', icon: 'wallet', section: 'HR' },
   { view: 'audit', label: 'Audit Log', icon: 'shield', section: 'System' },
   { view: 'settings', label: 'Settings', icon: 'settings', section: 'System' }
 ]

@@ -36,10 +36,27 @@
       <div class="modal">
         <h3>Log Waste</h3>
         <p class="modal-sub">Record discarded items</p>
-        <div class="form-group"><label>Item</label><input v-model="form.name" :class="{ 'input-error': vErrors.name }" /><span v-if="vErrors.name" class="field-error">{{ vErrors.name }}</span></div>
+        <!--
+          Picking a stock item is what makes the waste real: it deducts through
+          the ledger, so binned food stops counting as though it were still on
+          the shelf. Free text is kept for anything not tracked as inventory —
+          a plated dish returned by a guest — and those still log without moving
+          stock, as they always did.
+        -->
+        <div class="form-group">
+          <label>Stock Item</label>
+          <select v-model="form.inventoryId" class="select" @change="onItemPicked">
+            <option value="">Not a tracked stock item</option>
+            <option v-for="i in inventory" :key="i.id" :value="i.id">{{ i.name }} ({{ i.unit }})</option>
+          </select>
+          <span class="field-hint">
+            {{ form.inventoryId ? 'This will be deducted from stock.' : 'Logged only — stock will not change.' }}
+          </span>
+        </div>
+        <div class="form-group" v-if="!form.inventoryId"><label>Item</label><input v-model="form.name" :class="{ 'input-error': vErrors.name }" /><span v-if="vErrors.name" class="field-error">{{ vErrors.name }}</span></div>
         <div class="form-row">
           <div class="form-group"><label>Category</label><select v-model="form.category" class="select"><option value="">Select...</option><option value="Food">Food</option><option value="Beverage">Beverage</option><option value="Packaging">Packaging</option><option value="Other">Other</option></select></div>
-          <div class="form-group"><label>Qty</label><input v-model.number="form.quantity" type="number" :class="{ 'input-error': vErrors.quantity }" /><span v-if="vErrors.quantity" class="field-error">{{ vErrors.quantity }}</span></div>
+          <div class="form-group"><label>Qty {{ selectedUnit ? '(' + selectedUnit + ')' : '' }}</label><input v-model.number="form.quantity" type="number" step="any" :class="{ 'input-error': vErrors.quantity }" /><span v-if="vErrors.quantity" class="field-error">{{ vErrors.quantity }}</span></div>
         </div>
         <div class="form-group"><label>Reason</label><select v-model="form.reason" class="select" :class="{ 'input-error': vErrors.reason }"><option value="">Select...</option><option value="spoiled">Spoiled</option><option value="overproduction">Overproduction</option><option value="quality">Quality</option><option value="damaged">Damaged</option><option value="other">Other</option></select></div>
         <div class="form-row">
@@ -66,16 +83,57 @@ const schema = {
 }
 const { errors: vErrors, validate } = useFormValidation(schema)
 const wasteItems = ref([]); const filter = ref(''); const showModal = ref(false)
-const form = ref({ name:'', category:'', quantity:1, reason:'', cost:0, date:'' })
+const inventory = ref([])
+const form = ref(blankForm())
 const filteredWaste = computed(()=>!filter.value?wasteItems.value:wasteItems.value.filter(w=>w.category===filter.value))
-const totalWasteCost = computed(()=>wasteItems.value.reduce((s,w)=>s+parseFloat(w.cost||0),0))
-onMounted(()=>{form.value.date=new Date().toISOString().slice(0,10); loadData()})
+const totalWasteCost = computed(()=>wasteItems.value.reduce((s,w)=>s+parseFloat(w.cost||w.est_cost||0),0))
+
+const selectedItem = computed(() => inventory.value.find(i => String(i.id) === String(form.value.inventoryId)))
+const selectedUnit = computed(() => selectedItem.value?.unit || '')
+
+function blankForm() {
+  return { inventoryId:'', name:'', category:'', quantity:1, reason:'', cost:0, date:new Date().toISOString().slice(0,10) }
+}
+
+onMounted(()=>{ loadData(); loadInventory() })
 async function loadData() { try { wasteItems.value = await apiGet('waste') } catch (e) { console.error(e) } }
-function openAdd() { form.value={name:'',category:'',quantity:1,reason:'',cost:0,date:new Date().toISOString().slice(0,10)}; showModal.value=true }
-async function saveItem() { if (!validate(form.value)) { toast('Please fix the errors', 'error'); return } try { await apiPost('waste',form.value); toast('Logged'); showModal.value=false; await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
+async function loadInventory() {
+  // A cleaner can log waste but has no inventory access, so an empty list here
+  // is expected rather than an error — the free-text path still works for them.
+  try { inventory.value = await apiGet('inventory') } catch { inventory.value = [] }
+}
+
+/** Prefill from the stock record so the cost estimate is not guessed. */
+function onItemPicked() {
+  const item = selectedItem.value
+  if (!item) return
+  form.value.name = item.name
+  if (item.category) form.value.category = form.value.category || item.category
+  const unitCost = Number(item.avg_cost ?? item.cost ?? 0)
+  form.value.cost = Math.round(unitCost * Number(form.value.quantity || 0) * 100) / 100
+}
+
+function openAdd() { form.value = blankForm(); showModal.value=true }
+
+async function saveItem() {
+  if (!validate(form.value)) { toast('Please fix the errors', 'error'); return }
+  // The server requires a reason on anything that moves stock, and refuses it
+  // otherwise — asking here avoids a round trip that only fails.
+  if (form.value.inventoryId && !form.value.reason) { toast('Choose a reason', 'error'); return }
+  try {
+    const res = await apiPost('waste', form.value)
+    toast(res.stock !== undefined
+      ? `Logged — ${form.value.name} now ${res.stock} ${res.unit || ''}`.trim()
+      : 'Logged')
+    showModal.value=false
+    await loadData()
+    if (form.value.inventoryId) await loadInventory()
+  } catch (e) { console.error(e); toast(e?.message || 'Failed','error') }
+}
 async function handleDelete(w) { if(!await confirmDelete('Delete?'))return; try { await apiDelete('waste/'+w.id); toast('Deleted'); await loadData() } catch (e) { console.error(e); toast('Failed','error') } }
 </script>
 <style scoped>
 .input-error { border-color: var(--danger, #e74c3c) !important; }
 .field-error { display: block; color: var(--danger, #e74c3c); font-size: 0.75rem; margin-top: 2px; }
+.field-hint { display: block; color: var(--text-muted); font-size: 0.72rem; margin-top: 2px; }
 </style>

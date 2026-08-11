@@ -27,6 +27,27 @@
         </div>
       </div>
 
+      <!--
+        A takeaway needs a way to call the guest when it is ready, and a delivery
+        needs somewhere to take it. Both used to have to go in the order notes,
+        where the kitchen saw them and the driver did not — the delivery job is
+        built from these fields, not from the note.
+      -->
+      <div v-if="store.orderType !== 'dine-in'" class="checkout-details-row">
+        <div class="form-group" style="margin:0;flex:1">
+          <label>Phone</label>
+          <input v-model="store.customerPhone" placeholder="09…" class="input input-sm" inputmode="tel" />
+        </div>
+        <div v-if="store.orderType === 'delivery'" class="form-group" style="margin:0;flex:2">
+          <label>Delivery Address</label>
+          <input v-model="store.deliveryAddress" placeholder="Street, building, landmark" class="input input-sm" />
+        </div>
+        <div v-if="store.orderType === 'delivery'" class="form-group" style="margin:0;flex:1">
+          <label>Delivery Fee</label>
+          <input v-model.number="store.deliveryFee" type="number" min="0" step="any" class="input input-sm" />
+        </div>
+      </div>
+
       <!-- Cart lines -->
       <div class="checkout-lines" v-if="store.items.length">
         <div v-for="entry in store.items" :key="entry.uid" class="checkout-line">
@@ -235,7 +256,34 @@
             <div class="card-panel-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;color:var(--primary)"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             </div>
-            <p class="card-panel-text">Tap <strong>Process Payment</strong> to simulate {{ store.paymentMethod === 'card' ? 'card' : 'mobile money' }} payment.</p>
+            <p class="card-panel-text">Tap <strong>Process Payment</strong> once the {{ store.paymentMethod === 'card' ? 'card' : 'transfer' }} has gone through.</p>
+          </div>
+
+          <!--
+            §9. A transfer is only worth recording if it can be checked later,
+            so the reference and the screenshot are captured where the payment
+            is taken rather than reconstructed afterwards. Cash needs neither —
+            it is confirmed by being in the drawer.
+          -->
+          <div v-if="needsEvidence" class="evidence-panel">
+            <div class="ev-head">
+              <span class="ev-title">Transfer evidence</span>
+              <span class="ev-note">Verified by a cashier before this counts as settled</span>
+            </div>
+            <div class="form-group" style="margin:0 0 8px">
+              <label>Reference / transaction number</label>
+              <input v-model="store.paymentReference" class="input input-sm" placeholder="From the transfer confirmation" />
+            </div>
+            <div class="ev-upload">
+              <label class="btn btn-outline btn-sm ev-pick">
+                {{ evidenceName ? 'Replace screenshot' : 'Attach screenshot' }}
+                <input type="file" accept="image/*,application/pdf" capture="environment" @change="attachEvidence" hidden />
+              </label>
+              <span v-if="evidenceUploading" class="ev-status">Uploading…</span>
+              <span v-else-if="evidenceName" class="ev-status ev-ok">✓ {{ evidenceName }}</span>
+              <button v-if="evidenceName && !evidenceUploading" class="btn btn-sm btn-ghost danger" @click="clearEvidence">Remove</button>
+            </div>
+            <p v-if="evidenceError" class="ev-error">{{ evidenceError }}</p>
           </div>
         </div>
       </div>
@@ -393,6 +441,57 @@ const toast = inject('toast')
 const store = useOrderStore()
 const auth = useAuthStore()
 const processing = ref(false)
+
+// ─── Payment evidence (§9) ───
+const evidenceName = ref('')
+const evidenceUploading = ref(false)
+const evidenceError = ref('')
+
+/**
+ * Only a transfer needs proof. Cash is confirmed by being in the drawer, and a
+ * card terminal issues its own slip — asking for a screenshot of either is a
+ * step staff will learn to skip, which devalues the ones that matter.
+ */
+const needsEvidence = computed(() =>
+  ['telebirr', 'cbe', 'bank'].includes(store.paymentMethod)
+)
+
+async function attachEvidence(event) {
+  const file = event.target.files && event.target.files[0]
+  if (!file) return
+  evidenceError.value = ''
+  evidenceUploading.value = true
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    // Its own R2 prefix: evidence is a financial record with different
+    // retention from a menu photo, and it is not publicly readable.
+    form.append('folder', 'payments')
+
+    const res = await fetch('/api/upload', { method: 'POST', body: form, credentials: 'include' })
+    const body = await res.json().catch(() => null)
+    if (!res.ok || !body || !body.ok) {
+      throw new Error((body && body.error) || `Upload failed (${res.status})`)
+    }
+    store.paymentEvidenceKey = body.key
+    evidenceName.value = file.name
+  } catch (e) {
+    // Never silently: a screenshot the cashier believes was attached and was
+    // not is worse than no screenshot, because nobody goes looking for it.
+    evidenceError.value = e?.message || 'Could not attach that file'
+    store.paymentEvidenceKey = ''
+    evidenceName.value = ''
+  } finally {
+    evidenceUploading.value = false
+    event.target.value = ''
+  }
+}
+
+function clearEvidence() {
+  store.paymentEvidenceKey = ''
+  evidenceName.value = ''
+  evidenceError.value = ''
+}
 const showModifierSheet = ref(false)
 const modifierTarget = ref({})
 const tipExpanded = ref(false)
@@ -989,6 +1088,23 @@ onMounted(() => {
   margin-top: 4px;
 }
 .card-panel-icon { margin-bottom: 12px; }
+/* ─── Payment evidence ─── */
+.evidence-panel {
+  margin-top: 12px; padding: 12px; border-radius: 10px;
+  background: var(--surface-2, rgba(0,0,0,.04));
+  border: 1px solid var(--border, rgba(0,0,0,.1));
+}
+.ev-head { display: flex; flex-direction: column; margin-bottom: 8px; }
+.ev-title { font-weight: 600; font-size: .85rem; }
+.ev-note { font-size: .72rem; color: var(--text-muted); }
+.ev-upload { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* A label wrapping a hidden input: the whole control is a 44px tap target on
+   the tablets the POS actually runs on. */
+.ev-pick { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; }
+.ev-status { font-size: .78rem; color: var(--text-muted); }
+.ev-ok { color: var(--success); font-weight: 600; }
+.ev-error { margin: 8px 0 0; font-size: .75rem; color: var(--danger); }
+
 .card-panel-text {
   color: var(--text-muted); font-size: .9rem;
 }
