@@ -13,7 +13,16 @@
 
     <div class="summary-grid">
       <div class="summary-card"><div class="num">{{ filtered.length }}</div><div class="lbl">Orders</div></div>
-      <div class="summary-card"><div class="num">ETB {{ totalRevenue.toFixed(0) }}</div><div class="lbl">Total Revenue</div></div>
+      <div class="summary-card">
+        <div class="num">ETB {{ totalRevenue.toFixed(0) }}</div>
+        <div class="lbl">
+          Net Sales
+          <span v-if="excludedCount" :title="excludedCount + ' cancelled or voided order(s) excluded'">
+            ({{ excludedCount }} excluded)
+          </span>
+          <span v-else>excl. tips</span>
+        </div>
+      </div>
       <div class="summary-card"><div class="num">{{ avgOrder.toFixed(0) }}</div><div class="lbl">Avg Order</div></div>
     </div>
 
@@ -29,7 +38,7 @@
               <td style="font-weight:600;font-family:var(--font-mono)">{{ parseFloat(o.total||0).toFixed(0) }}</td>
               <td><span class="badge" :class="'badge-'+o.status">{{ o.status }}</span></td>
               <td><span class="badge" :class="o.payment === 'cash' ? 'badge-pending' : 'badge-success'">{{ o.payment || '-' }}</span></td>
-              <td style="font-size:.78rem">{{ o.created ? o.created.slice(11,19) : '-' }}</td>
+              <td style="font-size:.78rem">{{ localTime(o.created, true) || '-' }}</td>
             </tr>
             <tr v-if="!filtered.length"><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted)">No orders</td></tr>
           </tbody>
@@ -42,6 +51,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { apiGet } from '../api'
+import { localTime } from '../lib/datetime'
 
 const orders = ref([])
 const statusFilter = ref('')
@@ -52,8 +62,25 @@ const filtered = computed(() => orders.value.filter(o => {
   if (search.value && !o.id?.toLowerCase().includes(search.value.toLowerCase())) return false
   return true
 }))
-const totalRevenue = computed(() => filtered.value.reduce((s, o) => s + parseFloat(o.total||0), 0))
-const avgOrder = computed(() => filtered.value.length ? totalRevenue.value / filtered.value.length : 0)
+/**
+ * Revenue counts orders that actually traded.
+ *
+ * This summed every filtered row including cancelled and voided ones, so the
+ * headline inflated by the value of everything that fell through — and filtering
+ * the table to "cancelled" produced a revenue figure made entirely of sales that
+ * never happened.
+ *
+ * Tips are subtracted for the same reason they are everywhere else: `total` is
+ * what the guest handed over and includes money that belongs to staff.
+ */
+const trading = computed(() =>
+  filtered.value.filter(o => o.status !== 'cancelled' && !o.voided_at)
+)
+const totalRevenue = computed(() =>
+  trading.value.reduce((s, o) => s + parseFloat(o.total || 0) - parseFloat(o.tip || 0), 0)
+)
+const avgOrder = computed(() => trading.value.length ? totalRevenue.value / trading.value.length : 0)
+const excludedCount = computed(() => filtered.value.length - trading.value.length)
 
 onMounted(loadOrders)
 async function loadOrders() { try { orders.value = await apiGet('orders') } catch (e) { console.error(e) } }

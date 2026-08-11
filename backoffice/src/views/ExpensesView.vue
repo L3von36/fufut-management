@@ -22,7 +22,7 @@
         <table>
           <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount (ETB)</th><th>Paid By</th><th>Actions</th></tr></thead>
           <tbody>
-            <tr v-for="e in expenses" :key="e.id">
+            <tr v-for="e in filtered" :key="e.id">
               <td>{{ e.date }}</td><td><span class="badge badge-pending">{{ e.category }}</span></td>
               <td>{{ e.description }}</td><td style="font-weight:600;font-family:var(--font-mono)">{{ parseFloat(e.amount||0).toFixed(0) }}</td>
               <td>{{ e.paidBy || '-' }}</td>
@@ -69,6 +69,7 @@
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
 import { useButtonState } from '../composables/useButtonState'
+import { toCsv, download } from '../lib/csv'
 
 const toast = inject('toast')
 const confirmDelete = inject('confirm')
@@ -80,11 +81,39 @@ const showForm = ref(false)
 const editing = ref(null)
 const form = ref({ date: TODAY(), category: 'Other', description: '', amount: 0, paidBy: '' })
 
-const totalExpenses = computed(() => expenses.value.reduce((s, e) => s + parseFloat(e.amount||0), 0))
+/**
+ * The date range now actually applies.
+ *
+ * `loadExpenses` fetched every row and ignored dateFrom/dateTo, so the Filter
+ * button did nothing while the totals beside it were labelled as filtered.
+ * Voided expenses are excluded too — they are kept for the audit trail, not
+ * because the business still spent the money.
+ */
+const filtered = computed(() =>
+  expenses.value.filter(e => {
+    if (e.voided_at) return false
+    const d = (e.date || '').slice(0, 10)
+    if (!d) return true
+    if (dateFrom.value && d < dateFrom.value) return false
+    if (dateTo.value && d > dateTo.value) return false
+    return true
+  })
+)
+
+const totalExpenses = computed(() => filtered.value.reduce((s, e) => s + parseFloat(e.amount || 0), 0))
+
+/** Name and amount — the label alone did not say how much, or of what. */
 const topCategory = computed(() => {
-  const c = {}; expenses.value.forEach(e => { c[e.category] = (c[e.category]||0) + parseFloat(e.amount||0) })
-  const entries = Object.entries(c).sort((a,b) => b[1] - a[1])
-  return entries.length ? entries[0][0] : '-'
+  const c = {}
+  filtered.value.forEach(e => {
+    const key = e.category || 'Uncategorised'   // was rendering "undefined"
+    c[key] = (c[key] || 0) + parseFloat(e.amount || 0)
+  })
+  const entries = Object.entries(c).sort((a, b) => b[1] - a[1])
+  if (!entries.length) return '—'
+  const [name, amount] = entries[0]
+  const share = totalExpenses.value > 0 ? Math.round((amount / totalExpenses.value) * 100) : 0
+  return `${name} — ETB ${Math.round(amount)} (${share}%)`
 })
 
 onMounted(() => { const d = new Date(); d.setDate(d.getDate()-30); dateFrom.value = d.toISOString().slice(0,10); loadExpenses() })
@@ -116,10 +145,20 @@ async function deleteExpense(id) {
   try { await apiDelete('expenses', id); toast('Expense deleted'); await loadExpenses() } catch (e) { toast(e.message, 'error') }
 }
 
+/**
+ * Exports what is on screen.
+ *
+ * This POSTed to `/api/export/csv`, an endpoint that has never existed, so
+ * every export 404'd — and because the failure was caught and toasted
+ * generically it read as a transient glitch rather than a missing feature.
+ *
+ * Serialised client-side from the rows already loaded, which also means the
+ * export honours the current filter instead of silently dumping everything.
+ */
 async function exportCSV() {
-  try {
-    const res = await apiPost('export/csv', { table: 'expenses' })
-    if (res.csv) { const b = new Blob([res.csv], {type:'text/csv'}); const a = document.createElement('a'); a.href=URL.createObjectURL(b); a.download='expenses.csv'; a.click() }
-  } catch (e) { toast('Export failed', 'error'); throw e }
+  const rows = filtered.value
+  if (!rows.length) { toast('Nothing to export', 'error'); return }
+  download(toCsv(rows), `expenses-${TODAY()}.csv`, 'text/csv;charset=utf-8')
+  toast(`${rows.length} expense(s) exported`)
 }
 </script>

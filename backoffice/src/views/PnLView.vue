@@ -66,6 +66,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { apiGet, TODAY } from '../api'
+import { localDate } from '../lib/datetime'
 import BaseButton from '../components/BaseButton.vue'
 let _Chart = null
 async function _loadChart() {
@@ -109,7 +110,14 @@ async function loadPnL() {
       apiGet('orders'), apiGet('expenses'), apiGet('menu')
     ])
 
-    const filteredOrders = orders.filter(o => o.created && o.created.slice(0,10) >= dateFrom.value && o.created.slice(0,10) <= dateTo.value)
+    // localDate, not slice(0,10): `created` is UTC and the range is local, so
+    // slicing dropped every sale between local midnight and 03:00 into the
+    // previous day — understating the start of each period and overstating the
+    // one before it.
+    const filteredOrders = orders.filter(o => {
+      const d = localDate(o.created)
+      return d && d >= dateFrom.value && d <= dateTo.value
+    })
     const filteredExpenses = expenses.filter(e => e.date && e.date >= dateFrom.value && e.date <= dateTo.value)
 
     revenue.value = filteredOrders.reduce((s, o) => s + parseFloat(o.total||0), 0)
@@ -148,11 +156,14 @@ async function loadPnL() {
     const totalExp = Object.values(breakdown).reduce((s, v) => s + v, 0)
     netProfit.value = grossProfit.value - totalExp
 
-    buildCharts(filteredOrders, breakdown)
+    // The trend chart is explicitly the last 30 days, so it gets the unfiltered
+    // lists. Passing the filtered set drew empty bars for every day outside the
+    // selected range on a chart whose axis said otherwise.
+    buildCharts(orders, breakdown, expenses)
   } catch (e) { console.error(e) }
 }
 
-async function buildCharts(orders, breakdown) {
+async function buildCharts(orders, breakdown, expenses = []) {
   const Chart = await _loadChart()
   await nextTick()
   if (!pnlChart.value || !costChart.value) return
@@ -162,13 +173,34 @@ async function buildCharts(orders, breakdown) {
   const days = []
   const revData = []
   const expData = []
+  // Pre-bucket by local date: one pass instead of re-scanning every order and
+  // expense thirty times.
+  const revByDate = {}
+  for (const o of orders) {
+    if (o.status === 'cancelled' || o.voided_at) continue
+    const d = localDate(o.created)
+    if (d) revByDate[d] = (revByDate[d] || 0) + parseFloat(o.total || 0) - parseFloat(o.tip || 0)
+  }
+  const expByDate = {}
+  for (const e of expenses) {
+    if (e.voided_at) continue
+    const d = (e.date || '').slice(0, 10)   // expenses.date is already a local date
+    if (d) expByDate[d] = (expByDate[d] || 0) + parseFloat(e.amount || 0)
+  }
+
   for (let i = 29; i >= 0; i--) {
     const d = new Date()
     d.setDate(d.getDate() - i)
-    const ds = d.toISOString().slice(0, 10)
+    // Local calendar date, not toISOString() — that would be the UTC day and
+    // would not match the buckets above.
+    const pad = (n) => String(n).padStart(2, '0')
+    const ds = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
     days.push(d.toLocaleDateString('en', { month: 'short', day: 'numeric' }))
-    revData.push(orders.filter(o => o.created?.slice(0,10) === ds).reduce((s, o) => s + parseFloat(o.total||0), 0))
-    expData.push(0) // simplified
+    revData.push(revByDate[ds] || 0)
+    // Was `push(0)` with a "simplified" note, so the expense series was a flat
+    // line of fake zeros drawn on a chart labelled Revenue vs Expenses — which
+    // reads as "we spent nothing for thirty days".
+    expData.push(expByDate[ds] || 0)
   }
 
   charts.pnl = new Chart(pnlChart.value, {

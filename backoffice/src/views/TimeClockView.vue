@@ -9,9 +9,14 @@
     </div>
 
     <div class="summary-grid">
-      <div class="summary-card"><div class="num">{{ entries.length }}</div><div class="lbl">Today's Clocks</div></div>
-      <div class="summary-card"><div class="num">{{ staffClockedIn }}</div><div class="lbl">Currently Clocked In</div></div>
-      <div class="summary-card"><div class="num">{{ totalHoursToday.toFixed(1) }}h</div><div class="lbl">Total Hours Today</div></div>
+      <!--
+        Labelled by the date being viewed rather than "Today", because the date
+        picker above changes what these count. "Today's Clocks" also showed
+        entries.length — every entry ever recorded, not the day's.
+      -->
+      <div class="summary-card"><div class="num">{{ filtered.length }}</div><div class="lbl">Clock-ins {{ periodLabel }}</div></div>
+      <div class="summary-card"><div class="num">{{ staffClockedIn }}</div><div class="lbl">Still Clocked In</div></div>
+      <div class="summary-card"><div class="num">{{ totalHoursToday.toFixed(1) }}h</div><div class="lbl">Hours {{ periodLabel }}</div></div>
     </div>
 
     <div class="table-wrap">
@@ -40,13 +45,27 @@ import { apiGet, TODAY } from '../api'
 const entries = ref([])
 const dateFilter = ref(TODAY())
 
+/**
+ * The KPIs describe the day being looked at, not always today.
+ *
+ * They hardcoded TODAY() while the table below them honoured `dateFilter`, so
+ * picking any other date produced a header and a table describing different
+ * days — with nothing saying so. Both now read `filtered`.
+ */
 const filtered = computed(() => entries.value.filter(e => !dateFilter.value || e.date === dateFilter.value))
-const staffClockedIn = computed(() => entries.value.filter(e => e.date === TODAY() && !e.clockOut).length)
-const totalHoursToday = computed(() => entries.value.filter(e => e.date === TODAY()).reduce((s, e) => {
+const periodLabel = computed(() =>
+  !dateFilter.value ? '(all dates)' : dateFilter.value === TODAY() ? 'today' : `on ${dateFilter.value}`
+)
+const staffClockedIn = computed(() => filtered.value.filter(e => !(e.clockOut || e.clock_out)).length)
+const totalHoursToday = computed(() => filtered.value.reduce((s, e) => {
+  // Seconds were dropped: "01:30:45" parsed as 1h30m, losing 45s per entry and
+  // understating a busy day by minutes across a team.
   if (e.duration) {
-    const parts = e.duration.split(':')
-    return s + parseInt(parts[0]) + parseInt(parts[1])/60
+    const [h = 0, m = 0, sec = 0] = String(e.duration).split(':').map(Number)
+    return s + h + m / 60 + sec / 3600
   }
+  // The API records `hours` directly; prefer it over re-parsing a display string.
+  if (e.hours) return s + (parseFloat(e.hours) || 0)
   return s
 }, 0))
 

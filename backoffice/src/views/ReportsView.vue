@@ -39,8 +39,9 @@
 
 <script setup>
 import { ref, onMounted, nextTick, inject } from 'vue'
-import { apiGet, apiPost } from '../api'
+import { apiGet, apiPost, TODAY } from '../api'
 import BaseButton from '../components/BaseButton.vue'
+import { toCsv, download } from '../lib/csv'
 let _Chart = null
 async function _loadChart() {
   if (!_Chart) {
@@ -108,11 +109,22 @@ async function buildCharts(orders, expenses) {
   }
 }
 
+/**
+ * Exports the chosen table.
+ *
+ * This POSTed to `/api/export/csv`, an endpoint that has never existed, so
+ * every export 404'd and the caught error read as a transient glitch rather
+ * than a missing feature. It now reads the resource endpoint — which carries
+ * its own role gating, so nothing new is exposed — and serialises client-side.
+ */
 async function exportCSV() {
   try {
-    const res = await apiPost('export/csv', { table: exportTable.value })
-    if (res.csv) { const b = new Blob([res.csv], {type:'text/csv'}); const a = document.createElement('a'); a.href=URL.createObjectURL(b); a.download=exportTable.value+'.csv'; a.click(); toast('CSV exported') }
-  } catch (e) { toast('Export failed', 'error') }
+    const data = await apiGet(exportTable.value)
+    const rows = Array.isArray(data) ? data : (data && (data.entries || data.recipes || data.runs)) || []
+    if (!rows.length) { toast(`No ${exportTable.value} to export`, 'error'); return }
+    download(toCsv(rows), `${exportTable.value}-${TODAY()}.csv`, 'text/csv;charset=utf-8')
+    toast(`${rows.length} row(s) exported`)
+  } catch (e) { toast(e.message || 'Export failed', 'error') }
 }
 
 async function exportReceipt() {

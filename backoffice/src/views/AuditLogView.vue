@@ -72,6 +72,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { apiGet, TODAY } from '../api'
+import { localDayStartUtc, localDayEndUtc, localDateTime } from '../lib/datetime'
 import BaseButton from '../components/BaseButton.vue'
 
 /**
@@ -102,10 +103,11 @@ function label(e) {
 
 function when(at) {
   if (!at) return '—'
-  // Stored as ISO UTC; shown in the restaurant's local time, or the log reads
-  // three hours behind everything else on the screen.
-  const d = new Date(at)
-  return Number.isNaN(d.getTime()) ? at : d.toLocaleString()
+  // Stored as UTC; shown in the restaurant's local time, or the log reads three
+  // hours behind everything else on the screen. Fixed format rather than
+  // toLocaleString(), which varies by browser locale and drops seconds — and
+  // seconds are what order two entries made in the same minute.
+  return localDateTime(at) || at
 }
 
 function actionClass(a) {
@@ -129,8 +131,12 @@ async function loadAudit() {
   if (action.value) params.set('action', action.value)
   // The column is a full ISO timestamp, so a bare date would exclude everything
   // after midnight on the closing day.
-  if (fromDate.value) params.set('from', `${fromDate.value}T00:00:00.000Z`)
-  if (toDate.value) params.set('to', `${toDate.value}T23:59:59.999Z`)
+  // A local calendar day converted to the UTC instants that bracket it. The
+  // literal `Z` suffix meant midnight *UTC*, which is 03:00 in Addis — so a
+  // filter for "today" silently excluded the first three hours of it, and
+  // anything logged just after midnight was invisible.
+  if (fromDate.value) params.set('from', localDayStartUtc(fromDate.value))
+  if (toDate.value) params.set('to', localDayEndUtc(toDate.value))
   params.set('limit', '200')
 
   try {

@@ -41,6 +41,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { apiGet, TODAY } from '../api'
+import { localDate } from '../lib/datetime'
 import BaseButton from '../components/BaseButton.vue'
 let _Chart = null
 async function _loadChart() {
@@ -89,7 +90,10 @@ async function loadRevenue() {
 function buildDailyBreakdown() {
   const map = {}
   orders.value.forEach(o => {
-    const d = o.created?.slice(0,10)
+    // `created` is UTC; the date the manager picked is local. Slicing the UTC
+    // string filed every sale between local midnight and 03:00 under the
+    // previous business day.
+    const d = localDate(o.created)
     if (d && d >= dateFrom.value && d <= dateTo.value) {
       if (!map[d]) map[d] = { date: d, count: 0, revenue: 0, cash: 0, card: 0 }
       map[d].count++

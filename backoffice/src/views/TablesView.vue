@@ -96,7 +96,7 @@
             <div class="order-items">{{ order.items }}</div>
             <div class="order-card-footer">
               <span>ETB {{ parseFloat(order.total||0).toFixed(0) }}</span>
-              <span style="font-size:.72rem;color:var(--text-muted)">{{ order.created ? order.created.slice(11,19) : '' }}</span>
+              <span style="font-size:.72rem;color:var(--text-muted)">{{ localTime(order.created, true) }}</span>
             </div>
           </div>
         </div>
@@ -125,6 +125,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
+import { localTime } from '../lib/datetime'
 import { useSSE } from '../composables/useSSE'
 import { useButtonState } from '../composables/useButtonState'
 
@@ -147,11 +148,21 @@ const statusCounts = computed(() => {
   return c
 })
 
+/**
+ * Occupied is a table doing its job, not a failure.
+ *
+ * It mapped to `badge-cancelled`, so a busy table showed the same red as a
+ * cancelled order — the one colour that means "something went wrong". On a
+ * floor plan at a glance that reads as a problem to go and fix.
+ */
 const statusBadgeClass = computed(() => {
   const s = selectedTable.value?.status
   if (s === 'available') return 'success'
-  if (s === 'occupied') return 'cancelled'
+  // Blue: in use. `badge-info` does not exist in styles.css — `badge-new` is
+  // the blue one, and a class that is not defined renders as an unstyled span.
+  if (s === 'occupied') return 'new'
   if (s === 'reserved') return 'pending'
+  if (s === 'cleaning') return 'pending'
   return 'new'
 })
 

@@ -30,7 +30,7 @@
             >
               <div class="order-card-top">
                 <span class="order-id">#{{ order.id }}</span>
-                <span class="order-time">{{ order.created ? order.created.slice(11, 19) : '' }}</span>
+                <span class="order-time">{{ localTime(order.created, true) }}</span>
               </div>
               <div class="order-table">Table {{ order.tableId || '—' }}</div>
               <div class="order-items">{{ order.items }}</div>
@@ -87,6 +87,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
+import { localTime } from '../lib/datetime'
 import { useSSE } from '../composables/useSSE'
 import { useButtonState } from '../composables/useButtonState'
 
