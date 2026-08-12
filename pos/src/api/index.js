@@ -183,9 +183,9 @@ export const ROLE_PERMISSIONS = {
   'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases'],
   // Cooks from the recipes, does not set them. Two people adjusting the same
   // counts is how a stock take stops reconciling.
-  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes', 'pipeline'],
-  'head-waiter': ['tables', 'orders', 'dashboard', 'menu-view', 'reservations', 'checkout', 'pipeline'],
-  cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout', 'pipeline'],
+  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes'],
+  'head-waiter': ['tables', 'orders', 'dashboard', 'menu-view', 'reservations', 'checkout'],
+  cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout'],
   'delivery-staff': ['delivery', 'dashboard'],
   cleaner: ['waste', 'dashboard'],
   // §47's seventh role. Reads the financial picture and changes almost none of
