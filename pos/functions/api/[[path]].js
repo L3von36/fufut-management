@@ -110,10 +110,14 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const workerBase = env.WORKER_BASE || DEFAULT_WORKER_BASE;
 
-  // Strip the app's base path (e.g. /pos) so the Worker receives /api/* not /pos/api/*
-  const basePath = url.pathname.split('/').filter(Boolean)[0] || '';
-  const strippedPath = basePath ? url.pathname.replace(new RegExp("^/" + basePath + "/"), "/") : url.pathname;
-  const target = workerBase + strippedPath + url.search;
+  // Preserve /api prefix when proxying to Worker (strip /pos prefix if present)
+  let pathname = url.pathname;
+  if (pathname.startsWith('/pos/api')) {
+    pathname = pathname.replace(/^\/pos/, '');
+  } else if (!pathname.startsWith('/api')) {
+    pathname = '/api' + (pathname.startsWith('/') ? pathname : '/' + pathname);
+  }
+  const target = workerBase + pathname + url.search;
 
   const isBodyMethod = !['GET', 'HEAD'].includes(request.method.toUpperCase());
 

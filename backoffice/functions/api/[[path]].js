@@ -117,10 +117,14 @@ export async function onRequest(context) {
   const { request } = context;
   const url = new URL(request.url);
 
-  // Strip the app's base path (e.g. /backoffice) so the Worker receives /api/* not /backoffice/api/*
-  const basePath = url.pathname.split('/').filter(Boolean)[0] || '';
-  const strippedPath = basePath ? url.pathname.replace(new RegExp("^/" + basePath + "/"), "/") : url.pathname;
-  const target = WORKER_BASE + strippedPath + url.search;
+  // Preserve /api prefix when proxying to Worker (strip /backoffice prefix if present)
+  let pathname = url.pathname;
+  if (pathname.startsWith('/backoffice/api')) {
+    pathname = pathname.replace(/^\/backoffice/, '');
+  } else if (!pathname.startsWith('/api')) {
+    pathname = '/api' + (pathname.startsWith('/') ? pathname : '/' + pathname);
+  }
+  const target = WORKER_BASE + pathname + url.search;
 
   const isBodyMethod = !['GET', 'HEAD'].includes(request.method.toUpperCase());
 
