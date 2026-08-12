@@ -117,9 +117,30 @@
               <option value="delivery">Delivery</option>
             </select>
           </div>
-          <div class="form-group">
-            <label>Table #</label>
-            <input v-model="newOrder.tableNum" placeholder="e.g. 5" />
+          <div class="form-group" v-if="newOrder.type === 'dine-in'">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <label style="margin:0">Table Selection</label>
+              <div style="display:flex;gap:6px;align-items:center">
+                <button type="button" class="btn btn-xs btn-outline" style="font-size:.72rem;padding:2px 7px" @click="showAllTables = !showAllTables">
+                  {{ showAllTables ? 'Showing All' : 'Show All' }}
+                </button>
+                <button
+                  v-if="newOrder.tableNum && isSelectedTableOccupied"
+                  type="button"
+                  class="btn btn-xs btn-warning"
+                  style="font-size:.72rem;padding:2px 7px"
+                  @click="freeUpTable(newOrder.tableNum)"
+                >
+                  Free Up #{{ newOrder.tableNum }}
+                </button>
+              </div>
+            </div>
+            <select v-model="newOrder.tableNum" class="select">
+              <option value="">-- Select Available Table --</option>
+              <option v-for="t in availableTables" :key="t.id" :value="t.number">
+                Table {{ t.number }} &middot; {{ t.name || (t.section ? t.section + ' Section' : 'Main') }} ({{ t.capacity || 4 }} seats) {{ t.status !== 'available' ? '[' + t.status.toUpperCase() + ']' : '' }}
+              </option>
+            </select>
           </div>
         </div>
         <div class="form-group">
@@ -232,8 +253,19 @@ const search = ref('')
 const showModal = ref(false)
 const payBtnState = useButtonState()
 const tendered = ref(0)
-const showModifierSheet = ref(false)
-const modifierTarget = ref({})
+const tables = ref([])
+const showAllTables = ref(false)
+
+const availableTables = computed(() => {
+  if (showAllTables.value) return tables.value
+  return tables.value.filter(t => t.status === 'available')
+})
+
+const isSelectedTableOccupied = computed(() => {
+  if (!newOrder.value.tableNum) return false
+  const match = tables.value.find(t => String(t.number) === String(newOrder.value.tableNum))
+  return match && match.status !== 'available'
+})
 
 const newOrder = ref({
   type: 'dine-in',
@@ -310,8 +342,28 @@ function onModifierConfirm(selection) {
 
 // --- Lifecycle ---
 onMounted(async () => {
-  await Promise.all([loadOrders(), loadMenu()])
+  await Promise.all([loadOrders(), loadMenu(), loadTables()])
 })
+
+async function loadTables() {
+  try { tables.value = (await apiGet('tables')) || [] } catch (e) { console.error(e) }
+}
+
+async function freeUpTable(tableNum) {
+  const match = tables.value.find(t => String(t.number) === String(tableNum))
+  if (!match) return
+  try {
+    const updated = { ...match, status: 'available', guests: 0, server: '', seated_at: '' }
+    await apiPut('tables/' + match.id, updated)
+    match.status = 'available'
+    match.guests = 0
+    match.server = ''
+    match.seated_at = ''
+    toast(`Table ${match.number} is now Available`, 'success')
+  } catch (e) {
+    toast('Failed to free up table', 'error')
+  }
+}
 
 async function loadOrders() {
   try { orders.value = await apiGet('orders') } catch (e) { console.error(e) }
@@ -326,6 +378,7 @@ function openNewOrder() {
   newOrder.value = { type: 'dine-in', tableNum: '', customer: '', payment: 'cash' }
   tendered.value = 0
   showModal.value = true
+  loadTables()
 }
 
 async function processPayment() {
@@ -341,10 +394,24 @@ async function processPayment() {
     })
     const res = await apiPost('orders', payload)
     if (res.ok || res.id) {
+      // Auto-mark table occupied in database & state
+      if (newOrder.value.type === 'dine-in' && newOrder.value.tableNum) {
+        const match = tables.value.find(t => String(t.number) === String(newOrder.value.tableNum))
+        if (match && match.status !== 'occupied') {
+          try {
+            await apiPut('tables/' + match.id, {
+              ...match,
+              status: 'occupied',
+              seated_at: new Date().toISOString()
+            })
+          } catch (e) { console.warn(e) }
+        }
+      }
       payBtnState.setSuccess()
       toast(`Order #${res.id || ''} created`)
       showModal.value = false
       await loadOrders()
+      await loadTables()
     }
   } catch (e) {
     payBtnState.setError('Payment failed')

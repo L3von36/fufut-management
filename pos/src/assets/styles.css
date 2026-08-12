@@ -550,19 +550,19 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
      ~730px column forces cramped nowrap cells and sideways scrolling, which is
      unusable one-handed. Cards give each row full width and a real touch area. */
   .table-scroll table,.table-scroll thead,.table-scroll tbody,.table-scroll th,.table-scroll td,.table-scroll tr{display:block}
-  /* Without this the global table{min-width:600px} keeps the "cards" 600px
-     wide and the container scrolls sideways anyway. */
   .table-scroll table{min-width:0;width:100%}
   .table-scroll{overflow-x:visible}
   .table-scroll thead{display:none}
-  .table-scroll tr{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
+  .table-scroll tr{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:8px;box-shadow:var(--shadow-sm)}
   .table-scroll tr:hover td{background:transparent!important}
-  .table-scroll td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0;border:none;font-size:.82rem;white-space:normal;text-align:right}
-  .table-scroll td:not(:last-child){border-bottom:1px solid var(--border)}
-  .table-scroll td::before{content:attr(data-label);font-weight:600;color:var(--text-muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;text-align:left}
-  /* A cell with no data-label would otherwise render an unlabelled value. */
+  .table-scroll td{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border:none;font-size:.8rem;white-space:normal;text-align:right}
+  .table-scroll td:not(:last-child){border-bottom:1px dashed var(--border)}
+  .table-scroll td::before{content:attr(data-label);font-weight:600;color:var(--text-muted);font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;text-align:left}
   .table-scroll td:not([data-label])::before{content:''}
-  .table-scroll td:first-child{position:static!important;background:transparent!important}
+  .table-scroll td:first-child{position:static!important;background:transparent!important;font-weight:700;font-family:var(--font-mono)}
+  .table-scroll td[data-label="Actions"]{margin-top:4px;padding-top:6px;border-bottom:none;justify-content:flex-end}
+  .table-scroll td:has(span:empty),
+  .table-scroll td:has(span:contains("—")) { display: none !important; }
 
   /* Modals become bottom sheets â€” reachable with a thumb instead of floating
      mid-screen, and 28px of padding is too costly at this width. */

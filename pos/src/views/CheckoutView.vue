@@ -17,9 +17,30 @@
             <option value="delivery">Delivery</option>
           </select>
         </div>
-        <div v-if="store.orderType==='dine-in'" class="form-group" style="margin:0;flex:1">
-          <label>Table #</label>
-          <input v-model="store.tableNum" placeholder="e.g. 5" class="input input-sm" />
+        <div v-if="store.orderType==='dine-in'" class="form-group" style="margin:0;flex:1.5">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <label style="margin:0">Table</label>
+            <div style="display:flex;gap:4px;align-items:center">
+              <button type="button" class="btn btn-xs btn-outline" style="font-size:.68rem;padding:1px 5px" @click="showAllTables = !showAllTables">
+                {{ showAllTables ? 'Showing All' : 'Show All' }}
+              </button>
+              <button
+                v-if="store.tableNum && isSelectedTableOccupied"
+                type="button"
+                class="btn btn-xs btn-warning"
+                style="font-size:.68rem;padding:1px 5px"
+                @click="freeUpTable(store.tableNum)"
+              >
+                Free Up #{{ store.tableNum }}
+              </button>
+            </div>
+          </div>
+          <select v-model="store.tableNum" class="select select-sm">
+            <option value="">-- Select Available Table --</option>
+            <option v-for="t in availableTables" :key="t.id" :value="t.number">
+              Table {{ t.number }} &middot; {{ t.name || (t.section ? t.section + ' Section' : 'Main') }} ({{ t.capacity || 4 }}s) {{ t.status !== 'available' ? '[' + t.status.toUpperCase() + ']' : '' }}
+            </option>
+          </select>
         </div>
         <div class="form-group" style="margin:0;flex:1">
           <label>Customer</label>
@@ -431,7 +452,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
-import { apiPost } from '../api'
+import { apiGet, apiPut, apiPost } from '../api'
 import { useOrderStore } from '../stores/order'
 import { useAuthStore } from '../stores/auth'
 import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
@@ -441,6 +462,43 @@ const toast = inject('toast')
 const store = useOrderStore()
 const auth = useAuthStore()
 const processing = ref(false)
+const tables = ref([])
+const showAllTables = ref(false)
+
+const availableTables = computed(() => {
+  if (showAllTables.value) return tables.value
+  return tables.value.filter(t => t.status === 'available')
+})
+
+const isSelectedTableOccupied = computed(() => {
+  if (!store.tableNum) return false
+  const match = tables.value.find(t => String(t.number) === String(store.tableNum))
+  return match && match.status !== 'available'
+})
+
+onMounted(async () => {
+  loadTables()
+})
+
+async function loadTables() {
+  try { tables.value = (await apiGet('tables')) || [] } catch (e) { console.error(e) }
+}
+
+async function freeUpTable(tableNum) {
+  const match = tables.value.find(t => String(t.number) === String(tableNum))
+  if (!match) return
+  try {
+    const updated = { ...match, status: 'available', guests: 0, server: '', seated_at: '' }
+    await apiPut('tables/' + match.id, updated)
+    match.status = 'available'
+    match.guests = 0
+    match.server = ''
+    match.seated_at = ''
+    toast(`Table ${match.number} is now Available`, 'success')
+  } catch (e) {
+    toast('Failed to free up table', 'error')
+  }
+}
 
 // ─── Payment evidence (§9) ───
 const evidenceName = ref('')
@@ -556,6 +614,19 @@ async function processPayment() {
     lastPayload.value = payload
     const res = await apiPost('orders', payload)
     if (res.ok || res.id) {
+      // Auto-mark table occupied in database & state
+      if (store.orderType === 'dine-in' && store.tableNum) {
+        const match = tables.value.find(t => String(t.number) === String(store.tableNum))
+        if (match && match.status !== 'occupied') {
+          try {
+            await apiPut('tables/' + match.id, {
+              ...match,
+              status: 'occupied',
+              seated_at: new Date().toISOString()
+            })
+          } catch (e) { console.warn(e) }
+        }
+      }
       store.lastOrderId = res.id || res.orderId || '—'
       store.checkoutStep = 'success'
       toast('Order placed successfully!', 'success')
