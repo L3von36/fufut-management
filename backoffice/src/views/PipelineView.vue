@@ -233,7 +233,7 @@ function formatTimer(seconds) {
 
 async function loadOrders() {
   try {
-    orders.value = (await apiGet('orders')).filter(o => o.status !== 'fulfilled' && o.status !== 'cancelled')
+    orders.value = (await apiGet('orders')) || []
   } catch (e) { toast('Failed to load orders', 'error'); console.error(e) }
 }
 

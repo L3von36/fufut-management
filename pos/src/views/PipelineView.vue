@@ -295,7 +295,7 @@ function getStructuredLines(order) {
 
 async function loadOrders() {
   try {
-    orders.value = (await apiGet('orders')).filter(o => o.status !== 'fulfilled' && o.status !== 'cancelled')
+    orders.value = (await apiGet('orders')) || []
   } catch (e) { console.error(e) }
 }
 
