@@ -1,9 +1,11 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const isCI = !!process.env.CI
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
-  retries: process.env.CI ? 2 : 0,
+  retries: isCI ? 2 : 0,
   workers: 1,
   reporter: 'html',
   timeout: 30000,
@@ -19,17 +21,20 @@ export default defineConfig({
     },
   ],
   webServer: [
-    {
+    // In CI, skip the local Python backend — the Vite dev server proxies
+    // /api/* to the live Cloudflare Worker, so no local server is needed.
+    ...(!isCI ? [{
       command: 'cd .. && python3 server_secure.py',
       port: 3000,
-      reuseExistingServer: !process.env.CI,
-      timeout: 10000,
-    },
+      reuseExistingServer: true,
+      timeout: 15000,
+    }] : []),
     {
       command: 'npx vite --host 0.0.0.0 --port 5173',
       port: 5173,
-      reuseExistingServer: !process.env.CI,
-      timeout: 10000,
+      reuseExistingServer: !isCI,
+      timeout: 30000,
     },
   ],
 })
+

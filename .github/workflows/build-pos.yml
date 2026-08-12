@@ -36,6 +36,8 @@ jobs:
             cp index.html.source index.html
           fi
       - name: Run E2E tests
+        env:
+          VITE_API_URL: https://fufut-api.fufutcoffee.workers.dev
         run: npx playwright test --reporter=list
 
   build-admin:
