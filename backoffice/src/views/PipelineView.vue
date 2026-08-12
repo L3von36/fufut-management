@@ -10,9 +10,9 @@
         </div>
       </div>
       <div class="pipeline-controls">
-        <span class="sse-badge" :class="{ online: sse.connected.value }">
+        <span class="sse-badge" :class="{ online: sse.connected }">
           <span class="sse-dot"></span>
-          {{ sse.connected.value ? 'Live' : 'Connecting…' }}
+          {{ sse.connected ? 'Live' : 'Connecting…' }}
         </span>
         <base-button text="↺ Refresh" variant="btn-secondary" extra-class="btn-sm" :on-click="loadOrders" />
       </div>
