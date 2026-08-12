@@ -151,14 +151,14 @@
           </div>
 
           <div class="detail-actions">
-            <button v-if="selectedOrder.status === 'new'" class="btn btn-warning" @click="updateStatus('preparing')">👨‍🍳 Send to Kitchen</button>
-            <button v-if="selectedOrder.status === 'preparing'" class="btn btn-primary" @click="updateStatus('ready')">✅ Mark Ready</button>
-            <button v-if="selectedOrder.status === 'ready'" class="btn btn-success" @click="updateStatus('fulfilled')">🍽️ Mark Served</button>
+            <button v-if="selectedOrder.status === 'new'" class="btn btn-warning" @click="updateStatus('preparing')">Send to Kitchen</button>
+            <button v-if="selectedOrder.status === 'preparing'" class="btn btn-primary" @click="updateStatus('ready')">Mark Ready</button>
+            <button v-if="selectedOrder.status === 'ready'" class="btn btn-success" @click="updateStatus('fulfilled')">Mark Served</button>
             <button
               v-if="auth.roleKey === 'manager' && selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'fulfilled'"
               class="btn btn-danger btn-sm"
               @click="updateStatus('cancelled')"
-            >✕ Cancel</button>
+            >Cancel</button>
             <button class="btn btn-secondary" @click="selectedOrder = null">Close</button>
           </div>
         </div>
