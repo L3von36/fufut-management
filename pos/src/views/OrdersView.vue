@@ -48,7 +48,7 @@
           <tbody>
             <tr v-for="o in filteredOrders" :key="o.id">
               <td data-label="ID">#{{ o.id }}</td>
-              <td data-label="Items">{{ o.items }}</td>
+              <td data-label="Items">{{ formatOrderItems(o.items) }}</td>
               <td data-label="Total">
                 <span style="font-family:var(--font-mono);font-weight:600">ETB {{ parseFloat(o.total||0).toFixed(0) }}</span>
                 <div v-if="o.subtotal && parseFloat(o.subtotal) !== parseFloat(o.total)" style="font-size:.72rem;color:var(--text-muted);text-decoration:line-through">
@@ -218,6 +218,7 @@ import { apiGet, apiPut, apiPost } from '../api'
 import { useOrderStore } from '../stores/order'
 import { useButtonState } from '../composables/useButtonState'
 import { useAuthStore } from '../stores/auth'
+import { formatOrderItems } from '../lib/formatters'
 import BaseButton from '../components/BaseButton.vue'
 import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
 

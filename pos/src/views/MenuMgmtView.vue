@@ -33,7 +33,7 @@
               <td data-label="Price">ETB {{ parseFloat(i.price||0).toFixed(0) }}</td>
               <td v-if="isManager" data-label="Cost">ETB {{ parseFloat(i.cost||0).toFixed(0) }}</td>
               <td v-if="isManager" data-label="Margin"><span class="badge" :class="marginClass(i)">{{ marginPercent(i) }}%</span></td>
-              <td data-label="Modifiers">{{ i.modifiers || '—' }}</td>
+              <td data-label="Modifiers">{{ formatModifiers(i.modifiers) }}</td>
               <td data-label="Status">
                 <span class="badge" :class="i.available !== false ? 'badge-ok' : 'badge-danger'">{{ i.available !== false ? 'Available' : 'Unavailable' }}</span>
                 <!-- Two people can change this - a chef takes a dish off, a
@@ -106,6 +106,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useButtonState } from '../composables/useButtonState'
 import { useFormValidation } from '../composables/useFormValidation'
 import { useAuthStore } from '../stores/auth'
+import { formatModifiers } from '../lib/formatters'
 
 const auth = useAuthStore()
 /**

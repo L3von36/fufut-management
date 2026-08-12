@@ -33,6 +33,9 @@
       <template #cell-address="{ row }">
         <span class="truncate" :title="row.address">{{ row.address }}</span>
       </template>
+      <template #cell-items="{ row }">
+        <span class="truncate" :title="formatOrderItems(row.items)">{{ formatOrderItems(row.items) }}</span>
+      </template>
       <template #cell-total="{ row }">
         <span style="font-weight:600;font-family:var(--font-mono)">ETB {{ parseFloat(row.total||0).toFixed(0) }}</span>
       </template>
@@ -69,6 +72,7 @@
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
+import { formatOrderItems } from '../lib/formatters'
 import BaseTable from '../components/BaseTable.vue'
 import { useButtonState } from '../composables/useButtonState'
 

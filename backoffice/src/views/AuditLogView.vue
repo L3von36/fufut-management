@@ -86,6 +86,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, TODAY } from '../api'
 import { localDayStartUtc, localDayEndUtc, localDateTime } from '../lib/datetime'
+import { formatValue } from '../lib/formatters'
 import BaseButton from '../components/BaseButton.vue'
 import BaseTable from '../components/BaseTable.vue'
 
@@ -158,8 +159,7 @@ function actionClass(a) {
 
 function show(v) {
   if (v === null || v === undefined || v === '') return '(empty)'
-  if (typeof v === 'object') return JSON.stringify(v)
-  return String(v)
+  return formatValue(v)
 }
 
 onMounted(loadAudit)

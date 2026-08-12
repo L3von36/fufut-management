@@ -42,7 +42,7 @@
           <div class="mini-lane-body">
             <div v-for="order in (miniGrouped[stage.key] || []).slice(0, 3)" :key="order.id" class="mini-order">
               <span class="mini-order-id">#{{ order.id }}</span>
-              <span class="mini-order-items">{{ order.items }}</span>
+              <span class="mini-order-items">{{ formatOrderItems(order.items) }}</span>
             </div>
             <div v-if="!(miniGrouped[stage.key]?.length)" class="mini-empty">{{ stage.emptyText }}</div>
           </div>
@@ -82,6 +82,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiGet, TODAY } from '../api'
 import { useAnimatedNumber } from '../composables/useAnimatedNumber'
+import { formatOrderItems } from '../lib/formatters'
 let _Chart = null
 async function _loadChart() {
   if (!_Chart) {

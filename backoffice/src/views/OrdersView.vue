@@ -46,7 +46,7 @@
       <!-- title so a truncated order is readable on hover rather than cut off
            with no way to see the rest -->
       <template #cell-items="{ row }">
-        <span class="truncate" :title="row.items">{{ row.items }}</span>
+        <span class="truncate" :title="formatOrderItems(row.items)">{{ formatOrderItems(row.items) }}</span>
       </template>
       <template #cell-total="{ row }">
         <span style="font-weight:600;font-family:var(--font-mono)">{{ parseFloat(row.total||0).toFixed(0) }}</span>
@@ -71,6 +71,7 @@ import { ref, computed, onMounted } from 'vue'
 import { apiGet } from '../api'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { localTime } from '../lib/datetime'
+import { formatOrderItems } from '../lib/formatters'
 import BaseTable from '../components/BaseTable.vue'
 
 const orders = ref([])

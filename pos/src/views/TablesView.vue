@@ -225,9 +225,9 @@
               </div>
               <div class="tm-order-items">
                 <span v-for="(line, li) in getOrderLines(o)" :key="li" class="tm-order-line">
-                  {{ line.qty }}x {{ line.name }}<span v-if="line.modifiers && line.modifiers.length"> ({{ line.modifiers.map(m => m.name).join(', ') }})</span>
+                  {{ line.qty }}x {{ line.name }}<span v-if="line.modifiers && line.modifiers.length"> ({{ line.modifiers.map(m => m.name || m).join(', ') }})</span>
                 </span>
-                <span v-if="!getOrderLines(o).length" class="tm-order-line">{{ o.items }}</span>
+                <span v-if="!getOrderLines(o).length" class="tm-order-line">{{ formatOrderItems(o.items) }}</span>
               </div>
               <div class="tm-order-footer">
                 <span class="tm-order-time">{{ formatTime(o.created) }}</span>
@@ -323,6 +323,7 @@ import { useRouter } from 'vue-router'
 import { apiGet, apiPut, apiPost, apiDelete } from '../api'
 import { useSSE } from '../composables/useSSE'
 import { useAuthStore } from '../stores/auth'
+import { formatOrderItems } from '../lib/formatters'
 
 const router = useRouter()
 
@@ -533,6 +534,20 @@ function formatTime(iso) {
 function getOrderLines(o) {
   if (o.order_items && Array.isArray(o.order_items) && o.order_items.length) return o.order_items
   if (o.orderItems && Array.isArray(o.orderItems) && o.orderItems.length) return o.orderItems
+  if (typeof o.items === 'string' && (o.items.trim().startsWith('[') || o.items.trim().startsWith('{'))) {
+    try {
+      const parsed = JSON.parse(o.items.trim())
+      const arr = Array.isArray(parsed) ? parsed : [parsed]
+      return arr.map(i => {
+        if (typeof i === 'string') return { qty: 1, name: i, modifiers: [] }
+        return {
+          qty: i.qty || i.quantity || 1,
+          name: i.name || i.title || 'Item',
+          modifiers: Array.isArray(i.modifiers) ? i.modifiers.map(m => ({ name: typeof m === 'string' ? m : m.name })) : []
+        }
+      })
+    } catch {}
+  }
   return []
 }
 

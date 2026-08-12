@@ -18,7 +18,7 @@
     <div class="dash-grid" style="margin-top:16px">
       <div class="card"><div class="card-header"><h3>Revenue</h3></div>
         <div class="table-scroll" v-if="orders.length"><table><thead><tr><th>Order</th><th>Items</th><th>Total</th></tr></thead>
-          <tbody><tr v-for="o in orders.slice(0,8)" :key="o.id"><td data-label="Order">#{{ o.id }}</td><td data-label="Items">{{ o.items }}</td><td data-label="Total" style="font-weight:600">ETB {{ parseFloat(o.total||0).toFixed(0) }}</td></tr></tbody></table></div>
+          <tbody><tr v-for="o in orders.slice(0,8)" :key="o.id"><td data-label="Order">#{{ o.id }}</td><td data-label="Items">{{ formatOrderItems(o.items) }}</td><td data-label="Total" style="font-weight:600">ETB {{ parseFloat(o.total||0).toFixed(0) }}</td></tr></tbody></table></div>
         <div v-else class="empty-state" style="padding:24px"><div>No orders</div></div>
       </div>
       <div class="card"><div class="card-header"><h3>Expenses</h3></div>
@@ -32,6 +32,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { apiGet } from '../api'
+import { formatOrderItems } from '../lib/formatters'
 let _Chart = null
 async function _loadChart() {
   if (!_Chart) {

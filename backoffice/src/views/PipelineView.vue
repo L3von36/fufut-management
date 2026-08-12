@@ -33,7 +33,7 @@
                 <span class="order-time">{{ localTime(order.created, true) }}</span>
               </div>
               <div class="order-table">Table {{ order.tableId || '—' }}</div>
-              <div class="order-items">{{ order.items }}</div>
+              <div class="order-items">{{ formatOrderItems(order.items) }}</div>
               <div v-if="order.timer" class="order-timer" :class="{ urgent: order.timer > 600 }">
                 ⏱ {{ formatTimer(order.timer) }}
               </div>
@@ -88,6 +88,7 @@
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { localTime } from '../lib/datetime'
+import { formatOrderItems } from '../lib/formatters'
 import { useSSE } from '../composables/useSSE'
 import { useButtonState } from '../composables/useButtonState'
 

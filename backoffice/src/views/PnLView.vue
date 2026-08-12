@@ -174,14 +174,29 @@ async function loadPnL() {
           cog.value += cost * (item.qty || 1)
         })
       } else if (o.items && typeof o.items === 'string') {
-        const parts = o.items.split(/,(?=\s*\d+x)/)
-        parts.forEach(part => {
-          const qtyMatch = part.trim().match(/^(\d+)x\s*(.*)/)
-          if (qtyMatch) {
-            const name = qtyMatch[2].trim().split('[')[0].split('(')[0].trim().toLowerCase()
-            cog.value += (menuCostMap[name] || 0) * parseInt(qtyMatch[1], 10)
-          }
-        })
+        let itemsData = []
+        if (o.items.trim().startsWith('[') || o.items.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(o.items.trim())
+            itemsData = Array.isArray(parsed) ? parsed : [parsed]
+          } catch {}
+        }
+        if (itemsData.length) {
+          itemsData.forEach(i => {
+            const name = (typeof i === 'string' ? i : i.name || '').toLowerCase()
+            const qty = (typeof i === 'object' ? i.qty || i.quantity || 1 : 1)
+            cog.value += (menuCostMap[name] || 0) * qty
+          })
+        } else {
+          const parts = o.items.split(/,(?=\s*\d+x)/)
+          parts.forEach(part => {
+            const qtyMatch = part.trim().match(/^(\d+)x\s*(.*)/)
+            if (qtyMatch) {
+              const name = qtyMatch[2].trim().split('[')[0].split('(')[0].trim().toLowerCase()
+              cog.value += (menuCostMap[name] || 0) * parseInt(qtyMatch[1], 10)
+            }
+          })
+        }
       }
     })
     grossProfit.value = revenue.value - cog.value

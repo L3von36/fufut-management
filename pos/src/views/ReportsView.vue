@@ -127,12 +127,30 @@ const monthSummary = computed(() => {
 const topProducts = computed(() => {
   const counts = {}
   for (const o of orders.value) {
-    for (const item of (o.items||'').split(',').map(i=>i.trim())) {
-      const name = item.replace(/^\d+×/,'')
-      if (name) counts[name] = (counts[name]||0) + 1
+    let items = []
+    // Prefer structured array
+    const structured = o.order_items || o.orderItems
+    if (Array.isArray(structured) && structured.length) {
+      items = structured.map(i => ({ name: i.name || 'Item', qty: i.qty || 1 }))
+    } else if (o.items && typeof o.items === 'string' && (o.items.trim().startsWith('[') || o.items.trim().startsWith('{'))) {
+      try {
+        const parsed = JSON.parse(o.items.trim())
+        const arr = Array.isArray(parsed) ? parsed : [parsed]
+        items = arr.map(i => typeof i === 'string' ? { name: i, qty: 1 } : { name: i.name || 'Item', qty: i.qty || 1 })
+      } catch {}
+    } else if (o.items && typeof o.items === 'string') {
+      const parts = o.items.split(/,(?=\s*\d+x)/i)
+      for (const part of parts) {
+        const m = part.trim().match(/^(\d+)x\s*(.+)/i)
+        const name = m ? m[2].trim().split('[')[0].split('(')[0].trim() : part.trim().replace(/^\d+×/, '')
+        if (name) items.push({ name, qty: m ? parseInt(m[1]) : 1 })
+      }
+    }
+    for (const { name, qty } of items) {
+      if (name) counts[name] = (counts[name] || 0) + (qty || 1)
     }
   }
-  return Object.entries(counts).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count).slice(0,10)
+  return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 10)
 })
 // ─── Time to table ───
 // Averages are computed server-side over order_items, not from the orders list

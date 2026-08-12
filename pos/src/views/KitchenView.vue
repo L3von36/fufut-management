@@ -78,7 +78,7 @@
                   </div>
                   <div v-if="line.notes" class="ko-line-notes">{{ line.notes }}</div>
                 </div>
-                <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ o.items }}</div>
+                <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ formatOrderItems(o.items) }}</div>
               </template>
             </div>
 
@@ -162,7 +162,7 @@
                   </div>
                   <div v-if="line.notes" class="ko-line-notes">{{ line.notes }}</div>
                 </div>
-                <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ o.items }}</div>
+                <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ formatOrderItems(o.items) }}</div>
               </template>
             </div>
 
@@ -212,7 +212,7 @@
                   <span v-for="(mod, mi) in line.modifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name) }}</span>
                 </div>
               </div>
-              <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ o.items }}</div>
+              <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ formatOrderItems(o.items) }}</div>
             </div>
 
             <div class="ko-footer">
@@ -238,6 +238,7 @@ import { useButtonState } from '../composables/useButtonState'
 import { useAuthStore } from '../stores/auth'
 import { useSSE } from '../composables/useSSE'
 import { kitchenTicket } from '../lib/print'
+import { formatOrderItems } from '../lib/formatters'
 
 const toast = inject('toast')
 const auth = useAuthStore()
@@ -478,6 +479,21 @@ function getOrderLines(order) {
  */
 function parseFlatItems(flat) {
   if (!flat) return []
+  if (typeof flat === 'string' && (flat.trim().startsWith('[') || flat.trim().startsWith('{'))) {
+    try {
+      const parsed = JSON.parse(flat.trim())
+      const arr = Array.isArray(parsed) ? parsed : [parsed]
+      return arr.map(i => {
+        if (typeof i === 'string') return { qty: 1, name: i, modifiers: [], notes: '' }
+        return {
+          qty: i.qty || i.quantity || 1,
+          name: i.name || i.title || 'Item',
+          modifiers: Array.isArray(i.modifiers) ? i.modifiers.map(m => ({ name: typeof m === 'string' ? m : m.name, priceDelta: 0 })) : [],
+          notes: i.notes || ''
+        }
+      })
+    } catch {}
+  }
   const lines = []
   // Split by comma, but be careful with brackets and parens
   const parts = flat.split(/,(?=\s*\d+x)/)

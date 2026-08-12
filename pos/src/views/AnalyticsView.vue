@@ -407,13 +407,41 @@ const avgItemsPerOrder = computed(() => {
 // ─── Parse flat order items string ───
 function parseOrderItems(order) {
   const result = []
-  const raw = (order.items || '').split(',').map(s => s.trim()).filter(Boolean)
-  for (const item of raw) {
-    const m = item.match(/^(\d+)\s*[x\u00d7]\s*(.+)/i)
+
+  // Prefer structured array if available
+  const structured = order.order_items || order.orderItems
+  if (Array.isArray(structured) && structured.length) {
+    return structured.map(i => ({ name: i.name || 'Item', qty: i.qty || 1 }))
+  }
+
+  const raw = order.items
+  if (!raw) return result
+
+  // Handle JSON string
+  if (typeof raw === 'string' && (raw.trim().startsWith('[') || raw.trim().startsWith('{'))) {
+    try {
+      const parsed = JSON.parse(raw.trim())
+      const arr = Array.isArray(parsed) ? parsed : [parsed]
+      return arr.map(i => {
+        if (typeof i === 'string') {
+          const m = i.match(/^(\d+)\s*[x×]\s*(.+)/i)
+          return m ? { name: m[2].trim(), qty: parseInt(m[1]) || 1 } : { name: i, qty: 1 }
+        }
+        return { name: i.name || i.title || 'Item', qty: i.qty || i.quantity || 1 }
+      })
+    } catch {}
+  }
+
+  // Flat string fallback: split by comma before "Nx"
+  const parts = (typeof raw === 'string' ? raw : '').split(/,(?=\s*\d+x)/i)
+  for (const item of parts) {
+    const trimmed = item.trim()
+    if (!trimmed) continue
+    const m = trimmed.match(/^(\d+)\s*[x×]\s*(.+)/i)
     if (m) {
-      result.push({ name: m[2].trim(), qty: parseInt(m[1]) || 1 })
+      result.push({ name: m[2].trim().split('[')[0].split('(')[0].trim(), qty: parseInt(m[1]) || 1 })
     } else {
-      result.push({ name: item, qty: 1 })
+      result.push({ name: trimmed, qty: 1 })
     }
   }
   return result

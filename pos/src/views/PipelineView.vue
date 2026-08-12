@@ -41,7 +41,7 @@
                     <span v-if="line.modifiers.length" class="oc-mods">[{{ line.modifiers.join(', ') }}]</span>
                   </div>
                 </template>
-                <span v-else>{{ order.items }}</span>
+                <span v-else>{{ formatOrderItems(order.items) }}</span>
               </div>
               <div v-if="order.timer" class="order-timer" :class="{ urgent: order.timer > 600 }">
                 ⏱ {{ formatTimer(order.timer) }}
@@ -98,6 +98,7 @@ import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { useSSE } from '../composables/useSSE'
 import { useAuthStore } from '../stores/auth'
+import { formatOrderItems } from '../lib/formatters'
 
 const toast = inject('toast')
 const auth = useAuthStore()
@@ -196,9 +197,26 @@ function getStructuredLines(order) {
       modifiers: (item.modifiers || []).map(m => formatModName(m.name || m))
     }))
   }
-  // Fallback: parse flat string
+  // Fallback: parse flat string or JSON string
   const flat = order.items
-  if (!flat || typeof flat !== 'string') return []
+  if (!flat) return []
+
+  if (typeof flat === 'string' && (flat.trim().startsWith('[') || flat.trim().startsWith('{'))) {
+    try {
+      const parsed = JSON.parse(flat.trim())
+      const arr = Array.isArray(parsed) ? parsed : [parsed]
+      return arr.map(i => {
+        if (typeof i === 'string') return { qty: 1, name: i, modifiers: [] }
+        return {
+          qty: i.qty || i.quantity || 1,
+          name: i.name || i.title || 'Item',
+          modifiers: Array.isArray(i.modifiers) ? i.modifiers.map(m => formatModName(m.name || m)) : []
+        }
+      })
+    } catch {}
+  }
+
+  if (typeof flat !== 'string') return []
   const lines = []
   const parts = flat.split(/,(?=\s*\d+x)/)
   for (const part of parts) {

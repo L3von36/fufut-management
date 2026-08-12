@@ -93,7 +93,7 @@
               <span class="order-id">#{{ order.id }}</span>
               <span class="badge" :class="statusBadgeClass(order.status)">{{ statusLabel(order.status) }}</span>
             </div>
-            <div class="order-items">{{ order.items }}</div>
+            <div class="order-items">{{ formatOrderItems(order.items) }}</div>
             <div class="order-card-footer">
               <span>ETB {{ parseFloat(order.total||0).toFixed(0) }}</span>
               <span style="font-size:.72rem;color:var(--text-muted)">{{ localTime(order.created, true) }}</span>
@@ -127,6 +127,7 @@ import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { localTime } from '../lib/datetime'
+import { formatOrderItems } from '../lib/formatters'
 import { useSSE } from '../composables/useSSE'
 import { useButtonState } from '../composables/useButtonState'
 

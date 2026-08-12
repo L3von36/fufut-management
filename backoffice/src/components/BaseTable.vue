@@ -48,6 +48,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { formatValue } from '../lib/formatters'
 
 /**
  * The shared table shell.
@@ -109,7 +110,7 @@ function rowKey(row, i) {
 function format(row, c) {
   const v = row?.[c.key]
   if (typeof c.format === 'function') return c.format(v, row)
-  return v === null || v === undefined || v === '' ? '—' : v
+  return formatValue(v)
 }
 </script>
 
