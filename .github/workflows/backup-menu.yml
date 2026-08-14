@@ -1,9 +1,7 @@
 name: Auto-Backup Menu Data
 
 on:
-  schedule:
-    - cron: "0 */6 * * *"   # every 6 hours
-  workflow_dispatch:          # manual trigger anytime
+  workflow_dispatch:          # manual trigger only — scheduled runs were removed on 2026-08-14
 
 # Required so the auto-commit step can push the backup file back to the repo.
 # Without this, the default GITHUB_TOKEN has read-only scope and `git push`
