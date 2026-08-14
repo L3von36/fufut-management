@@ -16,7 +16,7 @@
         :class="{ active: activeCategory === cat }"
         @click="activeCategory = cat"
       >
-        <span class="cat-icon">{{ categoryIcons[cat] || '🍽️' }}</span>
+        <span class="cat-icon">{{ iconFor(cat) }}</span>
         <span class="cat-label">{{ cat }}</span>
         <span class="cat-count">{{ categoryCounts[cat] || 0 }}</span>
       </button>
@@ -180,7 +180,24 @@ const categoryIcons = {
   'Appetizers': '🍟',
   'Salads': '🥗',
   'Mains': '🍽️',
-  'Desserts': '🍰'
+  'Desserts': '🍰',
+  // Live categories from /api/menu (2026-08-14). Kept alongside the legacy keys
+  // above because the live menu still serves these exact names. Lookup is
+  // case-insensitive (see iconFor), so these would match anyway.
+  'ETHIOPIAN DISH': '🫕',
+  'HOT DRINKS': '☕',
+  'SALAD BOWL': '🥗'
+}
+
+function iconFor(category) {
+  if (!category) return '🍽️'
+  const direct = categoryIcons[category]
+  if (direct) return direct
+  const norm = category.trim().toLowerCase()
+  for (const key of Object.keys(categoryIcons)) {
+    if (key.trim().toLowerCase() === norm) return categoryIcons[key]
+  }
+  return '🍽️'
 }
 
 const foodImages = [
