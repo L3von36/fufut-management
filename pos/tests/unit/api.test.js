@@ -250,11 +250,11 @@ describe('API Client', () => {
       })
     })
 
-    // 20 since Staff was removed: editing colleague accounts belongs in the
+    // 25 since Staff was removed: editing colleague accounts belongs in the
     // backoffice, not on a shared floor tablet. The HR section remains for
-    // Shifts and Time Clock.
+    // Shifts and Time Clock, and the System section hosts the Audit Log.
     it('NAV_ITEMS covers the defined sections', () => {
-      expect(NAV_ITEMS.length).toBe(24)
+      expect(NAV_ITEMS.length).toBe(25)
       expect(NAV_ITEMS.map(n => n.view)).not.toContain('staff')
       const sections = [...new Set(NAV_ITEMS.map(n => n.section))]
       expect(sections).toContain('Overview')
@@ -264,6 +264,7 @@ describe('API Client', () => {
       expect(sections).toContain('Stock')
       expect(sections).toContain('HR')
       expect(sections).toContain('Analytics')
+      expect(sections).toContain('System')
     })
 
     /**

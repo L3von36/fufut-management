@@ -169,7 +169,7 @@ export const ROLE_PERMISSIONS = {
   // 'staff' is absent deliberately: editing colleague accounts lives in the
   // backoffice, alongside Shifts, Time Clock and the audit log. Time Clock here
   // still reads the staff list to show who is on shift.
-  manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control', 'pipeline'],
+  manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control', 'pipeline', 'audit'],
   // menu-mgmt is granted for one action: taking a dish off when the kitchen has
   // run out. The screen itself hides adding, editing, deleting, cost and margin
   // from anyone but a manager, and the API only lets this role write the
@@ -230,7 +230,8 @@ export const NAV_ITEMS = [
   { view: 'analytics', label: 'Analytics', icon: 'bar-chart-2', section: 'Analytics' },
   { view: 'checkout', label: 'Checkout', icon: 'credit-card', section: 'Sales' },
   { view: 'pipeline', label: 'Pipeline', icon: 'git-branch', section: 'Operations' },
-  { view: 'revenue', label: 'Revenue', icon: 'trending-up', section: 'Finance' }
+  { view: 'revenue', label: 'Revenue', icon: 'trending-up', section: 'Finance' },
+  { view: 'audit', label: 'Audit Log', icon: 'file-text', section: 'System' }
 ]
 
 /**
