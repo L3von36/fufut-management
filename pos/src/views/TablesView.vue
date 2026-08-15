@@ -119,6 +119,7 @@
                   {{ occupancyTimer(t) }}
                 </div>
                 <div v-if="tableOrderTotals[t.id]" class="tm-spend">{{ formatETB(tableOrderTotals[t.id]) }}</div>
+                <span v-if="tableOpenTab[t.id]" class="tm-tab-badge" title="Open unpaid tab">Open Tab</span>
               </div>
               <div class="tm-meta-row">
                 <span v-if="t.guests" class="tm-guests">{{ t.guests }} guest{{ t.guests > 1 ? 's' : '' }}</span>
@@ -323,6 +324,7 @@ import { useRouter } from 'vue-router'
 import { apiGet, apiPut, apiPost, apiDelete } from '../api'
 import { useSSE } from '../composables/useSSE'
 import { useAuthStore } from '../stores/auth'
+import { useOrderStore } from '../stores/order'
 import { formatOrderItems } from '../lib/formatters'
 
 const router = useRouter()
@@ -330,6 +332,7 @@ const router = useRouter()
 const toast = inject('toast')
 const confirmDelete = inject('confirm')
 const authStore = useAuthStore()
+const orderStore = useOrderStore()
 const { connected: sseConnected, connect: sseConnect, disconnect: sseDisconnect, on: sseOn } = useSSE()
 
 const tables = ref([])
@@ -485,6 +488,29 @@ const tableOrderTotals = computed(() => {
     const tbl = tables.value.find(t => String(t.number) === String(tn))
     if (!tbl) continue
     map[tbl.id] = (map[tbl.id] || 0) + (o.total || 0)
+  }
+  return map
+})
+
+/**
+ * Map of table ID → open (unpaid, non-cancelled) order, so the floor plan
+ * can badge tables that have a running tab the waiter hasn't settled yet.
+ */
+const tableOpenTab = computed(() => {
+  const map = {}
+  const open = orders.value.filter(
+    o => o.payment_status !== 'paid' &&
+         !['cancelled', 'completed', 'fulfilled'].includes(o.status)
+  )
+  for (const o of open) {
+    const tn = o.table_number || o.tableNum || ''
+    if (!tn) continue
+    const tbl = tables.value.find(t => String(t.number) === String(tn))
+    if (!tbl) continue
+    // Keep the latest open order per table
+    if (!map[tbl.id] || new Date(o.created) > new Date(map[tbl.id].created)) {
+      map[tbl.id] = o
+    }
   }
   return map
 })
@@ -650,15 +676,54 @@ async function deleteTable() {
 
 // ─── New Order / Checkout for table ───
 
-function newOrderForTable() {
+async function newOrderForTable() {
   if (!detailTable.value) return
   const tableNum = detailTable.value.number
+  const t = detailTable.value
   closeDetail()
+
+  // Check if this table has an open (unpaid) order to resume
+  const openOrders = orders.value.filter(
+    o => o.table_number === String(tableNum) &&
+         o.tableNum === String(tableNum) &&
+         o.payment_status !== 'paid' &&
+         o.status !== 'cancelled' && o.status !== 'completed' && o.status !== 'fulfilled'
+  )
+
+  if (openOrders.length > 0 && t.status === 'occupied') {
+    // Resume the existing open tab
+    const latest = openOrders[openOrders.length - 1]
+    orderStore.isAddRound = true
+    orderStore.activeOpenOrderId = latest.id
+    orderStore.tableNum = String(tableNum)
+    orderStore.orderType = 'dine-in'
+  } else {
+    // Fresh order
+    orderStore.isAddRound = false
+    orderStore.activeOpenOrderId = null
+  }
+
   router.push('/app/menu-view?table=' + tableNum)
 }
 
 function goToCheckout() {
+  const t = detailTable.value
   closeDetail()
+  // If this table has an open tab, wire it into the checkout so it
+  // settles via PUT instead of creating a duplicate order via POST.
+  if (t) {
+    const openOrders = orders.value.filter(
+      o => (o.table_number || o.tableNum) === String(t.number) &&
+           o.payment_status !== 'paid' &&
+           !['cancelled', 'completed', 'fulfilled'].includes(o.status)
+    )
+    if (openOrders.length > 0) {
+      const latest = openOrders[openOrders.length - 1]
+      orderStore.activeOpenOrderId = latest.id
+      orderStore.tableNum = String(t.number)
+      orderStore.orderType = 'dine-in'
+    }
+  }
   router.push('/app/checkout')
 }
 
@@ -862,6 +927,25 @@ onUnmounted(() => {
   text-align: center;
   letter-spacing: .02em;
   flex-shrink: 0;
+}
+
+/* Open-tab badge on the floor plan tile. */
+.tm-tab-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--warning, #f59e0b);
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  line-height: 1.3;
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+:global([data-theme="dark"]) .tm-tab-badge {
+  background: #b45309;
 }
 
 /* Four chips across stop being readable well before the phone breakpoint - the

@@ -55,6 +55,7 @@
                   <span class="ko-line-main">
                     <span class="ko-qty">{{ line.qty }}x</span>
                     <span class="ko-name">{{ line.name }}</span>
+                    <span v-if="line.course && line.course !== 'main'" class="ko-course-chip">{{ line.course }}</span>
                   </span>
                   <span v-if="line.parsedModifiers.length" class="ko-mods">
                     <span v-for="(mod, mi) in line.parsedModifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name || mod) }}</span>
@@ -142,6 +143,7 @@
                   <span class="ko-line-main">
                     <span class="ko-qty">{{ line.qty }}x</span>
                     <span class="ko-name">{{ line.name }}</span>
+                    <span v-if="line.course && line.course !== 'main'" class="ko-course-chip">{{ line.course }}</span>
                   </span>
                   <span v-if="line.parsedModifiers.length" class="ko-mods">
                     <span v-for="(mod, mi) in line.parsedModifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name || mod) }}</span>
@@ -836,6 +838,24 @@ function refresh() { loadOrders() }
   font-size: .72rem;
   font-weight: 500;
   border: 1px solid var(--teal-200, #99F6E4);
+}
+.ko-course-chip {
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: var(--warning, #f59e0b);
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+:global([data-theme="dark"]) .ko-course-chip {
+  background: #b45309;
+}
+:global([data-theme="dark"]) .ko-mod-chip {
+  background: rgba(15,123,120,.15);
+  border-color: rgba(15,123,120,.3);
 }
 .ko-line-notes {
   margin-top: 4px;
