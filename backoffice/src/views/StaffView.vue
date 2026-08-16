@@ -2,7 +2,7 @@
   <div>
     <div class="table-toolbar">
       <h3>Staff Management</h3>
-      <div style="display:flex;gap:10px">
+      <div class="toolbar-actions">
         <input v-model="search" placeholder="Search..." class="input input-sm" />
         <button class="btn btn-secondary" @click="openAdd">+ Add Staff</button>
       </div>
@@ -11,7 +11,18 @@
     <div class="summary-grid">
       <div class="summary-card"><div class="num">{{ staff.length }}</div><div class="lbl">Total Staff</div></div>
       <div class="summary-card"><div class="num">{{ activeStaff.length }}</div><div class="lbl">Active</div></div>
-      <div class="summary-card"><div class="num">{{ roleCounts }}</div><div class="lbl">Roles</div></div>
+      <div class="summary-card"><div class="num">{{ roleBreakdown.length }}</div><div class="lbl">Roles in use</div></div>
+    </div>
+
+    <!--
+      One chip per role actually in use. This was a single string of
+      "manager:2 cashier:1 …" rendered in the big-number slot of a summary
+      card, which wrapped into an unreadable monospace block on a phone.
+    -->
+    <div v-if="roleBreakdown.length" class="role-breakdown">
+      <span v-for="r in roleBreakdown" :key="r.key" class="role-chip">
+        {{ r.label }}<span class="role-chip-count">{{ r.count }}</span>
+      </span>
     </div>
 
     <base-table
@@ -20,6 +31,7 @@
       caption="Staff accounts and their roles"
       empty-title="No staff found"
       :empty-hint="search ? 'Try a different search.' : ''"
+      stack-on-mobile
     >
       <template #cell-id="{ row }">
         <span style="font-family:var(--font-mono);font-size:.78rem">{{ row.id }}</span>
@@ -222,10 +234,26 @@ function blankForm() {
 }
 
 const filtered = computed(() => staff.value.filter(s => !search.value || s.firstName?.toLowerCase().includes(search.value.toLowerCase()) || s.lastName?.toLowerCase().includes(search.value.toLowerCase())))
-const activeStaff = computed(() => staff.value.filter(s => s.active !== false))
-const roleCounts = computed(() => {
-  const c = {}; staff.value.forEach(s => { c[s.role] = (c[s.role]||0) + 1 })
-  return Object.entries(c).map(([k,v]) => `${k}:${v}`).join(' ')
+// Keyed on `status`, which is what the server stores and what the Status
+// column renders. It used to test `s.active !== false` — a field no row
+// carries — so "Active" always equalled "Total Staff" and an inactive account
+// was counted as working here.
+const activeStaff = computed(() => staff.value.filter(s => (s.status || 'active') === 'active'))
+
+/** Roles actually in use, commonest first, labelled the way a manager reads them. */
+const roleBreakdown = computed(() => {
+  const counts = new Map()
+  staff.value.forEach(s => {
+    const key = canonical(s.role) || 'unassigned'
+    counts.set(key, (counts.get(key) || 0) + 1)
+  })
+  return [...counts.entries()]
+    .map(([key, count]) => ({
+      key,
+      count,
+      label: ROLES.find(r => r.value === key)?.label || 'Unassigned',
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
 })
 
 onMounted(loadStaff)
@@ -336,6 +364,26 @@ async function copyPassword() {
 <style scoped>
 .hint { display: block; font-size: .72rem; color: var(--text-muted); margin-top: 3px; }
 .role-select { width: auto; min-width: 140px; }
+
+.toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.role-breakdown { display: flex; flex-wrap: wrap; gap: 6px; margin: -8px 0 20px; }
+.role-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 99px; font-size: .72rem;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-body);
+}
+.role-chip-count { font-family: var(--font-mono, monospace); font-weight: 700; color: var(--text-heading); }
+
+@media (max-width: 768px) {
+  /* The search field and the add button share the row under the heading; the
+     field takes what is left rather than pushing the button off the edge. */
+  .toolbar-actions { width: 100%; }
+  .toolbar-actions .input { flex: 1 1 160px; min-width: 0; }
+  /* In a stacked row the control has the width of the card to fill, and a
+     fixed 140px left it stranded next to its label. */
+  .role-select { width: 100%; min-width: 0; }
+}
 .pw-issued {
   margin: 12px 0; padding: 16px; border-radius: 8px; text-align: center;
   background: var(--surface-2, rgba(0,0,0,.05)); border: 1px solid var(--border, #ddd);

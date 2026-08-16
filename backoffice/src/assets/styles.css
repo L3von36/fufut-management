@@ -293,4 +293,43 @@ textarea:focus-visible,
   .bn-more{display:flex!important}
   .content-wrap{padding:16px;padding-bottom:80px}
   .form-row{grid-template-columns:1fr}
+
+  /* ── Stacked table cards ─────────────────────────────────────────────────
+     Opt-in via `stack-on-mobile` on BaseTable. A seven-column table on a
+     360px screen is a horizontal scrollbar showing three characters per
+     column, and once it scrolls the values have lost the person they belong
+     to. Each row becomes a labelled block instead, using the `data-label`
+     BaseTable already puts on every cell. Opt-in rather than global: a
+     narrow table still reads better as a table. */
+  .table-stack thead{display:none}
+  .table-stack table,
+  .table-stack tbody,
+  .table-stack tr,
+  .table-stack td{display:block;width:100%}
+  .table-stack tr{border-bottom:1px solid var(--border);padding:6px 0}
+  .table-stack tr:last-child{border-bottom:none}
+  /* The row hover tint reads as a selection when a row fills the screen. */
+  .table-stack tr:hover td{background:transparent}
+  .table-stack td[data-label]{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:4px 12px;
+    padding:7px 16px;
+    border-bottom:none;
+    /* An address with no spaces in it would otherwise push the card wider
+       than the screen. */
+    overflow-wrap:anywhere;
+  }
+  .table-stack td[data-label]::before{
+    content:attr(data-label);
+    flex:0 0 38%;
+    font-size:.68rem;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--text-muted);
+  }
+  /* The empty state spans the whole table and names itself. */
+  .table-stack td.table-empty{display:block;text-align:center}
 }

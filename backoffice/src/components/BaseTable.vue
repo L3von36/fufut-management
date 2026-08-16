@@ -1,5 +1,5 @@
 <template>
-  <div class="table-wrap">
+  <div class="table-wrap" :class="{ 'table-stack': stackOnMobile }">
     <div class="table-scroll" :class="{ 'table-sticky-first': stickyFirst }">
       <table>
         <caption v-if="caption" class="sr-only">{{ caption }}</caption>
@@ -79,6 +79,14 @@ const props = defineProps({
   emptyHint: { type: String, default: '' },
   /** Freeze the first column. For tables wide enough to lose row context. */
   stickyFirst: { type: Boolean, default: false },
+  /**
+   * Below the mobile breakpoint, render each row as a stacked card with every
+   * cell labelled from the `data-label` this component already emits. Opt-in
+   * because a two- or three-column table still reads better as a table on a
+   * phone; it earns its keep once a row is too wide to fit without scrolling
+   * sideways through it.
+   */
+  stackOnMobile: { type: Boolean, default: false },
   paginated: { type: Boolean, default: false },
   pageSize: { type: Number, default: 50 },
   footerNote: { type: String, default: '' },
