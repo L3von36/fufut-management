@@ -49,7 +49,11 @@
             <svg v-if="isDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           </button>
-          <span v-if="auth.user" class="user-badge">{{ auth.user.firstName }} • {{ auth.user.role }}</span>
+          <div v-if="auth.user" class="user-chip">
+            <span class="user-avatar" aria-hidden="true">{{ initials }}</span>
+            <span class="user-name">{{ auth.user.firstName }}</span>
+            <span v-if="roleLabel" class="user-role">{{ roleLabel }}</span>
+          </div>
           <span class="date-display">{{ today }}</span>
         </div>
       </header>
@@ -156,6 +160,23 @@ const bottomItems = computed(() => {
 const pageTitle = computed(() => {
   const item = NAV_ITEMS.find(i => i.view === currentView.value)
   return item?.label || currentView.value
+})
+
+/**
+ * The role is stored as a canonical slug — "head-chef", "delivery-staff" — and
+ * the header rendered it raw, so a capitalised name sat next to a lowercase
+ * hyphenated word.
+ */
+const roleLabel = computed(() => {
+  const raw = String(auth.user?.role || '').trim()
+  if (!raw) return ''
+  return raw.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+})
+
+const initials = computed(() => {
+  const u = auth.user
+  if (!u) return ''
+  return ((u.firstName?.[0] || '') + (u.lastName?.[0] || '')).toUpperCase()
 })
 
 const today = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
