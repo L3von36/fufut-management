@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { createAuthGuard } from './guard'
 
 // Lazy load views
 const LoginView = () => import('../views/LoginView.vue')
@@ -91,41 +92,6 @@ const router = createRouter({
   }
 })
 
-// Track whether we have attempted session restoration this page load
-let sessionChecked = false
-
-router.beforeEach(async (to, from, next) => {
-  const auth = useAuthStore()
-
-  // On first navigation, try to restore session from server cookie
-  if (!sessionChecked && to.meta.requiresAuth) {
-    sessionChecked = true
-    if (!auth.isAuthenticated) {
-      const restored = await auth.checkSession()
-      if (restored) return next(to.fullPath)
-    }
-  }
-
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    return next('/login')
-  }
-
-  // An account carrying a manager-issued password can go exactly one place.
-  // The server enforces this too - it refuses every other endpoint - so this
-  // guard exists to explain rather than to protect: without it the person lands
-  // on a dashboard where every request fails with no stated reason.
-  if (auth.mustChangePassword && to.name !== 'change-password') {
-    return next({ name: 'change-password' })
-  }
-
-  // Permission guard
-  if (to.meta.requiresAuth && to.name && to.name !== 'login') {
-    const viewName = to.name
-    if (!auth.hasPermission(viewName)) {
-      return next({ name: auth.defaultView })
-    }
-  }
-  next()
-})
+router.beforeEach(createAuthGuard(useAuthStore))
 
 export default router
