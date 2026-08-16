@@ -164,6 +164,21 @@ export async function apiDelete(endpoint, id) {
   }
 }
 
+export async function apiPatch(endpoint, data) {
+  const url = `${API}/api/${endpoint}`
+  try {
+    return await tryFetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    })
+  } catch (e) {
+    await queueMutation('PATCH', endpoint, data)
+    return { ok: true, _offline: true }
+  }
+}
+
 // Role permissions (unchanged)
 export const ROLE_PERMISSIONS = {
   // 'staff' is absent deliberately: editing colleague accounts lives in the

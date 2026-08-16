@@ -98,6 +98,13 @@ export const useOrderStore = defineStore('order', () => {
   const checkoutStep = ref('cart')      // cart | payment | processing | success
   const lastOrderId = ref(null)
   const lastOrderError = ref(null)
+  // ─── Open Tab (Task 8) ───
+  // When a waiter sends an order to the kitchen, we track the open order id
+  // so that Checkout can settle it (PUT) instead of creating a new one (POST),
+  // and so the table knows there is an unpaid tab.
+  const activeOpenOrderId = ref(null)
+  // True when the current cart is being built to add a round to an existing tab.
+  const isAddRound = ref(false)
 
   // ─── Phase 2: Tip ───
   // Defaults to 'none': a tip must be chosen explicitly by staff/guest, never
@@ -366,6 +373,9 @@ export const useOrderStore = defineStore('order', () => {
     paymentEvidenceKey.value = ''
     lastOrderId.value = null
     lastOrderError.value = null
+    // Open tab context
+    activeOpenOrderId.value = null
+    isAddRound.value = false
     // Phase 2 resets
     clearTip()
     clearDiscount()
@@ -563,6 +573,9 @@ export const useOrderStore = defineStore('order', () => {
     checkoutStep,
     lastOrderId,
     lastOrderError,
+    // Open Tab (Task 8)
+    activeOpenOrderId,
+    isAddRound,
     // Phase 2: Tip
     tipType,
     tipPercent,
