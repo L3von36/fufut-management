@@ -612,10 +612,32 @@ async function processPayment() {
   try {
     const payload = store.buildOrderPayload()
     lastPayload.value = payload
-    const res = await apiPost('orders', payload)
-    if (res.ok || res.id) {
-      // Auto-mark table occupied in database & state
-      if (store.orderType === 'dine-in' && store.tableNum) {
+    let res
+
+    if (store.activeOpenOrderId) {
+      // ── Open-tab settlement: PUT the existing order with payment data ──
+      res = await apiPut('orders/' + store.activeOpenOrderId, {
+        status: 'served',
+        payment: payload.payment,
+        total: payload.total,
+        subtotal: payload.subtotal,
+        tip: payload.tip,
+        tipType: payload.tipType,
+        discount: payload.discount,
+        discountType: payload.discountType,
+        discountReason: payload.discountReason,
+        paymentBreakdown: payload.paymentBreakdown,
+      })
+    } else {
+      // ── Takeaway / no-tab flow: create a new order ──
+      res = await apiPost('orders', payload)
+    }
+
+    if (res.ok || res.id || res.updated_at) {
+      // Auto-mark table occupied in database — but only for the non-tab
+      // flow. Send-to-Kitchen already marks it occupied when the first
+      // round is fired; re-writing seated_at here would reset the timer.
+      if (!store.activeOpenOrderId && store.orderType === 'dine-in' && store.tableNum) {
         const match = tables.value.find(t => String(t.number) === String(store.tableNum))
         if (match && match.status !== 'occupied') {
           try {
@@ -627,11 +649,13 @@ async function processPayment() {
           } catch (e) { console.warn(e) }
         }
       }
-      store.lastOrderId = res.id || res.orderId || '—'
+      store.lastOrderId = store.activeOpenOrderId || res.id || res.orderId || '—'
+      store.activeOpenOrderId = null
+      store.isAddRound = false
       store.checkoutStep = 'success'
       toast('Order placed successfully!', 'success')
     } else {
-      throw new Error('Order failed')
+      throw new Error(res.error || 'Order failed')
     }
   } catch (e) {
     store.lastOrderError = e.message

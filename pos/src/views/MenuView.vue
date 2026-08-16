@@ -121,9 +121,17 @@
               <span>Total</span>
               <span>ETB {{ orderStore.cartTotal.toFixed(0) }}</span>
             </div>
-            <button class="btn btn-primary cart-checkout" @click="goToCheckout">
+            <button v-if="orderStore.isAddRound && orderStore.activeOpenOrderId" class="btn btn-success cart-action" @click="sendToKitchen" :disabled="sendingToKitchen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              {{ sendingToKitchen ? 'Adding...' : 'Add to Order' }}
+            </button>
+            <button v-else class="btn btn-primary cart-action" @click="sendToKitchen" :disabled="sendingToKitchen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              {{ sendingToKitchen ? 'Sending...' : 'Send to Kitchen' }}
+            </button>
+            <button class="btn btn-outline cart-checkout" @click="goToCheckout">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-              Proceed to Checkout
+              Checkout
             </button>
           </div>
         </div>
@@ -143,7 +151,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { apiGet } from '../api'
+import { apiGet, apiPost, apiPatch, apiPut } from '../api'
 import { useOrderStore } from '../stores/order'
 import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
 
@@ -281,6 +289,67 @@ function goToCheckout() {
   orderStore.checkoutStep = 'cart'
   showCart.value = false
   router.push('/app/checkout')
+}
+
+// ─── Send to Kitchen (Task 8) ───
+// Creates the order immediately so the kitchen sees it before payment.
+const sendingToKitchen = ref(false)
+async function sendToKitchen() {
+  if (orderStore.isEmpty || sendingToKitchen.value) return
+  sendingToKitchen.value = true
+  try {
+    if (orderStore.isAddRound && orderStore.activeOpenOrderId) {
+      // Adding a round to an existing open tab — PATCH
+      const res = await apiPatch(
+        `orders/${orderStore.activeOpenOrderId}/items`,
+        { orderItems: orderStore.serializeOrderItems() }
+      )
+      if (res.ok) {
+        toast(`Round added to order #${orderStore.activeOpenOrderId.slice(-4)}`, 'success')
+      } else {
+        throw new Error(res.error || 'Failed to add round')
+      }
+    } else {
+      // New order — POST with status 'new', payment 'unpaid'
+      const payload = orderStore.buildOrderPayload({
+        payment: 'unpaid',
+        status: 'new',
+        paymentBreakdown: [],
+        tip: 0,
+        tipType: 'none',
+      })
+      const res = await apiPost('orders', payload)
+      if (res.ok || res.id) {
+        orderStore.activeOpenOrderId = res.id || res.orderId
+        toast(`Order #${(res.id || res.orderId || '').slice(-4)} sent to kitchen!`, 'success')
+
+        // Mark the table occupied immediately — the guests are seated
+        // and the kitchen is cooking, so no-one else should be assigned here.
+        if (orderStore.orderType === 'dine-in' && orderStore.tableNum) {
+          try {
+            const tableRes = await apiGet('tables')
+            const tables = Array.isArray(tableRes) ? tableRes : []
+            const match = tables.find(t => String(t.number) === String(orderStore.tableNum))
+            if (match && match.status !== 'occupied') {
+              await apiPut('tables/' + match.id, {
+                ...match,
+                status: 'occupied',
+                seated_at: new Date().toISOString()
+              })
+            }
+          } catch (e) { console.warn('Could not mark table occupied:', e) }
+        }
+      } else {
+        throw new Error('Failed to send order')
+      }
+    }
+    orderStore.clearCart()
+    showCart.value = false
+  } catch (e) {
+    toast('Could not send to kitchen: ' + e.message, 'error')
+  } finally {
+    sendingToKitchen.value = false
+  }
 }
 
 // ─── Category / search ───
@@ -480,7 +549,8 @@ async function loadData() {
 .cart-footer{flex-shrink:0;border-top:1px solid var(--border);padding-top:12px}
 .cart-total-row{display:flex;justify-content:space-between;font-size:.82rem;color:var(--text-muted);padding:2px 0}
 .cart-grand-total{font-size:1.05rem;font-weight:700;color:var(--text-heading);padding:6px 0 12px;border-top:1px solid var(--border);margin-top:4px}
-.cart-checkout{width:100%;justify-content:center;padding:14px;font-size:.95rem;gap:8px}
+.cart-action{width:100%;justify-content:center;padding:12px;font-size:.92rem;gap:8px;margin-bottom:8px}
+.cart-checkout{width:100%;justify-content:center;padding:12px;font-size:.92rem;gap:8px}
 .cart-checkout svg{width:20px;height:20px}
 
 .cart-slide-enter-active{transition:opacity .2s var(--ease)}
