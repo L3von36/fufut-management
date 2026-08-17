@@ -103,8 +103,11 @@ import BaseTable from '../components/BaseTable.vue'
  * fetching everything to filter in the browser stops working within months.
  */
 
-const ENTITIES = ['orders', 'payments', 'tips', 'inventory', 'recipes', 'purchases', 'suppliers', 'delivery', 'waste', 'stock_counts', 'staff', 'menu']
-const ACTIONS = ['create', 'update', 'void', 'refund', 'adjust', 'verify']
+// `tables` and `reservations` carry the manager overrides: taking a table off
+// the party on it, and seating over a booking. 'override' is its own action
+// because that is the thing somebody comes to this screen looking for.
+const ENTITIES = ['orders', 'payments', 'tips', 'inventory', 'recipes', 'purchases', 'suppliers', 'delivery', 'waste', 'stock_counts', 'staff', 'menu', 'tables', 'reservations', 'timeclock']
+const ACTIONS = ['create', 'update', 'override', 'void', 'refund', 'adjust', 'verify']
 
 const entries = ref([])
 
@@ -153,6 +156,9 @@ function when(at) {
 
 function actionClass(a) {
   if (a === 'void' || a === 'refund') return 'badge-cancelled'
+  // An override is somebody deciding to go around a rule. It is not an error,
+  // but it is the row on this screen most worth catching the eye.
+  if (a === 'override') return 'badge-in-transit'
   if (a === 'create') return 'badge-success'
   if (a === 'verify') return 'badge-success'
   return 'badge-pending'
