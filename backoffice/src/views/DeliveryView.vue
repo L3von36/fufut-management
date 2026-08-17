@@ -21,6 +21,7 @@
       :columns="columns"
       :rows="filtered"
       sticky-first
+      stack-on-mobile
       caption="Delivery jobs"
       empty-title="No delivery orders"
       empty-hint="Delivery orders taken at the till appear here."
