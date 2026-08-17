@@ -45,6 +45,7 @@
       <base-table
         :columns="columns"
         :rows="items"
+        stack-on-mobile
         caption="Waste recorded in the selected period"
         empty-title="No waste logged"
         empty-hint="Nothing recorded in this date range."

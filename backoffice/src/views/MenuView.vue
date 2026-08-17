@@ -45,6 +45,7 @@
       <base-table
         :columns="columns"
         :rows="filtered"
+        stack-on-mobile
         caption="Menu items"
         empty-title="No items found"
         :empty-hint="search ? 'Try a different search.' : ''"

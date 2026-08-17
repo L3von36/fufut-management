@@ -21,6 +21,7 @@
       <base-table
         :columns="columns"
         :rows="filtered"
+        stack-on-mobile
         caption="Expenses for the selected period"
         empty-title="No expenses found"
         empty-hint="Nothing recorded in this date range."

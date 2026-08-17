@@ -22,6 +22,7 @@
       <base-table
         :columns="columns"
         :rows="filtered"
+        stack-on-mobile
         caption="Table reservations"
         empty-title="No reservations"
         empty-hint="Bookings appear here once taken."

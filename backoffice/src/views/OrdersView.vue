@@ -35,6 +35,7 @@
       :columns="columns"
       :rows="filtered"
       sticky-first
+      stack-on-mobile
       paginated
       caption="Orders, most recent first"
       empty-title="No orders"

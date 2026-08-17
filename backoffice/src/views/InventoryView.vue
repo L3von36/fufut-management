@@ -19,6 +19,7 @@
         :columns="columns"
         :rows="filtered"
         sticky-first
+        stack-on-mobile
         caption="Stock items and their levels"
         empty-title="No items found"
         empty-hint="Raw materials appear here once they are added."
