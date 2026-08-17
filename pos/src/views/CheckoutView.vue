@@ -644,9 +644,15 @@ async function processPayment() {
             await apiPut('tables/' + match.id, {
               ...match,
               status: 'occupied',
-              seated_at: new Date().toISOString()
+              seated_at: new Date().toISOString(),
+              newSeating: true,
             })
-          } catch (e) { console.warn(e) }
+          } catch (e) {
+            // The bill is already taken, so this cannot fail the sale — but the
+            // floor plan will not show this table as busy, and a waiter who is
+            // never told will find somebody else sitting there.
+            toast(e.message || `Order taken, but table ${store.tableNum} could not be held`, 'error')
+          }
         }
       }
       store.lastOrderId = store.activeOpenOrderId || res.id || res.orderId || '—'

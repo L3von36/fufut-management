@@ -19,6 +19,12 @@ export function useSSE() {
     if (eventSource) disconnect()
     if (!eventPath) throw new Error('useSSE: eventPath is required (e.g. "kitchen")')
 
+    // Live updates are an enhancement, not a prerequisite for the screen. Where
+    // EventSource does not exist this threw inside the caller's mounted hook and
+    // took the rest of the hook with it, so the page came up half-initialised.
+    // Callers keep their own refresh path; they simply do not get pushed to.
+    if (typeof EventSource === 'undefined') return
+
     currentEventPath = eventPath
     intentionalClose = false
     reconnectDelay = INITIAL_RECONNECT_DELAY

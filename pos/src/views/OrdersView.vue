@@ -402,9 +402,14 @@ async function processPayment() {
             await apiPut('tables/' + match.id, {
               ...match,
               status: 'occupied',
-              seated_at: new Date().toISOString()
+              seated_at: new Date().toISOString(),
+              newSeating: true,
             })
-          } catch (e) { console.warn(e) }
+          } catch (e) {
+            // The order exists either way; what must not happen silently is the
+            // floor plan still showing this table as free.
+            toast(e.message || `Order created, but table ${newOrder.value.tableNum} could not be held`, 'error')
+          }
         }
       }
       payBtnState.setSuccess()

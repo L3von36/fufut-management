@@ -121,6 +121,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { apiGet, TODAY } from '../api'
+import { useSSE } from '../composables/useSSE'
 
 const router = useRouter()
 
@@ -157,6 +158,8 @@ const loading = ref(false)
 
 let charts = {}
 let interval = null
+
+const { connect: sseConnect, disconnect: sseDisconnect, on: sseOn } = useSSE()
 
 // KPI icon SVGs
 const ICONS = {
@@ -215,10 +218,18 @@ onMounted(async () => {
   if (role === 'manager' || role === 'cashier') {
     interval = setInterval(loadDashboard, 30000)
   }
+  // The floor moves from other people's screens. Only manager and cashier had
+  // any refresh at all, and then only every 30s, so a waiter's or chef's
+  // dashboard showed the seating count from whenever they opened it. The stream
+  // only fires when something actually changed, so this costs nothing when the
+  // floor is quiet.
+  sseConnect('tables')
+  sseOn('table_update', () => loadDashboard())
 })
 
 onUnmounted(() => {
   if (interval) clearInterval(interval)
+  sseDisconnect()
   Object.values(charts).forEach(c => c.destroy())
 })
 

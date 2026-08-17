@@ -638,8 +638,12 @@ function quickStatus(status) {
   // Auto-set/clear seated_at
   if (status === 'occupied' && prev !== 'occupied') {
     detailTable.value.seated_at = new Date().toISOString()
+    // Tells the server this is a party arriving, not an edit to the one already
+    // there, so it refuses if somebody claimed the table in the meantime.
+    detailTable.value.newSeating = true
   } else if (status !== 'occupied') {
     detailTable.value.seated_at = ''
+    detailTable.value.newSeating = false
     if (status === 'available') {
       detailTable.value.guests = 0
       detailTable.value.server = ''

@@ -291,6 +291,39 @@ function goToCheckout() {
   router.push('/app/checkout')
 }
 
+/**
+ * Hold the table for this party, and say so plainly when we cannot.
+ *
+ * The server owns exclusivity — it refuses a table that already has a party on
+ * it or that sits inside a booking's window — and answers 409 with who holds
+ * it. `newSeating` tells it this is a fresh party rather than another round on
+ * the tab already there, which is the one thing it cannot work out for itself.
+ *
+ * Returns false when the table could not be taken, and has already explained
+ * why, so the caller can stop rather than fire food at it.
+ */
+async function claimTable(tableNum) {
+  try {
+    const tableRes = await apiGet('tables')
+    const tables = Array.isArray(tableRes) ? tableRes : []
+    const match = tables.find(t => String(t.number) === String(tableNum))
+    // A table the floor plan does not know about is not ours to hold, and
+    // blocking the order over it would be worse than letting it through.
+    if (!match) return true
+
+    await apiPut('tables/' + match.id, {
+      ...match,
+      status: 'occupied',
+      seated_at: new Date().toISOString(),
+      newSeating: !orderStore.isAddRound,
+    })
+    return true
+  } catch (e) {
+    toast(e.message || `Table ${tableNum} is not available`, 'error')
+    return false
+  }
+}
+
 // ─── Send to Kitchen (Task 8) ───
 // Creates the order immediately so the kitchen sees it before payment.
 const sendingToKitchen = ref(false)
@@ -318,27 +351,19 @@ async function sendToKitchen() {
         tip: 0,
         tipType: 'none',
       })
+      // Take the table before firing anything. This ran after the order was
+      // posted and discarded its answer, so a waiter could send a round to a
+      // table that was reserved or already had a party on it, hear nothing,
+      // and leave the kitchen cooking for a table that was never theirs.
+      if (orderStore.orderType === 'dine-in' && orderStore.tableNum) {
+        const claimed = await claimTable(orderStore.tableNum)
+        if (!claimed) return
+      }
+
       const res = await apiPost('orders', payload)
       if (res.ok || res.id) {
         orderStore.activeOpenOrderId = res.id || res.orderId
         toast(`Order #${(res.id || res.orderId || '').slice(-4)} sent to kitchen!`, 'success')
-
-        // Mark the table occupied immediately — the guests are seated
-        // and the kitchen is cooking, so no-one else should be assigned here.
-        if (orderStore.orderType === 'dine-in' && orderStore.tableNum) {
-          try {
-            const tableRes = await apiGet('tables')
-            const tables = Array.isArray(tableRes) ? tableRes : []
-            const match = tables.find(t => String(t.number) === String(orderStore.tableNum))
-            if (match && match.status !== 'occupied') {
-              await apiPut('tables/' + match.id, {
-                ...match,
-                status: 'occupied',
-                seated_at: new Date().toISOString()
-              })
-            }
-          } catch (e) { console.warn('Could not mark table occupied:', e) }
-        }
       } else {
         throw new Error('Failed to send order')
       }
