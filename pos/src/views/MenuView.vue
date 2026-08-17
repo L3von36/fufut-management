@@ -51,6 +51,21 @@
       </button>
     </div>
 
+    <!--
+      Which course the next items belong to. The kitchen already fires tickets
+      by course and the column has existed since migration 012, but nothing on
+      this screen ever set one, so every line went out as 'main' and coursing
+      was unreachable from the place that decides it.
+      Dine-in only: a takeaway or a delivery is one drop.
+    -->
+    <div v-if="orderStore.orderType === 'dine-in'" class="course-bar">
+      <span class="course-label">Course</span>
+      <button v-for="c in COURSES" :key="c.value"
+        class="course-chip" :class="{ active: activeCourse === c.value }"
+        @click="activeCourse = c.value"
+      >{{ c.label }}</button>
+    </div>
+
     <!-- Menu Grid -->
     <div class="menu-grid-wrapper">
       <div class="menu-grid" :class="{ 'is-list': density === 'list' }">
@@ -135,7 +150,7 @@
         <div class="cart-sheet" @click.stop>
           <div class="cart-header">
             <h3>Current Order</h3>
-            <button v-if="orderStore.items.length" class="btn btn-sm btn-ghost" @click="orderStore.clearCart(); showCart=false">Clear All</button>
+            <button v-if="orderStore.items.length" class="btn btn-sm btn-ghost" @click="clearOrder()">Clear All</button>
           </div>
           <!-- Docked, the panel is on screen before anything is ordered, so it
                has to say what it is rather than sit there blank. -->
@@ -148,6 +163,9 @@
               <div class="cart-item-info">
                 <div class="cart-item-name">{{ orderStore.lineSummary(entry) }}</div>
                 <div class="cart-item-price">ETB {{ (orderStore.lineTotal(entry) * entry.qty).toFixed(0) }}</div>
+                <!-- Only when it is not the default, so a single-drop order
+                     stays as quiet as it was. -->
+                <div v-if="entry.course && entry.course !== 'main'" class="cart-item-course">{{ entry.course }}</div>
               </div>
               <div class="cart-qty">
                 <button class="qty-btn" @click="orderStore.decrementQty(entry.uid)">−</button>
@@ -223,6 +241,35 @@ const showCart = ref(false)
  * Kept per device rather than per account: it follows the tablet on the pass
  * or the phone in an apron, which is what it is really a property of.
  */
+/**
+ * Which course the next thing tapped belongs to.
+ *
+ * 'main' matches the server's default, so a waiter who never touches this
+ * behaves exactly as before. Resets to main whenever the cart is cleared, so
+ * the next table does not inherit the last one's dessert round.
+ */
+const COURSES = [
+  { value: 'starters', label: 'Starters' },
+  { value: 'main', label: 'Main' },
+  { value: 'dessert', label: 'Dessert' },
+]
+const activeCourse = ref('main')
+
+/**
+ * Empty the cart and go back to the main course, so the next table does not
+ * inherit the last one's dessert round.
+ */
+function clearOrder() {
+  orderStore.clearCart()
+  activeCourse.value = 'main'
+  showCart.value = false
+}
+
+/** A takeaway or a delivery goes out in one drop, so it is always 'main'. */
+const courseForNewLines = computed(() =>
+  orderStore.orderType === 'dine-in' ? activeCourse.value : 'main'
+)
+
 const DENSITY_KEY = 'fufut.pos.menuDensity'
 const density = ref('photo')
 try {
@@ -348,7 +395,8 @@ function handleItemClick(item, qty = 1) {
       orderStore.addItem({
         menuItemId: item.id,
         name: item.name,
-        basePrice: parseFloat(item.price || 0)
+        basePrice: parseFloat(item.price || 0),
+        course: courseForNewLines.value
       })
     }
   }
@@ -401,7 +449,7 @@ function addQuantity(n) {
 
 function onModifierConfirm(selection) {
   showModifierSheet.value = false
-  orderStore.addItem(selection)
+  orderStore.addItem({ ...selection, course: courseForNewLines.value })
 }
 
 // ─── Navigate to checkout ───
@@ -491,8 +539,7 @@ async function sendToKitchen() {
         throw new Error('Failed to send order')
       }
     }
-    orderStore.clearCart()
-    showCart.value = false
+    clearOrder()
   } catch (e) {
     toast('Could not send to kitchen: ' + e.message, 'error')
   } finally {
@@ -577,6 +624,17 @@ async function loadData() {
 .check-docked .cart-slide-enter-active .cart-sheet,
 .check-docked .cart-slide-leave-active .cart-sheet{transition:none}
 .check-docked .menu-grid-wrapper{padding-bottom:16px}
+
+/* ── Course selector ───────────────────────────────────────────────────────
+   Sets what the next tap belongs to. Quiet by default: most orders are one
+   drop and the main course is already the answer, so this must not compete
+   with the categories above it. */
+.course-bar{display:flex;align-items:center;gap:6px;padding:0 16px 8px;flex-shrink:0}
+.course-label{font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-right:2px}
+.course-chip{padding:5px 12px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-size:.74rem;font-weight:600;color:var(--text-muted);cursor:pointer;min-height:32px;transition:all var(--duration-fast) var(--ease)}
+.course-chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
+
+.cart-item-course{font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-top:2px}
 
 /* ── Compact list mode ─────────────────────────────────────────────────────
    The same cards laid out as rows with the photo dropped, for somebody who

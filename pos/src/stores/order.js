@@ -55,7 +55,7 @@ function uid() { return 'c' + Date.now().toString(36) + (++_uidCounter).toString
  * dishes: the worst case becomes a split line, which is visible, rather than a
  * wrong total, which is not.
  */
-function dedupKey(menuItemId, selectedModifiers, notes, name, basePrice) {
+function dedupKey(menuItemId, selectedModifiers, notes, name, basePrice, course) {
   const modNames = (selectedModifiers || [])
     .map(m => m.name)
     .slice()
@@ -67,7 +67,10 @@ function dedupKey(menuItemId, selectedModifiers, notes, name, basePrice) {
     name || '',
     price,
     modNames,
-    (notes || '').trim().toLowerCase()
+    (notes || '').trim().toLowerCase(),
+    // Part of the key: the same dish ordered as a starter and again as a main
+    // is two lines that fire at different times, not one line of two.
+    course || 'main'
   ].join('::')
 }
 
@@ -199,8 +202,8 @@ export const useOrderStore = defineStore('order', () => {
   }
 
   // ─── Actions ───
-  function addItem({ menuItemId, name, basePrice, selectedModifiers = [], notes = '' }) {
-    const key = dedupKey(menuItemId, selectedModifiers, notes, name, basePrice)
+  function addItem({ menuItemId, name, basePrice, selectedModifiers = [], notes = '', course = 'main' }) {
+    const key = dedupKey(menuItemId, selectedModifiers, notes, name, basePrice, course)
     const existing = items.value.find(i => i._key === key)
     if (existing) {
       existing.qty++
@@ -218,7 +221,10 @@ export const useOrderStore = defineStore('order', () => {
         priceDelta: parseFloat(m.priceDelta) || 0,
         type: m.type || 'option'
       })),
-      notes: notes.trim()
+      notes: notes.trim(),
+      // Which course this line belongs to. The kitchen fires by course, and
+      // 'main' is what the server defaults to for a line that never says.
+      course: course || 'main'
     })
   }
 
@@ -411,7 +417,9 @@ export const useOrderStore = defineStore('order', () => {
         name: m.name,
         priceDelta: m.priceDelta
       })),
-      notes: i.notes || undefined
+      notes: i.notes || undefined,
+      // normaliseLines reads this and the kitchen board fires by it.
+      course: i.course || 'main'
     }))
   }
 
