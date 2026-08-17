@@ -38,11 +38,22 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input v-model="search" type="text" placeholder="Search menu items..." class="menu-search-input" />
       <button v-if="search" class="search-clear" @click="search = ''">✕</button>
+      <!--
+        Photos help somebody who does not know the menu; a server who does
+        wants as many names on screen as possible. Which is right depends on
+        the venue and on how long the staff have been there, so it is a choice
+        rather than a decision made here.
+      -->
+      <button class="density-toggle" @click="toggleDensity"
+        :title="density === 'photo' ? 'Switch to a compact list' : 'Switch to photos'">
+        <svg v-if="density === 'photo'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      </button>
     </div>
 
     <!-- Menu Grid -->
     <div class="menu-grid-wrapper">
-      <div class="menu-grid">
+      <div class="menu-grid" :class="{ 'is-list': density === 'list' }">
         <div v-for="item in filteredItems" :key="itemKey(item)"
           class="menu-card"
           :class="{ unavailable: item.available === false, 'in-cart': storeCartCount(item.id) > 0 }"
@@ -56,8 +67,10 @@
           <div class="menu-img">
             <img :src="item.image || getPlaceholder(item)" :alt="item.name" loading="lazy" />
             <div v-if="item.available === false" class="menu-img-overlay">Unavailable</div>
-            <div v-if="storeCartCount(item.id) > 0" class="menu-badge">{{ storeCartCount(item.id) }}</div>
           </div>
+          <!-- Outside the image: list mode drops the photo, and the count of
+               what is already on the order has to survive that. -->
+          <div v-if="storeCartCount(item.id) > 0" class="menu-badge">{{ storeCartCount(item.id) }}</div>
           <div class="menu-info">
             <div class="menu-name-row">
               <h3>{{ item.name }}</h3>
@@ -204,6 +217,24 @@ const showCart = ref(false)
  * with the room for it, the check stays on screen. Landscape rather than plain
  * width: a phone held sideways is still a phone, but it does have the room.
  */
+/**
+ * Photo tiles or a compact list.
+ *
+ * Kept per device rather than per account: it follows the tablet on the pass
+ * or the phone in an apron, which is what it is really a property of.
+ */
+const DENSITY_KEY = 'fufut.pos.menuDensity'
+const density = ref('photo')
+try {
+  const saved = localStorage.getItem(DENSITY_KEY)
+  if (saved === 'list' || saved === 'photo') density.value = saved
+} catch { /* private mode: the default is fine */ }
+
+function toggleDensity() {
+  density.value = density.value === 'photo' ? 'list' : 'photo'
+  try { localStorage.setItem(DENSITY_KEY, density.value) } catch { /* not worth failing over */ }
+}
+
 const CHECK_DOCK_QUERY = '(min-width: 1024px) and (orientation: landscape)'
 const checkDocked = ref(false)
 let dockQuery = null
@@ -546,6 +577,36 @@ async function loadData() {
 .check-docked .cart-slide-enter-active .cart-sheet,
 .check-docked .cart-slide-leave-active .cart-sheet{transition:none}
 .check-docked .menu-grid-wrapper{padding-bottom:16px}
+
+/* ── Compact list mode ─────────────────────────────────────────────────────
+   The same cards laid out as rows with the photo dropped, for somebody who
+   knows the menu and is locating a known name rather than recognising a
+   picture.
+
+   Worth being honest about where it wins. On a narrow phone it does not: the
+   photo grid is three squares to a row and beats a single column of rows on
+   items per screen. It pays off from tablet width up, where the photo grid
+   thins to two tall tiles a row and the list runs two or three short rows
+   instead — and on a phone it still buys full, untruncated dish names. */
+.density-toggle{flex-shrink:0;width:38px;height:38px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--surface);color:var(--text-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all var(--duration-fast) var(--ease)}
+.density-toggle:hover{border-color:var(--primary);color:var(--primary)}
+.density-toggle svg{width:18px;height:18px}
+
+.menu-grid.is-list{grid-template-columns:1fr;gap:6px}
+@media(min-width:640px){.menu-grid.is-list{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1400px){.menu-grid.is-list{grid-template-columns:repeat(3,1fr)}}
+.is-list .menu-card{aspect-ratio:auto;display:flex;align-items:center;min-height:52px}
+.is-list .menu-card .menu-img{display:none}
+/* Beats the narrow-container rules, which lift the caption onto the photo. */
+.is-list .menu-card .menu-info{position:static;background:none;padding:9px 12px;flex:1;min-width:0}
+.is-list .menu-card .menu-name-row{flex-direction:row;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:0}
+.is-list .menu-card .menu-info h3{color:var(--text-heading);font-size:.88rem;text-shadow:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.is-list .menu-card .menu-price{color:var(--primary);font-size:.9rem;text-shadow:none}
+.is-list .menu-card .menu-desc,.is-list .menu-card .menu-meta,.is-list .menu-card .menu-modifiers{display:none}
+.is-list .menu-card .menu-add-btn{display:none}
+.is-list .menu-card:hover{transform:none}
+/* The in-cart count has no photo to sit on any more. */
+.is-list .menu-badge{position:static;margin-right:10px;flex-shrink:0}
 
 /* ── Quantity picker ───────────────────────────────────────────────────────
    Deliberately large targets: this is used mid-service, one-handed, while
