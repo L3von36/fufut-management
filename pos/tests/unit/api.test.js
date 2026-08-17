@@ -236,12 +236,15 @@ describe('API Client', () => {
       expect(nonManagerViews.sort()).toEqual(['revenue'].sort())
     })
 
-    it('cleaner should only have waste and dashboard', () => {
-      expect(ROLE_PERMISSIONS.cleaner).toEqual(['waste', 'dashboard'])
+    // Time Clock is on every role: everyone clocks on and off, and the screen's
+    // roster half hides itself for a role that cannot read it. What these two
+    // pin is that the narrow roles stay narrow apart from that.
+    it('cleaner should only have waste, dashboard and their own time clock', () => {
+      expect(ROLE_PERMISSIONS.cleaner).toEqual(['waste', 'dashboard', 'timeclock'])
     })
 
-    it('delivery-staff should only have delivery and dashboard', () => {
-      expect(ROLE_PERMISSIONS['delivery-staff']).toEqual(['delivery', 'dashboard'])
+    it('delivery-staff should only have delivery, dashboard and their own time clock', () => {
+      expect(ROLE_PERMISSIONS['delivery-staff']).toEqual(['delivery', 'dashboard', 'timeclock'])
     })
 
     it('ROLE_DEFAULT_VIEW should map each role to a valid view', () => {

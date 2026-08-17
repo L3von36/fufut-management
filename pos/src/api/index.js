@@ -51,10 +51,15 @@ async function tryFetch(url, options, retries = MAX_RETRIES) {
     if (!r.ok) {
       // Try to parse error body for a meaningful message
       let errMsg = `${options?.method || 'GET'} ${url} ${r.status}`
+      // A refusal often carries more than a sentence — which table is occupied,
+      // which checks are still open. Keeping only `.error` threw that away and
+      // left screens unable to say anything actionable about a 409.
+      let errData = null
       try {
         const ct = r.headers.get('content-type') || ''
         if (ct.includes('application/json')) {
           const errBody = await r.json()
+          errData = errBody
           if (errBody.error) errMsg = errBody.error
         }
       } catch { /* ignore parse failure */ }
@@ -68,7 +73,10 @@ async function tryFetch(url, options, retries = MAX_RETRIES) {
         return tryFetch(url, options, retries - 1)
       }
 
-      throw new Error(errMsg)
+      const err = new Error(errMsg)
+      err.status = r.status
+      err.data = errData
+      throw err
     }
     return r.json()
   } catch (e) {
@@ -195,22 +203,27 @@ export const ROLE_PERMISSIONS = {
   // part of the job, committing the business to a vendor is not. This mirrors
   // the server matrix in fufut-api/src/auth.js; if the two disagree, the screen
   // renders and every request on it fails.
-  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases'],
+  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases', 'timeclock'],
   // Cooks from the recipes, does not set them. Two people adjusting the same
   // counts is how a stock take stops reconciling.
-  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes'],
+  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes', 'timeclock'],
   // open-checks is the waiter's own outstanding work and the cashier's queue of
   // bills to take, so both get it. It reads orders and tables, which both roles
   // already read.
-  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'checkout'],
+  // Every role carries 'timeclock' because everyone clocks on and off. The
+  // screen's roster half needs `timeclock` and `staff` reads and is guarded,
+  // falling back to empty; the clock-in/out half is self-service and works for
+  // any signed-in account. Granting the underlying resources instead would give
+  // the floor the power to rewrite anybody's hours.
+  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'checkout', 'timeclock'],
   cashier: ['cashdrawer', 'orders', 'open-checks', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout'],
-  'delivery-staff': ['delivery', 'dashboard'],
-  cleaner: ['waste', 'dashboard'],
+  'delivery-staff': ['delivery', 'dashboard', 'timeclock'],
+  cleaner: ['waste', 'dashboard', 'timeclock'],
   // §47's seventh role. Reads the financial picture and changes almost none of
   // it — the server matrix grants write on expenses alone, so every other
   // screen here is deliberately view-only. No operational screens: an
   // accountant has no business seating a table or sending a ticket.
-  accountant: ['dashboard', 'reports', 'revenue', 'pnl', 'expenses', 'analytics', 'orders', 'purchases', 'suppliers']
+  accountant: ['dashboard', 'reports', 'revenue', 'pnl', 'expenses', 'analytics', 'orders', 'purchases', 'suppliers', 'timeclock']
 }
 
 export const ROLE_DEFAULT_VIEW = {

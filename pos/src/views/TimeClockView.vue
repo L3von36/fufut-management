@@ -3,25 +3,72 @@
     <div class="table-toolbar">
       <h3>Time Clock</h3>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <select v-model="staffFilter" class="select"><option value="">All Staff</option><option v-for="s in staffList" :key="s.id" :value="s.id">{{ s.firstName }} {{ s.lastName }}</option></select>
+        <select v-if="canSeeRoster" v-model="staffFilter" class="select"><option value="">All Staff</option><option v-for="s in staffList" :key="s.id" :value="s.id">{{ s.firstName }} {{ s.lastName }}</option></select>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
       </div>
     </div>
-    <div class="summary-grid">
+
+    <!-- ─── Your own shift ─── -->
+    <div class="tc-me" :class="{ 'is-on': me.clockedIn }">
+      <div class="tc-me-state">
+        <span class="tc-dot" aria-hidden="true"></span>
+        <div>
+          <div class="tc-me-title">{{ me.clockedIn ? 'On shift' : 'Not clocked in' }}</div>
+          <div class="tc-me-sub">
+            {{ me.clockedIn ? 'Since ' + (me.entry?.clock_in || '—') : 'Clock in to start your shift' }}
+          </div>
+        </div>
+      </div>
+      <button
+        class="btn"
+        :class="me.clockedIn ? 'btn-secondary' : 'btn-primary'"
+        :disabled="busy"
+        @click="me.clockedIn ? clockOut() : clockIn()"
+      >
+        {{ busy ? 'Working…' : (me.clockedIn ? 'Clock Out' : 'Clock In') }}
+      </button>
+    </div>
+
+    <!--
+      Refused because money is still owed on their tables. Listing the checks
+      rather than only the count is what makes it actionable — the waiter needs
+      to know which table to go back to.
+    -->
+    <div v-if="blocked" class="tc-blocked">
+      <div class="tc-blocked-title">{{ blocked.error }}</div>
+      <ul class="tc-blocked-list">
+        <li v-for="c in blocked.openChecks" :key="c.id">
+          {{ c.table ? 'Table ' + c.table : 'Order' }} · ETB {{ Number(c.total || 0).toFixed(0) }}
+        </li>
+      </ul>
+      <div class="tc-blocked-actions">
+        <button class="btn btn-sm btn-primary" @click="goToOpenChecks">Go to Open Checks</button>
+        <button v-if="isManager" class="btn btn-sm btn-outline" :disabled="busy" @click="clockOut(true)">
+          Override and clock out
+        </button>
+      </div>
+    </div>
+
+    <!--
+      The roster is a separate permission from clocking yourself on. A waiter
+      may do the second and not the first, and showing them an empty grid would
+      read as "nobody is working" rather than "this is not yours to see".
+    -->
+    <div v-if="canSeeRoster" class="summary-grid">
       <div class="summary-card"><div class="num" style="color:var(--success)">{{ clockedIn.length }}</div><div class="lbl">Clocked In</div></div>
       <div class="summary-card"><div class="num">{{ entries.length }}</div><div class="lbl">Today's Entries</div></div>
     </div>
-    <div class="table-wrap">
+    <div v-if="canSeeRoster" class="table-wrap">
       <div class="table-scroll">
         <table>
           <thead><tr><th>Staff</th><th>Clock In</th><th>Clock Out</th><th>Duration</th><th>Status</th></tr></thead>
           <tbody>
             <tr v-for="e in filteredEntries" :key="e.id">
               <td data-label="Staff"><strong>{{ e.staffName||e.name||'—' }}</strong></td>
-              <td data-label="In">{{ e.clockIn?new Date(e.clockIn).toLocaleTimeString():'—' }}</td>
-              <td data-label="Out">{{ e.clockOut?new Date(e.clockOut).toLocaleTimeString():'—' }}</td>
+              <td data-label="In">{{ e.clockIn||e.clock_in||'—' }}</td>
+              <td data-label="Out">{{ e.clockOut||e.clock_out||'—' }}</td>
               <td data-label="Duration">{{ formatDuration(e) }}</td>
-              <td data-label="Status"><span class="badge" :class="!e.clockOut?'badge-new':'badge-fulfilled'">{{ e.clockOut?'Completed':'Active' }}</span></td>
+              <td data-label="Status"><span class="badge" :class="!(e.clockOut||e.clock_out)?'badge-new':'badge-fulfilled'">{{ (e.clockOut||e.clock_out)?'Completed':'Active' }}</span></td>
             </tr>
             <tr v-if="!filteredEntries.length"><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">No time entries</td></tr>
           </tbody>
@@ -31,12 +78,134 @@
     </div>
   </div>
 </template>
+
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { apiGet } from '../api'
-const entries = ref([]); const staffList = ref([]); const staffFilter = ref('')
-const clockedIn = computed(()=>entries.value.filter(e=>!e.clockOut))
-const filteredEntries = computed(()=>!staffFilter.value?entries.value:entries.value.filter(e=>e.staffId===staffFilter.value||e.name===staffFilter.value))
-function formatDuration(e) { if(!e.clockIn)return'—'; const start=new Date(e.clockIn); const end=e.clockOut?new Date(e.clockOut):new Date(); const ms=end-start; const h=Math.floor(ms/3600000); const m=Math.floor((ms%3600000)/60000); return `${h}h ${m}m` }
-onMounted(async()=>{ try { const [t,s]=await Promise.all([apiGet('timeclock'),apiGet('staff')]); entries.value=t; staffList.value=s } catch (e) { console.error(e) } })
+import { ref, computed, onMounted, inject } from 'vue'
+import { useRouter } from 'vue-router'
+import { apiGet, apiPost } from '../api'
+import { useAuthStore } from '../stores/auth'
+
+const router = useRouter()
+const toast = inject('toast')
+const auth = useAuthStore()
+
+const entries = ref([])
+const staffList = ref([])
+const staffFilter = ref('')
+const me = ref({ clockedIn: false, entry: null })
+const blocked = ref(null)
+const busy = ref(false)
+const canSeeRoster = ref(false)
+
+const isManager = computed(() => auth.roleKey === 'manager')
+const clockedIn = computed(() => entries.value.filter(e => !(e.clockOut || e.clock_out)))
+const filteredEntries = computed(() =>
+  !staffFilter.value ? entries.value : entries.value.filter(e => e.staffId === staffFilter.value || e.staff_id === staffFilter.value || e.name === staffFilter.value)
+)
+
+function formatDuration(e) {
+  const inAt = e.clockIn || e.clock_in
+  if (!inAt) return '—'
+  const mins = (t) => {
+    const m = String(t || '').match(/^(\d{1,2}):(\d{2})/)
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null
+  }
+  const a = mins(inAt)
+  const outAt = e.clockOut || e.clock_out
+  const b = outAt ? mins(outAt) : new Date().getHours() * 60 + new Date().getMinutes()
+  if (a === null || b === null) return '—'
+  const total = b < a ? b + 1440 - a : b - a
+  return `${Math.floor(total / 60)}h ${total % 60}m`
+}
+
+async function loadMine() {
+  try {
+    me.value = await apiGet('timeclock/me')
+  } catch {
+    // Not fatal: the roster below still renders without it.
+    me.value = { clockedIn: false, entry: null }
+  }
+}
+
+async function loadData() {
+  // Refused rather than empty: a role without the roster grant gets 403 here,
+  // and that is the difference between "nobody is working" and "not yours".
+  const [t, s] = await Promise.all([
+    apiGet('timeclock').then(r => r, () => null),
+    apiGet('staff').then(r => r, () => null),
+  ])
+  canSeeRoster.value = Array.isArray(t)
+  entries.value = Array.isArray(t) ? t : []
+  staffList.value = Array.isArray(s) ? s : []
+  await loadMine()
+}
+
+async function clockIn() {
+  busy.value = true
+  blocked.value = null
+  try {
+    await apiPost('timeclock/clock-in', {})
+    toast('Clocked in')
+    await loadData()
+  } catch (e) {
+    toast(e.message || 'Could not clock in', 'error')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function clockOut(force = false) {
+  busy.value = true
+  try {
+    await apiPost('timeclock/clock-out', force ? { force: true } : {})
+    blocked.value = null
+    toast(force ? 'Clocked out — override recorded' : 'Clocked out')
+    await loadData()
+  } catch (e) {
+    // The server answers a refusal with the checks that are still open. Showing
+    // them is the whole point: a bare "failed" leaves the person guessing which
+    // table they still owe.
+    if (e.data && Array.isArray(e.data.openChecks)) {
+      blocked.value = e.data
+    } else {
+      toast(e.message || 'Could not clock out', 'error')
+    }
+  } finally {
+    busy.value = false
+  }
+}
+
+function goToOpenChecks() {
+  if (auth.hasPermission('open-checks')) router.push('/app/open-checks')
+  else router.push('/app/orders')
+}
+
+onMounted(loadData)
 </script>
+
+<style scoped>
+.tc-me {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--text-muted);
+  border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px;
+}
+.tc-me.is-on { border-left-color: var(--success); }
+.tc-me-state { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.tc-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
+.tc-me.is-on .tc-dot { background: var(--success); }
+.tc-me-title { font-weight: 600; color: var(--text-heading); }
+.tc-me-sub { font-size: .76rem; color: var(--text-muted); }
+
+.tc-blocked {
+  background: var(--surface); border: 1px solid var(--danger);
+  border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px;
+}
+.tc-blocked-title { font-weight: 600; color: var(--danger); margin-bottom: 8px; }
+.tc-blocked-list { margin: 0 0 12px; padding-left: 18px; font-size: .84rem; color: var(--text-body); }
+.tc-blocked-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+@media (max-width: 768px) {
+  .tc-me { align-items: stretch; }
+  .tc-me .btn { width: 100%; justify-content: center; }
+}
+</style>
