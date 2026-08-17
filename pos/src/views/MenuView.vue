@@ -1,5 +1,11 @@
 <template>
-  <div class="menu-view-shell">
+  <div class="menu-view-shell" :class="{ 'check-docked': checkDocked }">
+    <!--
+      Everything the waiter picks from. On a landscape tablet this is the left
+      column and the check sits permanently beside it; on a phone it is the
+      whole screen and the check is a sheet.
+    -->
+    <div class="menu-main">
     <!-- Active table context — which table this order is being built for -->
     <div v-if="activeTable" class="table-context-bar">
       <span class="tcb-icon">
@@ -74,8 +80,11 @@
       </div>
     </div>
 
-    <!-- Floating Cart -->
-    <div v-if="orderStore.cartTotal > 0" class="floating-cart" @click="showCart = !showCart">
+    </div><!-- /.menu-main -->
+
+    <!-- Floating Cart. Only on narrow screens: where the check is docked
+         beside the grid there is nothing for it to reveal. -->
+    <div v-if="orderStore.cartTotal > 0 && !checkDocked" class="floating-cart" @click="showCart = !showCart">
       <div class="fc-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
         <span class="fc-badge">{{ orderStore.cartItemCount }}</span>
@@ -92,11 +101,17 @@
 
     <!-- Cart Sheet -->
     <transition name="cart-slide">
-      <div v-if="showCart" class="cart-sheet-overlay" @click.self="showCart=false">
+      <div v-if="showCart || checkDocked" class="cart-sheet-overlay" @click.self="showCart=false">
         <div class="cart-sheet" @click.stop>
           <div class="cart-header">
             <h3>Current Order</h3>
-            <button class="btn btn-sm btn-ghost" @click="orderStore.clearCart(); showCart=false">Clear All</button>
+            <button v-if="orderStore.items.length" class="btn btn-sm btn-ghost" @click="orderStore.clearCart(); showCart=false">Clear All</button>
+          </div>
+          <!-- Docked, the panel is on screen before anything is ordered, so it
+               has to say what it is rather than sit there blank. -->
+          <div v-if="!orderStore.items.length" class="cart-empty">
+            <div class="cart-empty-title">Nothing on this order yet</div>
+            <div class="cart-empty-hint">Tap a dish to add it. Press and hold to add several.</div>
           </div>
           <div class="cart-items">
             <div v-for="entry in orderStore.items" :key="entry.uid" class="cart-item">
@@ -149,7 +164,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { apiGet, apiPost, apiPatch, apiPut } from '../api'
 import { useOrderStore } from '../stores/order'
@@ -163,6 +178,19 @@ const items = ref([])
 const activeCategory = ref('')
 const search = ref('')
 const showCart = ref(false)
+
+/**
+ * Whether the check is docked beside the grid rather than hidden behind a pill.
+ *
+ * A server reads the order back to the guest while building it, and a mis-tap
+ * three items ago is expensive to find once the food is fired — so on anything
+ * with the room for it, the check stays on screen. Landscape rather than plain
+ * width: a phone held sideways is still a phone, but it does have the room.
+ */
+const CHECK_DOCK_QUERY = '(min-width: 1024px) and (orientation: landscape)'
+const checkDocked = ref(false)
+let dockQuery = null
+function syncDock(e) { checkDocked.value = e.matches }
 const showModifierSheet = ref(false)
 const modifierTarget = ref({})
 const categories = ref([])
@@ -411,7 +439,21 @@ onMounted(() => {
     orderStore.tableNum = String(t)
     orderStore.orderType = 'dine-in'
   }
+  // Guarded: jsdom and older browsers have no matchMedia, and a missing check
+  // panel must not take the rest of the screen down with it.
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    dockQuery = window.matchMedia(CHECK_DOCK_QUERY)
+    checkDocked.value = dockQuery.matches
+    if (dockQuery.addEventListener) dockQuery.addEventListener('change', syncDock)
+    else dockQuery.addListener(syncDock)
+  }
   loadData()
+})
+
+onUnmounted(() => {
+  if (!dockQuery) return
+  if (dockQuery.removeEventListener) dockQuery.removeEventListener('change', syncDock)
+  else dockQuery.removeListener(syncDock)
 })
 async function loadData() {
   try {
@@ -425,6 +467,25 @@ async function loadData() {
 
 <style scoped>
 .menu-view-shell{display:flex;flex-direction:column;height:100%}
+.menu-main{display:flex;flex-direction:column;min-height:0;flex:1}
+
+/* ── Docked check ──────────────────────────────────────────────────────────
+   On a landscape tablet the shell becomes two columns and the cart sheet stops
+   being a sheet: no backdrop, no slide, no dismissing it. The same markup does
+   both jobs, so the order can never disagree between the two presentations. */
+.menu-view-shell.check-docked{flex-direction:row;gap:14px}
+.check-docked .menu-main{min-width:0}
+.check-docked .cart-sheet-overlay{position:static;inset:auto;z-index:auto;background:none;backdrop-filter:none;display:block;flex:0 0 340px;width:340px}
+.check-docked .cart-sheet{width:340px;max-width:none;max-height:100%;height:100%;border-radius:var(--radius-md);border:1px solid var(--border);padding:16px;padding-bottom:16px;box-shadow:var(--shadow-card)}
+/* The sheet animation is for something that arrives; a docked panel is simply
+   there, and sliding it in on every resize would be noise. */
+.check-docked .cart-slide-enter-active .cart-sheet,
+.check-docked .cart-slide-leave-active .cart-sheet{transition:none}
+.check-docked .menu-grid-wrapper{padding-bottom:16px}
+
+.cart-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 12px;color:var(--text-muted)}
+.cart-empty-title{font-weight:600;color:var(--text-heading);margin-bottom:4px}
+.cart-empty-hint{font-size:.8rem}
 
 /* Active table context bar */
 .table-context-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;margin-bottom:12px;border-radius:var(--radius-md);background:var(--teal-50);border:1.5px solid var(--primary);flex-shrink:0}
