@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { createAuthGuard } from './guard'
 
 const DashboardView = () => import('../views/DashboardView.vue')
 const LoginView = () => import('../views/LoginView.vue')
@@ -66,28 +67,6 @@ const router = createRouter({
   routes
 })
 
-// Track whether we have attempted session restoration this page load
-let sessionChecked = false
-
-router.beforeEach(async (to, from, next) => {
-  const auth = useAuthStore()
-
-  // On first navigation, try to restore session from server cookie
-  if (!sessionChecked && to.meta.requiresAuth) {
-    sessionChecked = true
-    if (!auth.isAuthenticated) {
-      const restored = await auth.checkSession()
-      if (restored) return next(to.fullPath)
-    }
-  }
-
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    return next('/login')
-  }
-  if (to.meta.requiresAuth && to.name && !auth.hasPermission(to.name)) {
-    return next({ name: auth.defaultView })
-  }
-  next()
-})
+router.beforeEach(createAuthGuard(useAuthStore))
 
 export default router
