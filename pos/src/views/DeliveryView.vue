@@ -11,15 +11,18 @@
           <input v-model="search" type="text" placeholder="Search customer or address..." class="dv-search-input" />
           <button v-if="search" class="dv-search-clear" @click="search=''" aria-label="Clear search">&times;</button>
         </div>
-        <select v-model="statusFilter" class="select"><option value="">All</option><option value="pending">Pending</option><option value="in-transit">In Transit</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select>
+        <select v-model="statusFilter" class="select">
+          <option value="">All</option>
+          <option v-for="(label, key) in STATUS_LABEL" :key="key" :value="key">{{ label }}</option>
+        </select>
         <button class="btn btn-ghost btn-sm" @click="loadData" title="Refresh">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
       </div>
     </div>
     <div class="summary-grid">
-      <div class="summary-card"><div class="num" style="color:var(--warning)">{{ pending.length }}</div><div class="lbl">Pending</div></div>
-      <div class="summary-card"><div class="num" style="color:var(--info)">{{ inTransit.length }}</div><div class="lbl">In Transit</div></div>
+      <div class="summary-card"><div class="num" style="color:var(--warning)">{{ toCollect.length }}</div><div class="lbl">To Collect</div></div>
+      <div class="summary-card"><div class="num" style="color:var(--info)">{{ onTheWay.length }}</div><div class="lbl">On The Way</div></div>
       <div class="summary-card"><div class="num" style="color:var(--success)">{{ delivered.length }}</div><div class="lbl">Delivered</div></div>
     </div>
     <div class="table-wrap">
@@ -32,11 +35,16 @@
               <td data-label="Customer">{{ d.customer||d.name||'—' }}</td>
               <td data-label="Address">{{ d.address||'—' }}</td>
               <td data-label="Driver">{{ d.driver||'—' }}</td>
-              <td data-label="Status"><span class="badge" :class="'badge-'+d.status">{{ d.status }}</span></td>
+              <td data-label="Status"><span class="badge" :class="statusClass(d.status)">{{ statusLabel(d.status) }}</span></td>
               <td data-label="Actions">
-                <button v-if="d.status==='pending'" class="btn btn-sm btn-primary" @click="updateStatus(d,'in-transit')">Dispatch</button>
-                <button v-if="d.status==='in-transit'" class="btn btn-sm btn-success" @click="updateStatus(d,'delivered')">Delivered</button>
-                <button v-if="d.status==='pending'" class="btn btn-sm btn-ghost danger" @click="updateStatus(d,'cancelled')">Cancel</button>
+                <button
+                  v-for="to in nextStates(d)"
+                  :key="to"
+                  class="btn btn-sm"
+                  :class="to === 'delivered' ? 'btn-success' : 'btn-primary'"
+                  @click="updateStatus(d, to)"
+                >{{ ACTION_LABEL[to] || statusLabel(to) }}</button>
+                <span v-if="!nextStates(d).length" class="dv-no-action">{{ statusLabel(d.status) }}</span>
               </td>
             </tr>
             <tr v-if="!filteredDeliveries.length"><td colspan="6">
@@ -57,19 +65,87 @@
 </template>
 <script setup>
 import { ref, computed, onMounted , inject} from 'vue'
-import { apiGet, apiPut } from '../api'
+import { apiGet, apiPost } from '../api'
+import { useAuthStore } from '../stores/auth'
 
 const toast = inject('toast')
+const auth = useAuthStore()
 const deliveries = ref([])
 const statusFilter = ref('')
 const search = ref('')
 
-const pending = computed(() => deliveries.value.filter(d => d.status === 'pending'))
-const inTransit = computed(() => deliveries.value.filter(d => d.status === 'in-transit'))
-const delivered = computed(() => deliveries.value.filter(d => d.status === 'delivered'))
+/**
+ * Mirrors TRANSITIONS in fufut-api/src/handlers/delivery.js.
+ *
+ * This screen used to work in 'pending' and 'in-transit', which are not states
+ * the server has: it was written against the free-text column that the state
+ * machine replaced. The result was a driver who could see a job and do nothing
+ * with it — no button matched any real status — and a status filter that could
+ * only ever match "delivered".
+ *
+ * Held as data so the buttons offered are exactly the moves the server will
+ * accept, rather than a second opinion about the workflow that can drift again.
+ */
+const TRANSITIONS = {
+  new: ['confirmed', 'preparing'],
+  confirmed: ['preparing'],
+  preparing: ['ready'],
+  ready: ['assigned'],
+  assigned: ['picked_up'],
+  picked_up: ['out_for_delivery', 'delivered'],
+  out_for_delivery: ['delivered'],
+  delivered: [],
+  cancelled: [],
+}
+
+const STATUS_LABEL = {
+  new: 'New', confirmed: 'Confirmed', preparing: 'Preparing', ready: 'Ready',
+  assigned: 'Assigned', picked_up: 'Picked up', out_for_delivery: 'Out for delivery',
+  delivered: 'Delivered', cancelled: 'Cancelled',
+}
+
+/** What the button says, which is the action rather than the resulting state. */
+const ACTION_LABEL = {
+  confirmed: 'Confirm', preparing: 'Start preparing', ready: 'Mark ready',
+  assigned: 'Take job', picked_up: 'Picked up',
+  out_for_delivery: 'On the way', delivered: 'Delivered',
+}
+
+/** The server normalises the same way, so 'in-transit' and 'in transit' agree. */
+function normalise(status) {
+  return String(status || 'new').toLowerCase().replace(/[\s-]+/g, '_')
+}
+
+function statusLabel(status) {
+  const key = normalise(status)
+  return STATUS_LABEL[key] || key.replace(/_/g, ' ')
+}
+
+function statusClass(status) {
+  return 'badge-' + normalise(status).replace(/_/g, '-')
+}
+
+/**
+ * Only the moves this person can actually make. Assigning names a driver, and
+ * the server requires one, so it is offered to a driver taking their own job —
+ * choosing somebody else's driver belongs on the backoffice screen.
+ */
+function nextStates(d) {
+  const moves = TRANSITIONS[normalise(d.status)] || []
+  return moves.filter(to => to !== 'assigned' || auth.roleKey === 'delivery-staff')
+}
+
+// Grouped the way a driver's day runs, not the way the table is stored.
+const toCollect = computed(() => deliveries.value.filter(d => ['ready', 'assigned'].includes(normalise(d.status))))
+const onTheWay = computed(() => deliveries.value.filter(d => ['picked_up', 'out_for_delivery'].includes(normalise(d.status))))
+const delivered = computed(() => deliveries.value.filter(d => normalise(d.status) === 'delivered'))
 
 const filteredDeliveries = computed(() => {
-  let result = !statusFilter.value ? deliveries.value : deliveries.value.filter(d => d.status === statusFilter.value)
+  // Compared normalised, so a legacy row holding "in-transit" is still matched
+  // by the same option as "in_transit".
+  let result = !statusFilter.value
+    ? deliveries.value
+    : deliveries.value.filter(d => normalise(d.status) === statusFilter.value)
   if (search.value) {
     const q = search.value.toLowerCase()
     result = result.filter(d =>
@@ -87,9 +163,31 @@ async function loadData() {
   try { deliveries.value = await apiGet('delivery') } catch (e) { console.error(e) }
 }
 
-async function updateStatus(d, s) {
-  d.status = s
-  try { await apiPut('delivery/' + d.id, d); toast(s); await loadData() } catch { toast('Failed', 'error') }
+/**
+ * Move a job to its next state.
+ *
+ * Goes through POST /delivery/:id/status, which is the route that validates the
+ * transition, stamps assigned_at/picked_up_at, names the driver and closes the
+ * order once a delivered job is paid. The previous plain PUT fell through to
+ * the generic resource handler instead, writing whatever string it was handed
+ * straight into the column — the free-text behaviour the state machine exists
+ * to replace, with none of the timestamps or the audit entry.
+ */
+async function updateStatus(d, to) {
+  const body = { status: to }
+  // The server refuses to assign without naming somebody, and rightly: an
+  // assigned job with no driver tells nobody anything.
+  if (to === 'assigned') body.driverId = auth.user?.id
+  try {
+    await apiPost(`delivery/${d.id}/status`, body)
+    toast(ACTION_LABEL[to] || statusLabel(to))
+    await loadData()
+  } catch (e) {
+    // The refusal says which moves are legal from here, which is worth reading
+    // out rather than replacing with "Failed".
+    toast(e.message || 'Could not update that delivery', 'error')
+    await loadData()
+  }
 }
 </script>
 <style scoped>
@@ -122,6 +220,10 @@ async function updateStatus(d, s) {
 .dv-search-input::placeholder { color: var(--neutral-400); }
 .dv-search-clear { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; padding: 0 2px; line-height: 1; }
 .dv-search-clear:hover { color: var(--text-heading); }
+
+/* A finished or cancelled job has no move left; saying so beats an empty cell
+   that reads as a missing button. */
+.dv-no-action { font-size: .76rem; color: var(--text-muted); }
 
 .dv-empty { display: flex; flex-direction: column; align-items: center; padding: 40px 20px; text-align: center; }
 .dv-empty-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--neutral-50); display: flex; align-items: center; justify-content: center; color: var(--neutral-400); margin-bottom: 12px; }
