@@ -481,11 +481,32 @@ async function loadData() {
 }
 @container (max-width:175px){
   .menu-card .menu-meta,.menu-card .menu-modifiers{display:none}
-  /* The 44px add button is anchored bottom-right and stays 44px, so on the
-     narrowest cards the price would run underneath it. Reserve the space rather
-     than shrinking the button below the touch minimum. */
-  .menu-card .menu-info{padding:8px 10px 44px}
-  .menu-card .menu-name-row{flex-direction:column;gap:2px}
+
+  /* Below this width the card holds nothing but a picture, a name and a price,
+     so the picture becomes the card and the two lines sit on it.
+     Stacked, this was a 67px strip of photo under 110px of text and reserved
+     button space — two thirds of a tile whose job is to let somebody recognise
+     a dish at a glance.
+     Square rather than 16/10, because the height freed by dropping the caption
+     is better spent on the image than on shorter rows. */
+  /* The image stays in flow and gives the card its height; only the caption is
+     lifted out. Setting aspect-ratio on the card instead collapsed it to
+     nothing: the card is its own container, so with both children taken out of
+     flow there was no content left to size it from. */
+  .menu-card .menu-img{aspect-ratio:1/1}
+  .menu-card .menu-info{position:absolute;left:0;right:0;bottom:0;
+    padding:22px 9px 7px;
+    background:linear-gradient(to top,rgba(0,0,0,.9) 0%,rgba(0,0,0,.5) 60%,transparent 100%)}
+  .menu-card .menu-name-row{flex-direction:column;gap:1px;margin-bottom:0}
+  .menu-card .menu-info h3{color:#fff;font-size:.78rem;line-height:1.25;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+  .menu-card .menu-price{color:#fff;font-size:.8rem;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+
+  /* The button and the card fire the same handler — it is an affordance, not a
+     second action — and a card this size is already several times the touch
+     minimum. Dropping it here returns the whole width to the name, which was
+     otherwise squeezed into whatever the 44px button left over. */
+  .menu-card .menu-add-btn{display:none}
 }
 
 .menu-card{background:var(--surface);border-radius:var(--radius-md);border:1.5px solid var(--border);overflow:hidden;cursor:pointer;position:relative;transition:all var(--duration-base) var(--ease-out);box-shadow:var(--shadow-xs)}
