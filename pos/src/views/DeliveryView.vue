@@ -131,6 +131,10 @@ async function updateStatus(d, s) {
 @media (max-width: 768px) {
   .dv-toolbar { flex-direction: column; align-items: stretch; }
   .dv-toolbar-left { margin-bottom: 4px; }
-  .dv-search { min-width: 0; }
+  /* The row wraps, and the status select is width:100% like every .select, so
+     it takes a line to itself. min-width:0 alone let the search shrink but
+     never grow, leaving it stranded at about half the width above a full-width
+     select. Give it its own full line to match. */
+  .dv-search { flex: 1 1 100%; min-width: 0; }
 }
 </style>
