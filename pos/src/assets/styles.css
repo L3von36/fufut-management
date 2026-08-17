@@ -561,8 +561,14 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
   .table-scroll td:not([data-label])::before{content:''}
   .table-scroll td:first-child{position:static!important;background:transparent!important;font-weight:700;font-family:var(--font-mono)}
   .table-scroll td[data-label="Actions"]{margin-top:4px;padding-top:6px;border-bottom:none;justify-content:flex-end}
-  .table-scroll td:has(span:empty),
-  .table-scroll td:has(span:contains("—")) { display: none !important; }
+  /* A rule here tried to hide empty cells in card view using
+     `td:has(span:contains("—"))`. `:contains()` is a jQuery extension, not a
+     CSS selector, and one invalid selector invalidates the whole comma-
+     separated group — so the valid `:has(span:empty)` half never applied
+     either and nothing was ever hidden. Removed rather than repaired:
+     switching it on now would change every table in the app at once, and it
+     only ever caught span-wrapped values anyway, so a bare text cell with the
+     same content would have stayed put. */
 
   /* Modals become bottom sheets â€” reachable with a thumb instead of floating
      mid-screen, and 28px of padding is too costly at this width. */

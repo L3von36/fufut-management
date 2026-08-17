@@ -2,7 +2,13 @@
   <div>
     <div class="table-toolbar">
       <h3>Revenue</h3>
-      <div style="display:flex;gap:10px">
+      <!--
+        Wraps, like every other toolbar in the app. Two native date inputs and
+        a button come to ~424px, and without this they were laid out in one
+        unwrappable row on a 390px screen: the page does not scroll sideways,
+        so the Apply button was simply clipped off the edge.
+      -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
         <input type="date" v-model="dateFrom" class="input input-sm" style="width:auto" />
         <input type="date" v-model="dateTo" class="input input-sm" style="width:auto" />
         <button class="btn btn-primary" @click="loadRevenue">Apply</button>
