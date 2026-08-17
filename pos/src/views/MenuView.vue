@@ -46,7 +46,12 @@
         <div v-for="item in filteredItems" :key="itemKey(item)"
           class="menu-card"
           :class="{ unavailable: item.available === false, 'in-cart': storeCartCount(item.id) > 0 }"
-          @click="handleItemClick(item)"
+          @click="onTileClick(item)"
+          @pointerdown="startHold(item)"
+          @pointerup="endHold"
+          @pointerleave="endHold"
+          @pointercancel="endHold"
+          @contextmenu.prevent
         >
           <div class="menu-img">
             <img :src="item.image || getPlaceholder(item)" :alt="item.name" loading="lazy" />
@@ -81,6 +86,18 @@
     </div>
 
     </div><!-- /.menu-main -->
+
+    <!-- How many? Opened by holding a tile. -->
+    <div v-if="qtyTarget" class="qty-overlay" @click.self="qtyTarget = null">
+      <div class="qty-sheet">
+        <div class="qty-title">How many?</div>
+        <div class="qty-item">{{ qtyTarget.name }}</div>
+        <div class="qty-options">
+          <button v-for="n in QUANTITIES" :key="n" class="qty-option" @click="addQuantity(n)">{{ n }}</button>
+        </div>
+        <button class="btn btn-secondary qty-cancel" @click="qtyTarget = null">Cancel</button>
+      </div>
+    </div>
 
     <!-- Floating Cart. Only on narrow screens: where the check is docked
          beside the grid there is nothing for it to reveal. -->
@@ -289,19 +306,66 @@ function storeCartCount(menuItemId) {
 }
 
 // ─── Item click → modifier sheet or direct add ───
-function handleItemClick(item) {
+function handleItemClick(item, qty = 1) {
   if (item.available === false) return
   if (hasModifiers(item)) {
     modifierTarget.value = item
     showModifierSheet.value = true
   } else {
-    // No modifiers — add directly with qty 1
-    orderStore.addItem({
-      menuItemId: item.id,
-      name: item.name,
-      basePrice: parseFloat(item.price || 0)
-    })
+    // No modifiers — add directly
+    for (let i = 0; i < qty; i++) {
+      orderStore.addItem({
+        menuItemId: item.id,
+        name: item.name,
+        basePrice: parseFloat(item.price || 0)
+      })
+    }
   }
+}
+
+/**
+ * Press and hold to order several at once.
+ *
+ * Adding was one tap for one unit, so a round of four coffees was four taps on
+ * the same tile, or one tap and then a trip into the check to press + three
+ * times. Quantity is the most repeated interaction on this screen and it had
+ * no shortcut.
+ *
+ * Hold rather than a separate control because the grid is already dense and
+ * every tile would otherwise need a stepper it rarely uses.
+ */
+const qtyTarget = ref(null)
+const QUANTITIES = [2, 3, 4, 5, 6, 8, 10, 12]
+let holdTimer = null
+let heldFired = false
+
+function startHold(item) {
+  if (item.available === false) return
+  heldFired = false
+  holdTimer = setTimeout(() => {
+    heldFired = true
+    qtyTarget.value = item
+  }, 450)
+}
+
+function endHold() {
+  clearTimeout(holdTimer)
+  holdTimer = null
+}
+
+/**
+ * The tap handler, suppressed when a hold has already opened the picker —
+ * otherwise letting go would add one on top of the quantity chosen.
+ */
+function onTileClick(item) {
+  if (heldFired) { heldFired = false; return }
+  handleItemClick(item)
+}
+
+function addQuantity(n) {
+  const item = qtyTarget.value
+  qtyTarget.value = null
+  if (item) handleItemClick(item, n)
 }
 
 function onModifierConfirm(selection) {
@@ -483,6 +547,18 @@ async function loadData() {
 .check-docked .cart-slide-leave-active .cart-sheet{transition:none}
 .check-docked .menu-grid-wrapper{padding-bottom:16px}
 
+/* ── Quantity picker ───────────────────────────────────────────────────────
+   Deliberately large targets: this is used mid-service, one-handed, while
+   holding something else. */
+.qty-overlay{position:fixed;inset:0;z-index:400;background:rgba(28,25,23,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px}
+.qty-sheet{background:var(--surface);border-radius:var(--radius-lg);padding:20px;width:100%;max-width:340px;box-shadow:var(--shadow-xl)}
+.qty-title{font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:2px}
+.qty-item{font-size:1rem;font-weight:700;color:var(--text-heading);margin-bottom:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qty-options{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.qty-option{min-height:56px;border-radius:var(--radius-md);border:1.5px solid var(--border);background:var(--surface);font-size:1.15rem;font-weight:700;font-family:var(--font-mono);color:var(--text-heading);cursor:pointer;transition:all var(--duration-fast) var(--ease)}
+.qty-option:hover,.qty-option:active{background:var(--primary);border-color:var(--primary);color:#fff}
+.qty-cancel{width:100%;justify-content:center}
+
 .cart-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 12px;color:var(--text-muted)}
 .cart-empty-title{font-weight:600;color:var(--text-heading);margin-bottom:4px}
 .cart-empty-hint{font-size:.8rem}
@@ -570,7 +646,9 @@ async function loadData() {
   .menu-card .menu-add-btn{display:none}
 }
 
-.menu-card{background:var(--surface);border-radius:var(--radius-md);border:1.5px solid var(--border);overflow:hidden;cursor:pointer;position:relative;transition:all var(--duration-base) var(--ease-out);box-shadow:var(--shadow-xs)}
+/* Holding a tile picks a quantity, so the hold must not also select the dish
+   name or raise the iOS press-and-hold callout. */
+.menu-card{background:var(--surface);border-radius:var(--radius-md);border:1.5px solid var(--border);overflow:hidden;cursor:pointer;position:relative;transition:all var(--duration-base) var(--ease-out);box-shadow:var(--shadow-xs);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .menu-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-card-hover);border-color:var(--primary)}
 .menu-card:active{transform:translateY(-1px);transition-duration:50ms}
 .menu-card.unavailable{opacity:.5;pointer-events:none}
