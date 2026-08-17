@@ -253,8 +253,10 @@ describe('API Client', () => {
     // 25 since Staff was removed: editing colleague accounts belongs in the
     // backoffice, not on a shared floor tablet. The HR section remains for
     // Shifts and Time Clock, and the System section hosts the Audit Log.
+    // 26 with Open Checks, which is where money owed is looked at.
     it('NAV_ITEMS covers the defined sections', () => {
-      expect(NAV_ITEMS.length).toBe(25)
+      expect(NAV_ITEMS.length).toBe(26)
+      expect(NAV_ITEMS.map(n => n.view)).toContain('open-checks')
       expect(NAV_ITEMS.map(n => n.view)).not.toContain('staff')
       const sections = [...new Set(NAV_ITEMS.map(n => n.section))]
       expect(sections).toContain('Overview')

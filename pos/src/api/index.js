@@ -184,7 +184,7 @@ export const ROLE_PERMISSIONS = {
   // 'staff' is absent deliberately: editing colleague accounts lives in the
   // backoffice, alongside Shifts, Time Clock and the audit log. Time Clock here
   // still reads the staff list to show who is on shift.
-  manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control', 'pipeline', 'audit'],
+  manager: ['dashboard', 'orders', 'open-checks', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control', 'pipeline', 'audit'],
   // menu-mgmt is granted for one action: taking a dish off when the kitchen has
   // run out. The screen itself hides adding, editing, deleting, cost and margin
   // from anyone but a manager, and the API only lets this role write the
@@ -199,8 +199,11 @@ export const ROLE_PERMISSIONS = {
   // Cooks from the recipes, does not set them. Two people adjusting the same
   // counts is how a stock take stops reconciling.
   'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes'],
-  'head-waiter': ['tables', 'orders', 'dashboard', 'menu-view', 'reservations', 'checkout'],
-  cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout'],
+  // open-checks is the waiter's own outstanding work and the cashier's queue of
+  // bills to take, so both get it. It reads orders and tables, which both roles
+  // already read.
+  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'checkout'],
+  cashier: ['cashdrawer', 'orders', 'open-checks', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout'],
   'delivery-staff': ['delivery', 'dashboard'],
   cleaner: ['waste', 'dashboard'],
   // §47's seventh role. Reads the financial picture and changes almost none of
@@ -224,6 +227,7 @@ export const ROLE_DEFAULT_VIEW = {
 export const NAV_ITEMS = [
   { view: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', section: 'Overview' },
   { view: 'orders', label: 'Orders', icon: 'shopping-cart', section: 'Sales' },
+  { view: 'open-checks', label: 'Open Checks', icon: 'credit-card', section: 'Sales' },
   { view: 'menu-mgmt', label: 'Menu', icon: 'utensils', section: 'Sales' },
   { view: 'menu-view', label: 'Menu View', icon: 'book', section: 'Sales' },
   { view: 'tables', label: 'Tables', icon: 'grid-3x3', section: 'Operations' },

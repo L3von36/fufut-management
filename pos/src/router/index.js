@@ -29,6 +29,9 @@ const PipelineView = () => import('../views/PipelineView.vue')
 const RevenueView = () => import('../views/RevenueView.vue')
 const AnalyticsView = () => import('../views/AnalyticsView.vue')
 const CheckoutView = () => import('../views/CheckoutView.vue')
+// Money owed, in one place. The floor plan badge was the only view of it, and
+// it dropped a tab the moment the food was marked served.
+const OpenChecksView = () => import('../views/OpenChecksView.vue')
 // Stock intelligence. These consume the recipe/ledger engine: without them the
 // engine is inert, because nothing can enter a BOM and a sale therefore
 // consumes nothing.
@@ -75,6 +78,7 @@ const routes = [
       { path: 'revenue', name: 'revenue', component: RevenueView },
       { path: 'analytics', name: 'analytics', component: AnalyticsView },
       { path: 'checkout', name: 'checkout', component: CheckoutView },
+      { path: 'open-checks', name: 'open-checks', component: OpenChecksView },
       { path: 'recipes', name: 'recipes', component: RecipesView },
       { path: 'suppliers', name: 'suppliers', component: SuppliersView },
       { path: 'purchases', name: 'purchases', component: PurchasesView },
