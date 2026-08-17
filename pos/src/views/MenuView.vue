@@ -184,18 +184,28 @@
               <span>Total</span>
               <span>ETB {{ orderStore.cartTotal.toFixed(0) }}</span>
             </div>
-            <button v-if="orderStore.isAddRound && orderStore.activeOpenOrderId" class="btn btn-success cart-action" @click="sendToKitchen" :disabled="sendingToKitchen">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              {{ sendingToKitchen ? 'Adding...' : 'Add to Order' }}
-            </button>
-            <button v-else class="btn btn-primary cart-action" @click="sendToKitchen" :disabled="sendingToKitchen">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              {{ sendingToKitchen ? 'Sending...' : 'Send to Kitchen' }}
-            </button>
-            <button class="btn btn-outline cart-checkout" @click="goToCheckout">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-              Checkout
-            </button>
+            <!--
+              Which of these is the normal next step depends on the order.
+              A seated table opens a tab and settles later; a counter sale
+              takes the money now. The two used to look identical whatever
+              you were doing, so the emphasis and the order follow the type.
+            -->
+            <div class="cart-actions" :class="{ 'settle-first': !isDineIn }">
+              <button v-if="orderStore.isAddRound && orderStore.activeOpenOrderId" class="btn btn-success cart-action" @click="sendToKitchen" :disabled="sendingToKitchen">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                {{ sendingToKitchen ? 'Adding...' : 'Add to Order' }}
+              </button>
+              <button v-else class="btn cart-action" :class="isDineIn ? 'btn-primary' : 'btn-outline'" @click="sendToKitchen" :disabled="sendingToKitchen">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                {{ sendingToKitchen ? 'Sending...' : 'Send to Kitchen' }}
+              </button>
+              <button class="btn cart-checkout" :class="isDineIn ? 'btn-outline' : 'btn-primary'" @click="goToCheckout">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                {{ isDineIn ? 'Checkout' : 'Take Payment' }}
+              </button>
+            </div>
+            <!-- Nobody should have to be told which button opens a tab. -->
+            <p class="cart-action-hint">{{ actionHint }}</p>
           </div>
         </div>
       </div>
@@ -264,6 +274,25 @@ function clearOrder() {
   activeCourse.value = 'main'
   showCart.value = false
 }
+
+const isDineIn = computed(() => orderStore.orderType === 'dine-in')
+
+/**
+ * What the buttons below actually do, in a sentence.
+ *
+ * The distinction matters and was invisible: one fires the food and leaves the
+ * bill open, the other collects the money. A waiter who picks the wrong one
+ * either takes payment before the kitchen has seen the order, or leaves a
+ * counter sale sitting as an unpaid tab nobody settles.
+ */
+const actionHint = computed(() => {
+  if (orderStore.isAddRound && orderStore.activeOpenOrderId) {
+    return 'Adds these to the tab already open on this table.'
+  }
+  return isDineIn.value
+    ? 'Send to Kitchen opens a tab for this table — settle it when they leave.'
+    : 'Take Payment now; the kitchen gets it when the sale goes through.'
+})
 
 /** A takeaway or a delivery goes out in one drop, so it is always 'main'. */
 const courseForNewLines = computed(() =>
@@ -853,8 +882,14 @@ async function loadData() {
 .cart-footer{flex-shrink:0;border-top:1px solid var(--border);padding-top:12px}
 .cart-total-row{display:flex;justify-content:space-between;font-size:.82rem;color:var(--text-muted);padding:2px 0}
 .cart-grand-total{font-size:1.05rem;font-weight:700;color:var(--text-heading);padding:6px 0 12px;border-top:1px solid var(--border);margin-top:4px}
-.cart-action{width:100%;justify-content:center;padding:12px;font-size:.92rem;gap:8px;margin-bottom:8px}
+/* The primary action sits on top. `order` rather than two copies of the
+   markup, so there is one Send button and one Checkout button whatever the
+   order type. */
+.cart-actions{display:flex;flex-direction:column;gap:8px}
+.cart-actions.settle-first .cart-checkout{order:-1}
+.cart-action{width:100%;justify-content:center;padding:12px;font-size:.92rem;gap:8px}
 .cart-checkout{width:100%;justify-content:center;padding:12px;font-size:.92rem;gap:8px}
+.cart-action-hint{margin:8px 2px 0;font-size:.72rem;line-height:1.35;color:var(--text-muted);text-align:center}
 .cart-checkout svg{width:20px;height:20px}
 
 .cart-slide-enter-active{transition:opacity .2s var(--ease)}
