@@ -33,8 +33,10 @@
         </div>
         <div class="menu-info">
           <div class="menu-name">{{ item.name }}</div>
-          <div class="menu-category">{{ item.category }}</div>
-          <div class="menu-price">ETB {{ parseFloat(item.price||0).toFixed(0) }}</div>
+          <div class="menu-meta">
+            <span class="menu-category">{{ item.category }}</span>
+            <span class="menu-price">ETB {{ parseFloat(item.price||0).toFixed(0) }}</span>
+          </div>
         </div>
       </div>
       <div v-if="!filtered.length" style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">No items found</div>
@@ -205,19 +207,40 @@ async function toggleAvailable(item) {
 </script>
 
 <style scoped>
-.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
-.menu-card{background:var(--surface);border-radius:var(--radius-md);border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:all var(--duration-base) var(--ease);box-shadow:var(--shadow-xs)}
+/* ── Menu tiles ────────────────────────────────────────────────────────────
+   The card used to be a 4:3 photo with a block of three lines under it, so
+   roughly a third of every card's height was text and the picture — the thing
+   you actually recognise a dish by — stayed small. The name, category and
+   price now sit on the photo behind a gradient, which makes the image the
+   whole tile and drops the card's height by about a quarter at the same time.
+
+   The columns are also wider than they were. At 180px the grid could not fit
+   two of them on a 390px screen, so a phone got one enormous card per row and
+   about two dishes per screenful. */
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.menu-card{position:relative;aspect-ratio:4/3;background:var(--surface);border-radius:var(--radius-md);border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:all var(--duration-base) var(--ease);box-shadow:var(--shadow-xs)}
 .menu-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-card-hover);border-color:var(--primary)}
 .menu-card.unavailable{opacity:.6}
 .menu-card.unavailable:hover{opacity:.8}
-.menu-img{position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;background:var(--neutral-50)}
+.menu-img{position:absolute;inset:0;overflow:hidden;background:var(--neutral-50)}
 .menu-img img{width:100%;height:100%;object-fit:cover;transition:transform var(--duration-slow) var(--ease-out)}
 .menu-card:hover .menu-img img{transform:scale(1.08)}
 .menu-img-overlay{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:.85rem;text-transform:uppercase;letter-spacing:.06em}
-.menu-info{padding:10px 12px 12px}
-.menu-name{font-size:.85rem;font-weight:600;color:var(--text-heading);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.menu-category{font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
-.menu-price{font-size:.92rem;font-weight:700;color:var(--primary);font-family:var(--font-mono)}
+/* Tall enough a scrim that white text holds up over a bright photo. */
+.menu-info{position:absolute;left:0;right:0;bottom:0;padding:24px 10px 8px;
+  background:linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,.55) 55%,transparent 100%);
+  pointer-events:none}
+.menu-name{font-size:.82rem;font-weight:600;color:#fff;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+/* Category and price share a line rather than taking one each. */
+.menu-meta{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.menu-category{font-size:.62rem;color:rgba(255,255,255,.78);text-transform:uppercase;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-price{font-size:.86rem;font-weight:700;color:#fff;font-family:var(--font-mono);flex-shrink:0;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+
+@media (max-width: 768px) {
+  /* Two to a row on a phone. auto-fill at 200px would drop to one. */
+  .menu-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .menu-info{padding:20px 8px 7px}
+}
 
 /* Form with image preview */
 .menu-form-modal{width:600px;max-width:95vw}
