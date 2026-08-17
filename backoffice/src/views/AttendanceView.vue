@@ -32,6 +32,7 @@
         :columns="columns"
         :rows="entries"
         sticky-first
+        stack-on-mobile
         caption="Attendance for the selected period"
         :empty-title="loaded ? 'No time clock entries in this period' : 'Loading…'"
       >

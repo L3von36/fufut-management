@@ -357,4 +357,11 @@ textarea:focus-visible,
   }
   /* The empty state spans the whole table and names itself. */
   .table-stack td.table-empty{display:block;text-align:center}
+  /* An unlabelled column — the actions cell — would otherwise reserve 38% of
+     the row for a blank label and squeeze its own buttons. */
+  .table-stack td[data-label='']::before{display:none}
+  /* A frozen first column means nothing once the row is a stacked block, and
+     its divider shadow reads as a stray line down the card. */
+  .table-stack .table-sticky-first table td:first-child,
+  .table-stack .table-sticky-first table th:first-child{position:static;box-shadow:none}
 }

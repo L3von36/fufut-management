@@ -39,6 +39,7 @@
     <base-table
       :columns="columns"
       :rows="rows"
+      stack-on-mobile
       :caption="`${TABS.find(t => t.key === tab).label} requests`"
       :empty-title="emptyText"
     >

@@ -27,6 +27,7 @@
         :columns="columns"
         :rows="entries"
         sticky-first
+        stack-on-mobile
         caption="System audit trail"
         :empty-title="loaded ? 'No entries for these filters' : 'Loading…'"
         :empty-hint="loaded ? 'Try widening the date range.' : ''"

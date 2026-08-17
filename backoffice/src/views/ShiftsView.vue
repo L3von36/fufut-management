@@ -14,6 +14,7 @@
       <base-table
         :columns="columns"
         :rows="shifts"
+        stack-on-mobile
         caption="Rostered shifts"
         empty-title="No shifts found"
         empty-hint="Add a shift to build the roster."

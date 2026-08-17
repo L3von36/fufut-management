@@ -87,6 +87,7 @@
           :rows="result.lines"
           row-id="staffId"
           sticky-first
+          stack-on-mobile
           caption="Payslips for the period"
           empty-title="No payslips in this run"
         >
@@ -132,6 +133,7 @@
       <base-table
         :columns="runColumns"
         :rows="runs"
+        stack-on-mobile
         caption="Previous payroll runs"
         empty-title="No payroll has been run yet"
       >

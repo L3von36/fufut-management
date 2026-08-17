@@ -23,6 +23,7 @@
       <base-table
         :columns="columns"
         :rows="filtered"
+        stack-on-mobile
         caption="Time clock entries for the selected day"
         empty-title="No time entries"
         empty-hint="Nobody clocked in on this date."
