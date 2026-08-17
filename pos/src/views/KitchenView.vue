@@ -432,8 +432,11 @@ async function updateStatus(id, status) {
 }
 
 // ─── Helpers ───
+// Returns the bare short id; the three templates that use it supply the '#'
+// themselves, as TablesView and DashboardView do. Adding one here too printed
+// every ticket on the pass as "##1003".
 function shortId(id) {
-  return id ? '#' + id.slice(-4) : '—'
+  return id ? id.slice(-4) : '—'
 }
 
 function formatTime(d) {
