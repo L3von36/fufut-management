@@ -64,9 +64,18 @@
         </div>
       </header>
       <!-- Offline Banner -->
+      <!--
+        The old wording said the data saves locally and syncs later, which is
+        true and hides the thing that actually bites: queued writes sit on THIS
+        device, so an order taken here does not reach the kitchen screen until
+        the line is back. Toast tells staff the same and asks them to nominate
+        one device for the outage; a waiter who does not know that will send
+        food to a pass that never hears about it.
+      -->
       <div v-if="!online" class="offline-banner">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> You're offline — data saves locally and will sync when connection returns
-        <span v-if="syncCount" style="font-weight:600">({{ syncCount }} pending)</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <strong>Offline.</strong> The kitchen will not see these orders until the connection returns — tell the chef directly.
+        <span v-if="syncCount" style="font-weight:600">({{ syncCount }} waiting to send)</span>
       </div>
       <div v-else-if="syncing" class="offline-banner syncing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:4px"><line x1="12" y1="2" x2="12" y2="6"/><path d="M12 2a10 10 0 0 1 10 10h-4a6 6 0 0 0-6-6V2z"/></svg> Syncing data...</div>
 

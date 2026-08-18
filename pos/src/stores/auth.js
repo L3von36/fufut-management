@@ -2,6 +2,62 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiGet, apiPost, ROLE_PERMISSIONS, ROLE_DEFAULT_VIEW } from '../api'
 
+/**
+ * Who was signed in last, kept so an outage does not lock the floor out.
+ *
+ * The session cookie lasts 30 days, but every page load calls /api/auth/me to
+ * turn it back into an identity. With no internet that call fails, the guard
+ * sees a signed-out user and sends them to a login screen that cannot work
+ * offline either — so a tablet that reboots mid-outage is finished for the
+ * duration, which is precisely when the cafe can least afford it.
+ *
+ * This grants nothing. The server is still the only authority: every request
+ * carries the same cookie and is authorised server-side, so a tampered cache
+ * buys a set of screens that 401 on contact. What it restores is the client's
+ * memory of who it was, which was never a security boundary.
+ */
+const IDENTITY_KEY = 'fufut.pos.identity'
+const IDENTITY_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000  // matches the session cookie
+
+function rememberIdentity(user, role) {
+  try {
+    localStorage.setItem(IDENTITY_KEY, JSON.stringify({ user, role, at: Date.now() }))
+  } catch { /* private mode: the session simply will not survive a reload */ }
+}
+
+function forgetIdentity() {
+  try { localStorage.removeItem(IDENTITY_KEY) } catch { /* nothing to clean up */ }
+}
+
+function recallIdentity() {
+  try {
+    const raw = localStorage.getItem(IDENTITY_KEY)
+    if (!raw) return null
+    const saved = JSON.parse(raw)
+    if (!saved || !saved.user) return null
+    // Never outlive the cookie it stands in for.
+    if (!Number.isFinite(saved.at) || Date.now() - saved.at > IDENTITY_MAX_AGE_MS) {
+      forgetIdentity()
+      return null
+    }
+    return saved
+  } catch {
+    forgetIdentity()
+    return null
+  }
+}
+
+/**
+ * Did the server actually refuse us, or could we simply not reach it?
+ *
+ * The distinction is the whole safety of the offline path. A 401 means the
+ * session is genuinely gone and the cache must go with it; no status at all
+ * means the request never arrived, and the last known identity still stands.
+ */
+function serverRefused(err) {
+  return err && (err.status === 401 || err.status === 403)
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
   const roleKey = ref('')
@@ -10,6 +66,9 @@ export const useAuthStore = defineStore('auth', () => {
   // refuses everything except changing it, so the app must send the person
   // straight there rather than onto a dashboard that then 403s every request.
   const mustChangePassword = ref(false)
+  // True when the identity came from cache rather than the server, so screens
+  // can say so rather than implying everything is normal.
+  const offlineIdentity = ref(false)
 
   const isAuthenticated = computed(() => !!user.value)
   const permissions = computed(() => (ROLE_PERMISSIONS && ROLE_PERMISSIONS[roleKey.value]) || [])
@@ -27,6 +86,8 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = res.user
       roleKey.value = (res.role || '').toLowerCase().replace(/\s+/g, '-')
       mustChangePassword.value = res.mustChangePassword === true
+      rememberIdentity(res.user, res.role)
+      offlineIdentity.value = false
       return res
     } finally {
       loading.value = false
@@ -41,6 +102,8 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = res.user
       roleKey.value = (res.role || '').toLowerCase().replace(/\s+/g, '-')
       mustChangePassword.value = res.mustChangePassword === true
+      rememberIdentity(res.user, res.role)
+      offlineIdentity.value = false
       return res
     } finally {
       loading.value = false
@@ -53,10 +116,27 @@ export const useAuthStore = defineStore('auth', () => {
       if (res.ok) {
         user.value = res.user
         roleKey.value = (res.role || '').toLowerCase().replace(/\s+/g, '-')
+        rememberIdentity(res.user, res.role)
+        offlineIdentity.value = false
         return true
       }
+      // A reachable server that says no is the end of the session.
+      forgetIdentity()
     } catch (e) {
-      console.warn('Session check failed:', e.message)
+      if (serverRefused(e)) {
+        forgetIdentity()
+        return false
+      }
+      // Could not reach the server. Carry on as whoever was signed in here
+      // last; the cookie goes with every request and the server decides.
+      const saved = recallIdentity()
+      if (saved) {
+        user.value = saved.user
+        roleKey.value = (saved.role || '').toLowerCase().replace(/\s+/g, '-')
+        offlineIdentity.value = true
+        return true
+      }
+      console.warn('Session check failed and no cached identity:', e.message)
     }
     return false
   }
@@ -68,6 +148,8 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     roleKey.value = ''
     mustChangePassword.value = false
+    offlineIdentity.value = false
+    forgetIdentity()
   }
 
   /**
@@ -82,5 +164,5 @@ export const useAuthStore = defineStore('auth', () => {
     return res
   }
 
-  return { user, roleKey, loading, mustChangePassword, isAuthenticated, permissions, defaultView, hasPermission, login, loginWithEmail, checkSession, logout, changePassword }
+  return { user, roleKey, loading, mustChangePassword, offlineIdentity, isAuthenticated, permissions, defaultView, hasPermission, login, loginWithEmail, checkSession, logout, changePassword }
 })
