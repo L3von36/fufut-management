@@ -117,9 +117,13 @@ jobs:
   # passing. The app does not render at the URL the fixture navigates to, so
   # every test times out waiting for a table.
   #
-  # Kept out of the deploy path deliberately, and bounded twice: the step gets
-  # six minutes and the job eight, so a hang costs a red informational job and
-  # nothing else. It does not gate anything because it has never been green — a
+  # Kept out of the deploy path deliberately, and bounded so the hang ends as a
+  # step failure rather than a job cancellation. The step's five minutes must
+  # stay well inside the job's ten, including the two or so that npm ci and the
+  # browser download take: if the job timeout lands first the job is CANCELLED,
+  # continue-on-error never applies, and the whole run reports cancelled even
+  # though every deploy in it succeeded. A run that always looks red teaches
+  # people to ignore red just as effectively as a check that is always red. It does not gate anything because it has never been green — a
   # check that is red on arrival teaches people to ignore red, which costs more
   # than the check is worth. The jsdom suite in backoffice/tests/unit covers the
   # same behaviour and DOES gate the deploy.
@@ -130,7 +134,7 @@ jobs:
   # then make this job gate build-backoffice and delete this comment.
   e2e-backoffice:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -144,7 +148,7 @@ jobs:
         continue-on-error: true
       - name: E2E Backoffice (not yet passing — informational)
         run: cd backoffice && npx playwright test --reporter=list
-        timeout-minutes: 6
+        timeout-minutes: 5
         continue-on-error: true
 
   build-backoffice:
