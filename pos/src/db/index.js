@@ -3,13 +3,30 @@ const DB_NAME = 'fufut-pos'
 const DB_VERSION = 1
 const SYNC_STORE = 'sync_queue'
 
+/**
+ * The read caches, as opposed to the sync queue.
+ *
+ * Named once so signing out can empty them. A till is a shared device: the
+ * cached lists belong to whoever was signed in, and leaving them for the next
+ * person is how one shift's data reaches the next one's screen.
+ *
+ * The sync queue is deliberately NOT in this list. It holds writes that have
+ * not reached the server yet, and those are the venue's orders — clearing them
+ * on sign-out would throw away work the person had every reason to believe was
+ * saved.
+ */
+export const CACHE_STORES = [
+  'orders', 'menu', 'inventory', 'staff', 'tables', 'expenses',
+  'reservations', 'delivery', 'waste', 'shifts', 'timeclock', 'cashdrawers',
+]
+
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = (e) => {
       const db = e.target.result
       // Data stores for offline reads
-      for (const store of ['orders', 'menu', 'inventory', 'staff', 'tables', 'expenses', 'reservations', 'delivery', 'waste', 'shifts', 'timeclock', 'cashdrawers']) {
+      for (const store of CACHE_STORES) {
         if (!db.objectStoreNames.contains(store)) {
           db.createObjectStore(store, { keyPath: 'id' })
         }
@@ -82,6 +99,16 @@ export async function dbCacheAll(store, items) {
 }
 
 // Sync queue operations
+/**
+ * Empty every read cache, leaving the sync queue alone.
+ *
+ * Called when a session ends, so a tablet handed to the next member of staff
+ * carries none of the previous one's data.
+ */
+export async function dbClearCaches() {
+  await Promise.all(CACHE_STORES.map((store) => dbClear(store).catch(() => {})))
+}
+
 export async function queueMutation(method, endpoint, body) {
   return withStore(SYNC_STORE, 'readwrite', (s) => {
     return s.add({ method, endpoint, body, timestamp: Date.now(), retries: 0 })

@@ -107,7 +107,23 @@ export async function apiGet(endpoint) {
     }
     return data
   } catch (e) {
-    // Offline — try local cache
+    /**
+     * Only when the server never answered.
+     *
+     * `e.status` is set whenever a reply came back, so its absence is what
+     * distinguishes "there is no network" from "the server said no". Falling
+     * back on any error meant a refusal was served out of the cache instead:
+     * the till caches every list it reads, keyed by endpoint alone with no
+     * record of who read it, so a cleaner refused /api/staff with a 403 was
+     * handed the manager's staff list that the previous shift had loaded on
+     * that same tablet. The server was enforcing the role correctly and the
+     * screen showed the data anyway.
+     *
+     * This is the same distinction the auth store draws for the cached
+     * identity, and for the same reason.
+     */
+    if (e && e.status) throw e
+
     const store = endpoint.split('/')[0]
     const cached = await dbGetAll(store).catch(() => null)
     if (cached && cached.length) return cached
