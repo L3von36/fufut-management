@@ -39,6 +39,17 @@ export default defineConfig({
   // one-line workaround instead of an afternoon.
   use: {
     baseURL: `http://localhost:${PORT}`,
+    /**
+     * The venue's clock, not the runner's.
+     *
+     * One test asserts that an order created at 22:30 UTC displays as 01:30 the
+     * next day, which is the whole point of the timezone handling. On a
+     * maintainer's machine in Addis it passed for the wrong reason — the
+     * browser simply inherited the right zone — and on a UTC runner it failed.
+     * Pinning it makes the assertion mean the same thing everywhere, and
+     * matches what the unit suite does with cross-env TZ.
+     */
+    timezoneId: 'Africa/Addis_Ababa',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
