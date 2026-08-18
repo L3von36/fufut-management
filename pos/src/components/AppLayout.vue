@@ -218,11 +218,48 @@ watch(() => route.name, (name) => {
 // Online/sync status
 watch(() => pendingCount.value, (c) => { syncCount.value = c })
 
+/**
+ * Notice when somebody else has signed in.
+ *
+ * The store reads the role once at startup. A till is a shared device, often
+ * left open in more than one tab across a shift change, so the session can
+ * change underneath a running app — and until now the screen carried on
+ * showing the previous person's menu: a chef looking at Cash Drawer, a cashier
+ * at Recipes. The server refuses the data behind those, so nothing leaks; it
+ * simply looks as though roles do not work.
+ *
+ * Checked when the tab comes back to the front rather than on a timer, because
+ * that is the moment somebody has picked the device up. Throttled so flicking
+ * between tabs does not query the server repeatedly.
+ */
+const SESSION_RECHECK_MS = 10000
+let lastCheck = 0
+
+async function recheckSession() {
+  if (document.visibilityState !== 'visible') return
+  if (Date.now() - lastCheck < SESSION_RECHECK_MS) return
+  lastCheck = Date.now()
+
+  const verdict = await auth.revalidate()
+  if (verdict === 'ended') {
+    router.push('/login')
+    return
+  }
+  if (verdict === 'changed') {
+    // A different person. Reload rather than re-render: every open screen holds
+    // the previous user's data in component state, and rebuilding the app is
+    // the only way to be sure none of it survives the handover.
+    window.location.reload()
+  }
+}
+
 onMounted(() => {
   startSync()
   if (!auth.isAuthenticated) {
     router.push('/login')
   }
+  document.addEventListener('visibilitychange', recheckSession)
+  window.addEventListener('focus', recheckSession)
   // Update date at midnight boundary
   const dateTimer = setInterval(() => {
     today.value = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
@@ -234,6 +271,8 @@ const unsub = onOnlineChange((v) => { online.value = v })
 onUnmounted(() => {
   stopSync()
   unsub()
+  document.removeEventListener('visibilitychange', recheckSession)
+  window.removeEventListener('focus', recheckSession)
 })
 
 function navigate(view) {

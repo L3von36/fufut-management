@@ -142,6 +142,32 @@ export const useAuthStore = defineStore('auth', () => {
     return false
   }
 
+  /**
+   * Re-check who is signed in, and report whether it is still the same person.
+   *
+   * The store reads the role once at startup and then never asks again, so a
+   * session that changes underneath a running app leaves the previous person's
+   * screens on the tablet: a chef looking at Cash Drawer, or a cashier at
+   * Recipes. The server refuses the data behind them, so nothing leaks — but
+   * the menu is wrong, and staff reasonably conclude the roles do not work.
+   *
+   * Returns 'same', 'changed', 'ended' or 'unknown' ('unknown' being an
+   * unreachable server, which is not grounds for disturbing anybody).
+   */
+  async function revalidate() {
+    const wasId = user.value && user.value.id
+    const wasRole = roleKey.value
+    const ok = await checkSession()
+
+    if (!ok) return wasId ? 'ended' : 'same'
+    // checkSession falls back to the cached identity when the server cannot be
+    // reached. That tells us nothing new, so it must not count as a change.
+    if (offlineIdentity.value) return 'unknown'
+
+    const nowId = user.value && user.value.id
+    return nowId !== wasId || roleKey.value !== wasRole ? 'changed' : 'same'
+  }
+
   async function logout() {
     try { await apiPost('auth/logout', {}) } catch (e) {
       console.warn('Logout request failed:', e.message)
@@ -185,5 +211,5 @@ export const useAuthStore = defineStore('auth', () => {
     return res
   }
 
-  return { user, roleKey, loading, mustChangePassword, offlineIdentity, isAuthenticated, permissions, defaultView, hasPermission, login, loginWithEmail, checkSession, logout, changePassword }
+  return { user, roleKey, loading, mustChangePassword, offlineIdentity, isAuthenticated, permissions, defaultView, hasPermission, login, loginWithEmail, checkSession, revalidate, logout, changePassword }
 })
