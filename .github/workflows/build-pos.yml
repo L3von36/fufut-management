@@ -113,6 +113,40 @@ jobs:
           git diff --cached --quiet || git commit -m "build: auto-build POS [skip ci]" --no-verify
           git push || true
 
+  # Browser coverage for the table screens — written, committed, and NOT yet
+  # passing. The app does not render at the URL the fixture navigates to, so
+  # every test times out waiting for a table.
+  #
+  # Kept out of the deploy path deliberately, and bounded twice: the step gets
+  # six minutes and the job eight, so a hang costs a red informational job and
+  # nothing else. It does not gate anything because it has never been green — a
+  # check that is red on arrival teaches people to ignore red, which costs more
+  # than the check is worth. The jsdom suite in backoffice/tests/unit covers the
+  # same behaviour and DOES gate the deploy.
+  #
+  # It cannot be debugged locally: Playwright registers no test file on the
+  # maintainer's Windows machine, including the POS suite that passes on this
+  # runner. Run `npm run test:e2e` where Playwright works, fix the navigation,
+  # then make this job gate build-backoffice and delete this comment.
+  e2e-backoffice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backoffice/package-lock.json
+      - run: cd backoffice && npm ci
+      - name: Install Playwright browser
+        run: cd backoffice && npx playwright install --with-deps chromium
+        continue-on-error: true
+      - name: E2E Backoffice (not yet passing — informational)
+        run: cd backoffice && npx playwright test --reporter=list
+        timeout-minutes: 6
+        continue-on-error: true
+
   build-backoffice:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -130,27 +164,16 @@ jobs:
       # that looked like a quiet day.
       - name: Test Backoffice
         run: cd backoffice && npm test
-      # Browser coverage for the table screens — written, committed, and NOT
-      # yet passing. The app does not render at the URL the fixture navigates
-      # to, so every test times out waiting for a table.
+      # The browser suite used to run here, marked informational with
+      # continue-on-error. That ignores a FAILING step, not a SLOW one: every
+      # test times out waiting for a table, the step ran for ten minutes, the
+      # job hit its timeout, and the build and deploy below were skipped. The
+      # run reported "cancelled" rather than "failed", so it did not even look
+      # like a broken deploy — it looked like nothing happened.
       #
-      # It is not gating the deploy because it has never been green: a check
-      # that is red on arrival teaches people to ignore red, which costs more
-      # than the check is worth. The jsdom suite in tests/unit covers the same
-      # behaviour and does gate this job.
-      #
-      # It cannot be debugged locally — Playwright fails to register any test
-      # file on the maintainer's Windows machine, including the POS suite that
-      # passes in this same runner — and blind CI iteration is a poor way to
-      # find a routing bug. Run `npm run test:e2e` on a machine where Playwright
-      # works, fix the navigation, then move this above `continue-on-error` and
-      # delete this comment.
-      - name: Install Playwright browser
-        run: cd backoffice && npx playwright install --with-deps chromium
-        continue-on-error: true
-      - name: E2E Backoffice (not yet passing — informational)
-        run: cd backoffice && npx playwright test --reporter=list
-        continue-on-error: true
+      # It now lives in its own job (e2e-backoffice) where it cannot take the
+      # deploy with it, whatever it does. An informational check has no business
+      # sharing a job with a deploy.
       - run: cp backoffice/index.html.source backoffice/index.html
       - name: Build Backoffice
         env:
