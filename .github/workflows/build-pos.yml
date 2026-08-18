@@ -113,28 +113,25 @@ jobs:
           git diff --cached --quiet || git commit -m "build: auto-build POS [skip ci]" --no-verify
           git push || true
 
-  # Browser coverage for the table screens — written, committed, and NOT yet
-  # passing. The app does not render at the URL the fixture navigates to, so
-  # every test times out waiting for a table.
+  # Browser coverage for the table screens. It gates the deploy, and it passes.
   #
-  # Kept out of the deploy path deliberately, and bounded so the hang ends as a
-  # step failure rather than a job cancellation. The step's five minutes must
-  # stay well inside the job's ten, including the two or so that npm ci and the
-  # browser download take: if the job timeout lands first the job is CANCELLED,
-  # continue-on-error never applies, and the whole run reports cancelled even
-  # though every deploy in it succeeded. A run that always looks red teaches
-  # people to ignore red just as effectively as a check that is always red. It does not gate anything because it has never been green — a
-  # check that is red on arrival teaches people to ignore red, which costs more
-  # than the check is worth. The jsdom suite in backoffice/tests/unit covers the
-  # same behaviour and DOES gate the deploy.
+  # It spent a long time red for two reasons, neither of them the app's: the
+  # route mock matched a glob wide enough to swallow the app's own client at
+  # /backoffice/src/api/index.js and answer it with JSON, so the browser refused
+  # the module and nothing ever rendered; and locally Playwright registered no
+  # test at all when the project path was reached through a different letter
+  # case than the filesystem's, which breaks its ESM module identity.
   #
-  # It cannot be debugged locally: Playwright registers no test file on the
-  # maintainer's Windows machine, including the POS suite that passes on this
-  # runner. Run `npm run test:e2e` where Playwright works, fix the navigation,
-  # then make this job gate build-backoffice and delete this comment.
+  # Kept in its own job rather than inline with the deploy. A check that can
+  # hang should not share a timeout with a deploy — when it did, the job was
+  # cancelled and the build and deploy after it were silently skipped.
   e2e-backoffice:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Comfortably clear of the step's eight, so a slow run fails as a step
+    # rather than being cancelled as a job — a cancelled job reports the whole
+    # run as cancelled, which reads like nothing happened rather than like a
+    # test that needs looking at.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -145,13 +142,12 @@ jobs:
       - run: cd backoffice && npm ci
       - name: Install Playwright browser
         run: cd backoffice && npx playwright install --with-deps chromium
-        continue-on-error: true
-      - name: E2E Backoffice (not yet passing — informational)
+      - name: E2E Backoffice
         run: cd backoffice && npx playwright test --reporter=list
-        timeout-minutes: 5
-        continue-on-error: true
+        timeout-minutes: 8
 
   build-backoffice:
+    needs: e2e-backoffice
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -168,16 +164,6 @@ jobs:
       # that looked like a quiet day.
       - name: Test Backoffice
         run: cd backoffice && npm test
-      # The browser suite used to run here, marked informational with
-      # continue-on-error. That ignores a FAILING step, not a SLOW one: every
-      # test times out waiting for a table, the step ran for ten minutes, the
-      # job hit its timeout, and the build and deploy below were skipped. The
-      # run reported "cancelled" rather than "failed", so it did not even look
-      # like a broken deploy — it looked like nothing happened.
-      #
-      # It now lives in its own job (e2e-backoffice) where it cannot take the
-      # deploy with it, whatever it does. An informational check has no business
-      # sharing a job with a deploy.
       - run: cp backoffice/index.html.source backoffice/index.html
       - name: Build Backoffice
         env:

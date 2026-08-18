@@ -23,6 +23,8 @@ import { defineConfig, devices } from '@playwright/test'
  * every one of them with a shared component has to prove it changed nothing.
  * A test here that needs editing during the migration is a signal, not a chore.
  */
+const PORT = Number(process.env.BACKOFFICE_E2E_PORT || 5174)
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
@@ -30,8 +32,13 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   timeout: 30000,
   reporter: process.env.CI ? 'list' : [['list'], ['html', { open: 'never' }]],
+  // Windows reserves scattered TCP ranges (Hyper-V and WSL claim them), and
+  // 5174 lands inside one on at least one machine here — the server fails with
+  // EACCES and every test reports as "webServer did not start", which reads
+  // like a broken suite rather than a taken port. Overridable so that is a
+  // one-line workaround instead of an afternoon.
   use: {
-    baseURL: 'http://localhost:5174',
+    baseURL: `http://localhost:${PORT}`,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -39,8 +46,8 @@ export default defineConfig({
   webServer: {
     // A port of its own, so a dev server already running on 5173 for the POS
     // is neither reused nor killed.
-    command: 'npx vite --port 5174 --strictPort',
-    port: 5174,
+    command: `npx vite --port ${PORT} --strictPort`,
+    port: PORT,
     reuseExistingServer: !process.env.CI,
     timeout: 60000,
   },

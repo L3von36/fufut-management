@@ -68,22 +68,40 @@ export const test = base.extend({
   mockApi: async ({ page }, use) => {
     const overrides = {}
 
-    await page.route('**/api/**', async (route) => {
-      const url = new URL(route.request().url())
-      const key = url.pathname.replace(/^.*\/api\//, '').split('?')[0]
+    /**
+     * Matched on the pathname, not with a glob.
+     *
+     * A glob wide enough to catch every API path also catches the app's OWN
+     * source: the dev server serves modules by path, and the client lives at
+     * `/backoffice/src/api/index.js`.
+     * That file was being answered with JSON, so the browser refused it —
+     * "Expected a JavaScript-or-Wasm module script but the server responded
+     * with a MIME type of application/json" — and the app never booted. Every
+     * test then timed out waiting for a table, which reads like a broken app
+     * rather than a mock that ate it.
+     *
+     * The client builds `${API}/api/${endpoint}` with an empty API base, so a
+     * real call is always same-origin and always starts at `/api/`.
+     */
+    await page.route(
+      (url) => url.pathname.startsWith('/api/'),
+      async (route) => {
+        const url = new URL(route.request().url())
+        const key = url.pathname.replace(/^\/api\//, '').split('?')[0]
 
-      // Longest match first, so "auth/me" wins over "auth".
-      const match = Object.keys({ ...DEFAULTS, ...overrides })
-        .filter((k) => key === k || key.startsWith(k + '/'))
-        .sort((a, b) => b.length - a.length)[0]
+        // Longest match first, so "auth/me" wins over "auth".
+        const match = Object.keys({ ...DEFAULTS, ...overrides })
+          .filter((k) => key === k || key.startsWith(k + '/'))
+          .sort((a, b) => b.length - a.length)[0]
 
-      const body = match ? (overrides[match] ?? DEFAULTS[match]) : []
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(body),
-      })
-    })
+        const body = match ? (overrides[match] ?? DEFAULTS[match]) : []
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(body),
+        })
+      }
+    )
 
     await use({
       set(key, value) { overrides[key] = value },

@@ -1,44 +1,29 @@
 import { test, expect, ORDERS, STAFF, DELIVERY } from '../support/fixtures.js'
 
 /**
- * ⚠ NOT YET PASSING. Do not read a green backoffice job as covering this.
+ * Browser coverage for the table screens. It passes, and it gates the deploy.
  *
- * Every test times out waiting for a table, which means the app is not
- * rendering at the URL the fixture navigates to — a routing or auth-guard
- * problem in the harness, not a fault in the screens. The CI step runs with
- * continue-on-error for that reason; it has never been green, and a check that
- * is red on arrival teaches people to ignore red.
+ * It was red for a long time, and neither reason was the screens.
  *
- * It still cannot be run on the maintainer's machine. The failure is now
- * pinned down further than "fails to register": even a two-line spec importing
- * `test` straight from '@playwright/test' is rejected with "Playwright Test did
- * not expect test() to be called here". There is exactly one copy of
- * @playwright/test (1.62.1) and it resolves to the same path from both the spec
- * and the fixture directories, so the usual causes — duplicate versions, a
- * global install, a stale npx cache — are all ruled out. It is something about
- * how the runner loads modules in this environment, not about this suite.
+ * The route mock matched every path containing `/api/`, which in a dev server
+ * includes the app's own client at `/backoffice/src/api/index.js`. That module
+ * was answered with JSON, the browser refused it for its MIME type, and nothing
+ * ever mounted — so every test timed out waiting for a table and it looked like
+ * an app that would not render. The mock now matches on the pathname starting
+ * at `/api/`, which is where a real call always goes.
  *
- * What has been established since, by driving a real Chromium against the dev
- * server with a mock API instead of the runner:
+ * Locally it also registered no test at all, failing with "Playwright Test did
+ * not expect test() to be called here" and blaming duplicate installs that did
+ * not exist. The cause was letter case: reaching the project through a path
+ * cased differently from the filesystem gives the ESM loader two identities for
+ * the same module. Run it from the real casing.
  *
- *   - The screens themselves are fine. Orders, Delivery, Staff, Audit, P&L,
- *     Staff Requests, Payroll and Attendance all render through BaseTable with
- *     captions, correct rows, no unstyled badges, and `data-label` on every
- *     cell. The 22:30 UTC order shows as 01:30, so the timezone handling is
- *     right in a browser and not only in jsdom.
- *   - `picked_up` and `out_for_delivery` now compute real badge colours.
- *   - Two genuine bugs were found this way and fixed: AttendanceView assigning
- *     Array.prototype.entries when the endpoint returns a bare array, and the
- *     doubled manifest path in index.html.
+ * The port is configurable via BACKOFFICE_E2E_PORT, because 5174 lands inside a
+ * range Windows reserves on at least one machine here and the server then fails
+ * with EACCES.
  *
- * So a red run here is a fault in this harness, not evidence against the
- * screens. To finish it: get the runner working, then look at what the page
- * actually shows (the login screen would mean the mocked session is not being
- * accepted), fix `goto` in tests/support/fixtures.js, and make the CI step
- * gating.
- *
- * tests/unit/table-behaviour.test.js covers the same behaviour in jsdom, does
- * pass, and is what gated the BaseTable migration.
+ * tests/unit/table-behaviour.test.js covers the same behaviour in jsdom and is
+ * what gated the BaseTable migration.
  *
  * ── Original intent ────────────────────────────────────────────────────────
  *
