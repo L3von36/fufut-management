@@ -85,7 +85,7 @@
           <div class="table-status">{{ (table.status || 'available').toUpperCase() }}</div>
           <div v-if="table.seats" class="table-seats">{{ table.seats }} seats</div>
           <div v-if="table.status === 'occupied'" class="table-guest-count">
-            {{ tableOrders(table.id)?.length ? (tableOrders(table.id)[0].guests || '—') + ' guests' : '— guests' }}
+            {{ tableOrders(table)?.length ? (tableOrders(table)[0].guests || '—') + ' guests' : '— guests' }}
           </div>
         </div>
       </div>
@@ -136,9 +136,9 @@
         </div>
 
         <!-- Active Orders for this table -->
-        <div v-if="tableOrders(selectedTable.id)?.length" class="table-orders-section">
+        <div v-if="tableOrders(selectedTable)?.length" class="table-orders-section">
           <h4>Active Orders</h4>
-          <div v-for="order in tableOrders(selectedTable.id)" :key="order.id" class="table-order-card">
+          <div v-for="order in tableOrders(selectedTable)" :key="order.id" class="table-order-card">
             <div class="order-card-top">
               <span class="order-id">#{{ order.id }}</span>
               <span class="badge" :class="statusBadgeClass(order.status)">{{ statusLabel(order.status) }}</span>
@@ -179,6 +179,7 @@ import QRCode from 'qrcode'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { localTime } from '../lib/datetime'
 import { formatOrderItems } from '../lib/formatters'
+import { sameTable } from '../lib/tableRef'
 import { useSSE } from '../composables/useSSE'
 import { useButtonState } from '../composables/useButtonState'
 
@@ -216,26 +217,27 @@ const statusCounts = computed(() => {
 // and every other status chip in the app now agree on what a colour means.
 const selectedBadgeClass = computed(() => statusBadgeClass(selectedTable.value?.status))
 
-function tableOrders(tableId) {
-  const id = tableId?.toString()
+/* Takes the table row, not just its id. An order filed under "6" and a table
+ * whose id reads "Table 6" are the same table, and comparing the raw strings
+ * meant a guest's QR order never appeared on the tile. See lib/tableRef.js. */
+function tableOrders(table) {
+  if (!table) return []
   return orders.value.filter(o => {
-    if (!id) return false
-    const matchId = o.tableId?.toString() === id
+    const matchId = sameTable(o.tableId, table)
     return matchId && o.status !== 'fulfilled' && o.status !== 'cancelled'
   })
 }
 
 const currentOrder = computed(() => {
   if (!selectedTable.value) return null
-  const tOrders = tableOrders(selectedTable.value.id)
+  const tOrders = tableOrders(selectedTable.value)
   return tOrders.length ? tOrders[0] : null
 })
 
 const tableReservation = computed(() => {
   if (!selectedTable.value) return null
-  const id = selectedTable.value.id?.toString()
   return reservations.value.find(r => {
-    const match = r.tableId?.toString() === id
+    const match = sameTable(r.tableId, selectedTable.value)
     return match && r.status !== 'cancelled' && r.status !== 'completed'
   }) || null
 })

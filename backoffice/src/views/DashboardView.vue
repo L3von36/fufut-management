@@ -64,11 +64,11 @@
         >
           <div class="dash-table-number">{{ table.number || table.id }}</div>
           <div class="dash-table-status">{{ (table.status || 'available').slice(0, 4) }}</div>
-          <div v-if="table.status === 'occupied' && tableOrders(table.id)?.length" class="dash-table-guests">
-            {{ tableOrders(table.id)[0].guests || '—' }} guests · ETB {{ parseFloat(tableOrders(table.id)[0].total || 0).toFixed(0) }}
+          <div v-if="table.status === 'occupied' && tableOrders(table)?.length" class="dash-table-guests">
+            {{ tableOrders(table)[0].guests || '—' }} guests · ETB {{ parseFloat(tableOrders(table)[0].total || 0).toFixed(0) }}
           </div>
-          <div v-if="table.status === 'occupied' && tableOrders(table.id)?.length" class="dash-table-duration">
-            {{ getDuration(tableOrders(table.id)[0].created) }}
+          <div v-if="table.status === 'occupied' && tableOrders(table)?.length" class="dash-table-duration">
+            {{ getDuration(tableOrders(table)[0].created) }}
           </div>
         </div>
       </div>
@@ -83,6 +83,7 @@ import { useRouter } from 'vue-router'
 import { apiGet, TODAY } from '../api'
 import { useAnimatedNumber } from '../composables/useAnimatedNumber'
 import { formatOrderItems } from '../lib/formatters'
+import { sameTable } from '../lib/tableRef'
 let _Chart = null
 async function _loadChart() {
   if (!_Chart) {
@@ -119,12 +120,11 @@ const kpiDefs = computed(() => [
 
 const router = useRouter()
 
-function tableOrders(tableId) {
-  const id = tableId?.toString()
-  return orders.value.filter(o => {
-    if (!id) return false
-    return o.tableId?.toString() === id && o.status !== 'fulfilled' && o.status !== 'cancelled'
-  })
+/* Same reference-spelling problem as the floor plan; see lib/tableRef.js. */
+function tableOrders(table) {
+  if (!table) return []
+  return orders.value.filter(o =>
+    sameTable(o.tableId, table) && o.status !== 'fulfilled' && o.status !== 'cancelled')
 }
 
 function getDuration(created) {
