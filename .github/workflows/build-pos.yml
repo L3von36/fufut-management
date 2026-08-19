@@ -38,9 +38,20 @@ jobs:
       - name: Run unit tests
         run: npm test
         timeout-minutes: 10
+      # The browser download is by far the slowest thing in this workflow —
+      # measured at 287s on one job and 492s on another in the same run, which
+      # is what pushed test-pos past its timeout and stopped the POS deploying.
+      # Caching it removes the download; --with-deps still runs apt, which is
+      # the remaining variance.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pos/package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-        timeout-minutes: 8
+        timeout-minutes: 12
       - name: Restore dev index.html
         run: |
           if [ -f index.html.source ]; then
@@ -141,11 +152,12 @@ jobs:
   # cancelled and the build and deploy after it were silently skipped.
   e2e-backoffice:
     runs-on: ubuntu-latest
-    # Comfortably clear of the step's eight, so a slow run fails as a step
+    # Comfortably clear of the steps inside it, so a slow run fails as a step
     # rather than being cancelled as a job — a cancelled job reports the whole
     # run as cancelled, which reads like nothing happened rather than like a
-    # test that needs looking at.
-    timeout-minutes: 15
+    # test that needs looking at. The browser install alone can take eight
+    # minutes on a cold cache.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -154,8 +166,15 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backoffice/package-lock.json
       - run: cd backoffice && npm ci
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('backoffice/package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-
       - name: Install Playwright browser
         run: cd backoffice && npx playwright install --with-deps chromium
+        timeout-minutes: 12
       - name: E2E Backoffice
         run: cd backoffice && npx playwright test --reporter=list
         timeout-minutes: 8
