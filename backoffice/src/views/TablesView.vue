@@ -1,13 +1,22 @@
 <template>
   <div>
     <div class="table-toolbar">
-      <h3>Table Heatmap</h3>
+      <h3>
+        <template v-if="showQr">Table Cards</template>
+        <template v-else>Table Heatmap</template>
+      </h3>
       <div class="toolbar-actions">
-        <span class="sse-badge" :class="{ online: sse.connected.value }">
+        <span v-if="!showQr" class="sse-badge" :class="{ online: sse.connected.value }">
           {{ sse.connected.value ? '● Live' : '○ Connecting' }}
         </span>
-        <base-button text="QR cards" variant="btn-secondary" extra-class="btn-sm" :on-click="openQrSheet" />
-        <base-button text="Refresh" variant="btn-secondary" extra-class="btn-sm" :on-click="loadAll" />
+        <template v-if="showQr">
+          <base-button text="Print" variant="btn-primary" extra-class="btn-sm" :on-click="printSheet" />
+          <base-button text="Back to Heatmap" variant="btn-ghost" extra-class="btn-sm" :on-click="() => { showQr = false }" />
+        </template>
+        <template v-else>
+          <base-button text="QR cards" variant="btn-secondary" extra-class="btn-sm" :on-click="openQrSheet" />
+          <base-button text="Refresh" variant="btn-secondary" extra-class="btn-sm" :on-click="loadAll" />
+        </template>
       </div>
     </div>
 
@@ -21,44 +30,34 @@
       glance which table a card belongs to — and so a card moved to the wrong
       table is obvious rather than silently wrong.
 
-      Rendered locally. The URL contains the table's key, so it must never be
+      Rendered locally. The URL carries the table's key, so it must never be
       sent to an image service to be turned into a QR code.
+
+      Full-page view: this is a card sheet meant to be printed, not a modal.
+      It takes the whole width so the grid can fit four cards across and the
+      print layout is clean.
     -->
-    <div v-if="showQr" class="qr-sheet-backdrop" @click.self="showQr = false">
-      <div class="qr-sheet">
-        <div class="qr-sheet-bar">
-          <div>
-            <strong>Table cards</strong>
-            <span class="qr-sheet-hint">
-              Print, cut, and fix one to each table — under glass or on the table card, not as a loose sticker.
-            </span>
+    <div v-if="showQr" class="qr-page">
+      <div v-if="qrLoading" class="qr-page-msg no-print">Loading…</div>
+      <p v-else-if="qrError" class="qr-error no-print">{{ qrError }}</p>
+      <div v-else class="qr-grid">
+        <div v-for="c in qrCards" :key="c.id" class="qr-card">
+          <img v-if="c.image" :src="c.image" :alt="`QR code for ${c.name}`" class="qr-img" />
+          <div v-else class="qr-missing">
+            <span>No code yet</span>
+            <button class="btn btn-sm btn-primary no-print" @click="mint(c)">Create</button>
           </div>
-          <div class="qr-sheet-actions">
-            <base-button text="Print" variant="btn-primary" extra-class="btn-sm" :on-click="printSheet" />
-            <base-button text="Close" variant="btn-ghost" extra-class="btn-sm" :on-click="() => { showQr = false }" />
-          </div>
-        </div>
-
-        <p v-if="qrLoading" class="no-print">Loading…</p>
-        <p v-else-if="qrError" class="qr-error no-print">{{ qrError }}</p>
-
-        <div v-else class="qr-grid">
-          <div v-for="c in qrCards" :key="c.id" class="qr-card">
-            <img v-if="c.image" :src="c.image" :alt="`QR code for ${c.name}`" class="qr-img" />
-            <div v-else class="qr-missing">
-              <span>No code yet</span>
-              <button class="btn btn-sm btn-primary no-print" @click="mint(c)">Create</button>
-            </div>
-            <div class="qr-name">{{ c.name }}</div>
-            <div class="qr-caption">Scan to see the menu and order</div>
-            <button v-if="c.image" class="btn btn-sm btn-ghost no-print" @click="mint(c)">
-              Replace code
-            </button>
-          </div>
+          <div class="qr-name">{{ c.name }}</div>
+          <div class="qr-caption">Scan to see the menu and order</div>
+          <button v-if="c.image" class="btn btn-sm btn-ghost no-print" @click="mint(c)">
+            Replace code
+          </button>
         </div>
       </div>
     </div>
 
+    <!-- Heatmap: KPI + grid (hidden when QR sheet is active) -->
+    <template v-else>
     <!-- Summary -->
     <div class="kpi-grid kpi-grid--tables" style="--kpi-count:5">
       <div class="kpi-card"><div class="kpi-bar teal"></div><div class="kpi-label">Total Tables</div><div class="kpi-value">{{ tables.length }}</div></div>
@@ -91,6 +90,7 @@
         </div>
       </div>
     </div>
+    </template>
 
     <!-- Table detail modal -->
     <div v-if="selectedTable" class="modal-overlay" @click.self="selectedTable=null">
@@ -368,16 +368,13 @@ async function updateTableStatus() {
 /* ─── Toolbar ─── */
 .toolbar-actions{display:flex;gap:10px;align-items:center}
 
-/* ─── QR Sheet ─── */
+/* ─── QR Sheet (full-page view) ─── */
 .qr-error{color:var(--danger);font-weight:500}
-.qr-sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;z-index:200}
-.qr-sheet{background:var(--surface,#fff);border-radius:12px;padding:16px;max-width:1000px;width:100%}
-.qr-sheet-bar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-.qr-sheet-actions{display:flex;gap:8px}
-.qr-sheet-hint{display:block;font-size:.8rem;opacity:.75;margin-top:2px;max-width:52ch}
-.qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
-.qr-card{border:1px solid var(--border,rgba(0,0,0,.15));border-radius:10px;padding:12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;break-inside:avoid}
-.qr-img{width:100%;max-width:190px;height:auto;image-rendering:pixelated}
+.qr-page{padding:24px 0}
+.qr-page-msg{font-size:var(--text-sm);color:var(--text-muted);margin:24px 0;text-align:center}
+.qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:20px}
+.qr-card{border:1px solid var(--border,rgba(0,0,0,.15));border-radius:10px;padding:12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;break-inside:avoid;background:var(--surface);box-shadow:var(--shadow-card)}
+.qr-img{width:100%;max-width:160px;height:auto;image-rendering:pixelated}
 .qr-missing{width:100%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--border,rgba(0,0,0,.25));border-radius:8px;font-size:.85rem;opacity:.8}
 /* Large, because it is the human check: a card on the wrong table should be
    obvious to anyone glancing at it, and so should a code that has been
@@ -386,14 +383,13 @@ async function updateTableStatus() {
 .qr-caption{font-size:.75rem;opacity:.7}
 
 @media print{
-  /* Everything except the sheet disappears, so a manager gets cards rather
-     than a screenshot of the backoffice. */
-  body :not(.qr-sheet-backdrop):not(.qr-sheet-backdrop *){visibility:hidden}
-  .qr-sheet-backdrop{position:static;background:none;padding:0;overflow:visible;display:block}
-  .qr-sheet{box-shadow:none;max-width:none;padding:0}
+  /* Only the card sheet prints — everything else on the page disappears. */
+  .table-toolbar,.kpi-grid,.heatmap-container,.modal-overlay,.sidebar,.bottom-nav,.content-wrap > *:not(.qr-page){visibility:hidden}
+  body{visibility:visible}
+  .qr-page{visibility:visible;padding:0}
   .no-print{display:none !important}
   .qr-grid{grid-template-columns:repeat(3,1fr);gap:10mm}
-  .qr-card{border:1px solid #999}
+  .qr-card{border:1px solid #999;box-shadow:none;background:none}
 }
 
 .table-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:16px}
