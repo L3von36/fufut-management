@@ -49,9 +49,18 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pos/package-lock.json') }}
           restore-keys: playwright-${{ runner.os }}-
+      # NOT --with-deps. That runs apt-get, and apt is the entire cost here:
+      # a run today spent twelve minutes retrying azure.archive.ubuntu.com
+      # before timing out, in both jobs, having downloaded no browser at all.
+      # The GitHub-hosted runner already carries Chromium's libraries; this
+      # step now only fetches the browser, which the cache above usually makes
+      # instant.
+      #
+      # If a library ever is missing, the E2E run fails naming it — a loud,
+      # diagnosable failure rather than a quarter of an hour of apt retries.
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-        timeout-minutes: 12
+        run: npx playwright install chromium
+        timeout-minutes: 6
       - name: Restore dev index.html
         run: |
           if [ -f index.html.source ]; then
@@ -172,9 +181,18 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('backoffice/package-lock.json') }}
           restore-keys: playwright-${{ runner.os }}-
+      # NOT --with-deps. That runs apt-get, and apt is the entire cost here:
+      # a run today spent twelve minutes retrying azure.archive.ubuntu.com
+      # before timing out, in both jobs, having downloaded no browser at all.
+      # The GitHub-hosted runner already carries Chromium's libraries; this
+      # step now only fetches the browser, which the cache above usually makes
+      # instant.
+      #
+      # If a library ever is missing, the E2E run fails naming it — a loud,
+      # diagnosable failure rather than a quarter of an hour of apt retries.
       - name: Install Playwright browser
-        run: cd backoffice && npx playwright install --with-deps chromium
-        timeout-minutes: 12
+        run: cd backoffice && npx playwright install chromium
+        timeout-minutes: 6
       - name: E2E Backoffice
         run: cd backoffice && npx playwright test --reporter=list
         timeout-minutes: 8
