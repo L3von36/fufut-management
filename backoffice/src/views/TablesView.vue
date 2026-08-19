@@ -2,7 +2,7 @@
   <div>
     <div class="table-toolbar">
       <h3>Table Heatmap</h3>
-      <div style="display:flex;gap:10px;align-items:center">
+      <div class="toolbar-actions">
         <span class="sse-badge" :class="{ online: sse.connected.value }">
           {{ sse.connected.value ? '● Live' : '○ Connecting' }}
         </span>
@@ -26,21 +26,21 @@
     -->
     <div v-if="showQr" class="qr-sheet-backdrop" @click.self="showQr = false">
       <div class="qr-sheet">
-        <div class="qr-sheet-bar no-print">
+        <div class="qr-sheet-bar">
           <div>
             <strong>Table cards</strong>
             <span class="qr-sheet-hint">
               Print, cut, and fix one to each table — under glass or on the table card, not as a loose sticker.
             </span>
           </div>
-          <div style="display:flex;gap:8px">
+          <div class="qr-sheet-actions">
             <base-button text="Print" variant="btn-primary" extra-class="btn-sm" :on-click="printSheet" />
             <base-button text="Close" variant="btn-ghost" extra-class="btn-sm" :on-click="() => { showQr = false }" />
           </div>
         </div>
 
         <p v-if="qrLoading" class="no-print">Loading…</p>
-        <p v-else-if="qrError" class="no-print" style="color:var(--danger)">{{ qrError }}</p>
+        <p v-else-if="qrError" class="qr-error no-print">{{ qrError }}</p>
 
         <div v-else class="qr-grid">
           <div v-for="c in qrCards" :key="c.id" class="qr-card">
@@ -60,20 +60,21 @@
     </div>
 
     <!-- Summary -->
-    <div class="kpi-grid" style="margin-bottom:20px">
+    <div class="kpi-grid kpi-grid--tables" style="--kpi-count:5">
       <div class="kpi-card"><div class="kpi-bar teal"></div><div class="kpi-label">Total Tables</div><div class="kpi-value">{{ tables.length }}</div></div>
-      <div class="kpi-card"><div class="kpi-bar blue"></div><div class="kpi-label">Available</div><div class="kpi-value" style="color:var(--success)">{{ statusCounts.available || 0 }}</div></div>
-      <div class="kpi-card"><div class="kpi-bar yellow"></div><div class="kpi-label">Occupied</div><div class="kpi-value" style="color:var(--danger)">{{ statusCounts.occupied || 0 }}</div></div>
-      <div class="kpi-card"><div class="kpi-bar gold"></div><div class="kpi-label">Reserved</div><div class="kpi-value" style="color:var(--warning)">{{ statusCounts.reserved || 0 }}</div></div>
+      <div class="kpi-card"><div class="kpi-bar blue"></div><div class="kpi-label">Available</div><div class="kpi-value kpi-value--success">{{ statusCounts.available || 0 }}</div></div>
+      <div class="kpi-card"><div class="kpi-bar yellow"></div><div class="kpi-label">Occupied</div><div class="kpi-value kpi-value--danger">{{ statusCounts.occupied || 0 }}</div></div>
+      <div class="kpi-card"><div class="kpi-bar gold"></div><div class="kpi-label">Reserved</div><div class="kpi-value kpi-value--warning">{{ statusCounts.reserved || 0 }}</div></div>
+      <div class="kpi-card"><div class="kpi-bar info"></div><div class="kpi-label">Cleaning</div><div class="kpi-value kpi-value--info">{{ statusCounts.cleaning || 0 }}</div></div>
     </div>
 
     <!-- Heatmap grid -->
     <div class="heatmap-container">
       <div class="heatmap-legend">
-        <span class="legend-item"><span class="dot" style="background:var(--success)"></span> Available</span>
-        <span class="legend-item"><span class="dot" style="background:var(--danger)"></span> Occupied</span>
-        <span class="legend-item"><span class="dot" style="background:var(--warning)"></span> Reserved</span>
-        <span class="legend-item"><span class="dot" style="background:var(--info)"></span> Cleaning</span>
+        <span class="legend-item"><span class="legend-dot legend-dot--success"></span> Available</span>
+        <span class="legend-item"><span class="legend-dot legend-dot--danger"></span> Occupied</span>
+        <span class="legend-item"><span class="legend-dot legend-dot--warning"></span> Reserved</span>
+        <span class="legend-item"><span class="legend-dot legend-dot--info"></span> Cleaning</span>
       </div>
       <div class="table-grid">
         <div v-for="table in tables" :key="table.id"
@@ -131,7 +132,7 @@
             <div>🕐 {{ tableReservation.time }}</div>
             <div v-if="tableReservation.notes">📝 {{ tableReservation.notes }}</div>
           </div>
-          <div v-else style="color:var(--text-muted);font-size:.85rem">No reservation details</div>
+          <div v-else class="reservation-empty">No reservation details</div>
         </div>
 
         <!-- Active Orders for this table -->
@@ -151,14 +152,14 @@
         </div>
 
         <!-- Status update -->
-        <div class="form-group" style="margin-top:16px">
+        <div class="form-group status-update-form">
           <label>Change Status</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="status-buttons">
             <button v-for="s in ['available','occupied','reserved','cleaning']" :key="s"
               class="btn btn-sm"
               :class="statusForm.status === s ? 'btn-primary' : 'btn-secondary'"
               @click="statusForm.status = s"
-            >{{ s }}</button>
+            >{{ statusLabelMap[s] }}</button>
           </div>
         </div>
 
@@ -191,6 +192,16 @@ const reservations = ref([])
 const selectedTable = ref(null)
 const statusForm = ref({ status: 'available' })
 let durationInterval = null
+
+/* Human-readable labels for table statuses, used in the status-change
+   buttons inside the detail modal. Previously the buttons showed the raw
+   slug — "available", "occupied" — which reads like a mistake in a UI. */
+const statusLabelMap = {
+  available: 'Available',
+  occupied: 'Occupied',
+  reserved: 'Reserved',
+  cleaning: 'Cleaning'
+}
 
 const statusCounts = computed(() => {
   const c = {}
@@ -350,11 +361,19 @@ async function updateTableStatus() {
 </script>
 
 <style scoped>
+/* ─── SSE Badge ─── */
+.sse-badge{font-size:.72rem;padding:4px 10px;border-radius:99px;background:var(--red-50);color:var(--danger);font-weight:600}
+.sse-badge.online{background:var(--green-50);color:var(--success)}
+
 /* ─── Toolbar ─── */
-/* The card sheet. On screen it is a modal; on paper it is only the cards. */
+.toolbar-actions{display:flex;gap:10px;align-items:center}
+
+/* ─── QR Sheet ─── */
+.qr-error{color:var(--danger);font-weight:500}
 .qr-sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;z-index:60}
 .qr-sheet{background:var(--surface,#fff);border-radius:12px;padding:16px;max-width:1000px;width:100%}
 .qr-sheet-bar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.qr-sheet-actions{display:flex;gap:8px}
 .qr-sheet-hint{display:block;font-size:.8rem;opacity:.75;margin-top:2px;max-width:52ch}
 .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
 .qr-card{border:1px solid var(--border,rgba(0,0,0,.15));border-radius:10px;padding:12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;break-inside:avoid}
@@ -377,48 +396,80 @@ async function updateTableStatus() {
   .qr-card{border:1px solid #999}
 }
 
-.table-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.table-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:16px}
 .table-toolbar h3{font-size:1.05rem;color:var(--text-heading);font-weight:600}
 
-/* ─── SSE Badge ─── */
-.sse-badge{font-size:.72rem;padding:4px 10px;border-radius:99px;background:var(--red-50);color:var(--danger);font-weight:600}
-.sse-badge.online{background:var(--green-50);color:var(--success)}
+/* ─── KPI Cards ─── */
+.kpi-grid--tables{grid-template-columns:repeat(5,1fr)}
+.kpi-value--success{color:var(--success)}
+.kpi-value--danger{color:var(--danger)}
+.kpi-value--warning{color:var(--warning)}
+.kpi-value--info{color:var(--info)}
 
 /* ─── Heatmap ─── */
 .heatmap-container{margin-bottom:24px}
-.heatmap-legend{display:flex;gap:16px;margin-bottom:16px;font-size:.78rem;color:var(--text-muted)}
+.heatmap-legend{display:flex;gap:16px;margin-bottom:16px;font-size:.78rem;color:var(--text-muted);flex-wrap:wrap}
 .legend-item{display:flex;align-items:center;gap:6px}
-.legend-item .dot{width:10px;height:10px;border-radius:50%}
-.table-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
-.table-cell{border:2px solid var(--border);border-radius:var(--radius-md);padding:14px 10px;text-align:center;cursor:pointer;transition:all var(--duration-fast) var(--ease)}
-.table-cell:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
-.table-cell.status-available{border-color:var(--success);background:var(--green-50)}
+.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.legend-dot--success{background:var(--success)}
+.legend-dot--danger{background:var(--danger)}
+.legend-dot--warning{background:var(--warning)}
+.legend-dot--info{background:var(--info)}
+.table-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
+.table-cell{border:2px solid var(--border);border-radius:var(--radius-md);padding:16px 12px;text-align:center;cursor:pointer;transition:all var(--duration-fast) var(--ease-out);background:var(--neutral-0);box-shadow:var(--shadow-card)}
+.table-cell:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
+.table-cell.status-available{border-color:var(--teal-300);background:var(--teal-50)}
 .table-cell.status-occupied{border-color:var(--danger);background:var(--red-50)}
 .table-cell.status-reserved{border-color:var(--warning);background:var(--gold-50)}
 .table-cell.status-cleaning{border-color:var(--info);background:var(--blue-50)}
 .table-number{font-size:1.2rem;font-weight:700;color:var(--text-heading)}
-.table-status{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}
+.table-status{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-top:4px}
 .table-seats{font-size:.72rem;color:var(--text-muted);margin-top:2px}
 .table-guest-count{font-size:.68rem;color:var(--text-heading);font-weight:500;margin-top:4px}
 
 /* ─── Table Modal ─── */
-.table-modal{width:520px}
-.table-modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.table-modal{width:640px}
+.table-modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
 .table-status-badge{font-size:.72rem;font-weight:600}
 
-.table-occupied-info{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;padding:16px;background:var(--neutral-50);border-radius:var(--radius-md)}
-.occupied-stat{display:flex;align-items:center;gap:8px}
+.table-occupied-info{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;padding:18px;background:var(--neutral-50);border-radius:var(--radius-md);border:1px solid var(--border)}
+.occupied-stat{display:flex;align-items:center;gap:10px}
 .stat-icon{font-size:1.3rem}
 .stat-label{font-size:.68rem;color:var(--text-muted);text-transform:uppercase}
 .stat-value{font-size:.9rem;font-weight:700;color:var(--text-heading)}
 
-.table-reserved-info{padding:16px;background:var(--gold-50);border-radius:var(--radius-md);border:1px solid #FDE68A;margin-bottom:20px}
+.table-reserved-info{padding:16px;background:var(--gold-50);border-radius:var(--radius-md);border:1px solid #FDE68A;margin-bottom:24px}
 .reservation-detail{font-size:.88rem;color:var(--text-body);line-height:1.6}
+.reservation-empty{color:var(--text-muted);font-size:.82rem}
 
-.table-orders-section{margin-bottom:20px}
+.table-orders-section{margin-bottom:24px}
 .table-orders-section h4{font-size:.85rem;font-weight:600;color:var(--text-heading);margin-bottom:10px}
 .table-order-card{border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px}
 .table-order-card .order-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .table-order-card .order-items{font-size:.82rem;color:var(--text-body);margin-bottom:8px}
 .table-order-card .order-card-footer{display:flex;justify-content:space-between;font-size:.78rem}
+
+.status-update-form .form-group{margin-top:0}
+.status-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.status-buttons .btn{font-size:.82rem;padding:7px 14px}
+
+/* ─── Responsive ─── */
+@media(max-width: 768px) {
+  .kpi-grid--tables{grid-template-columns:repeat(2,1fr)}
+  .table-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .table-grid .table-cell{padding:14px 10px}
+  .table-modal{width:90vw;max-width:520px}
+  .table-occupied-info{grid-template-columns:repeat(2,1fr)}
+  .table-modal-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .status-buttons{flex-direction:column}
+  .status-buttons .btn{width:100%}
+  .heatmap-legend{justify-content:center}
+}
+
+@media(max-width: 420px) {
+  .table-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .table-cell{padding:12px 8px}
+  .table-number{font-size:1rem}
+  .kpi-value{font-size:1.4rem}
+}
 </style>
