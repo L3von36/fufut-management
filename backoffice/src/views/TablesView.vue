@@ -370,7 +370,7 @@ async function updateTableStatus() {
 
 /* ─── QR Sheet ─── */
 .qr-error{color:var(--danger);font-weight:500}
-.qr-sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;z-index:60}
+.qr-sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;z-index:200}
 .qr-sheet{background:var(--surface,#fff);border-radius:12px;padding:16px;max-width:1000px;width:100%}
 .qr-sheet-bar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap}
 .qr-sheet-actions{display:flex;gap:8px}
