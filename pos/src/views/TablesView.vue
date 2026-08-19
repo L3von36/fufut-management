@@ -24,6 +24,39 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
       </div>
+
+    <!--
+      Orders guests placed themselves, from the code on their table.
+
+      They are not on the kitchen board yet and will not be until somebody here
+      taps Accept. That is the whole safeguard: a printed code is a photograph
+      anyone can keep, so an order from one is a request rather than an
+      instruction. A glance at the table answers it.
+
+      The strip is absent entirely when nothing is waiting — an empty panel on
+      a floor plan is noise, and this screen is busy enough.
+    -->
+    <div v-if="pendingOrders.length" class="tm-pending">
+      <div class="tm-pending-head">
+        <strong>{{ pendingOrders.length }} order{{ pendingOrders.length === 1 ? '' : 's' }} from guests waiting</strong>
+        <span class="tm-pending-hint">The kitchen has not seen these yet</span>
+      </div>
+      <div class="tm-pending-list">
+        <div v-for="o in pendingOrders" :key="o.id" class="tm-pending-card">
+          <div class="tm-pending-where">
+            <span class="tm-pending-table">{{ tableLabel(o.tableNum) }}</span>
+            <span class="tm-pending-ago">{{ waitingFor(o.created) }}</span>
+          </div>
+          <div class="tm-pending-items">{{ summarise(o.items) }}</div>
+          <div class="tm-pending-actions">
+            <span class="tm-pending-total">{{ o.total }}</span>
+            <button class="btn btn-primary btn-sm" :disabled="accepting === o.id" @click="acceptOrder(o)">
+              {{ accepting === o.id ? 'Sending…' : 'Accept' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     </div>
 
     <!-- ═══ SECTION TABS ═══ -->
@@ -577,6 +610,67 @@ function getOrderLines(o) {
   return []
 }
 
+// ─── Orders guests placed themselves ───
+//
+// Held back from the kitchen until somebody on the floor accepts them. See the
+// strip in the template, and the SQL in the API's kitchen board query.
+
+const pendingOrders = ref([])
+const accepting = ref(null)
+
+async function loadPending() {
+  try {
+    pendingOrders.value = (await apiGet('orders/pending')) || []
+  } catch (e) {
+    // A waiter cannot act on this failing, and the floor plan itself is the
+    // important thing on this screen — so it stays quiet and tries again on the
+    // next refresh.
+    pendingOrders.value = []
+  }
+}
+
+async function acceptOrder(order) {
+  if (accepting.value) return
+  accepting.value = order.id
+  try {
+    await apiPost(`orders/${order.id}/accept`, {})
+    // Drop it immediately rather than waiting for the reload: the waiter has
+    // just tapped it and needs to see that it went.
+    pendingOrders.value = pendingOrders.value.filter(o => o.id !== order.id)
+    toast(`Sent to the kitchen — ${tableLabel(order.tableNum)}`, 'success')
+    await loadOrders()
+  } catch (e) {
+    toast(e.message || 'Could not accept that order', 'error')
+  } finally {
+    accepting.value = null
+  }
+}
+
+/** "T4" is how the system names it; a waiter reads "Table 4". */
+function tableLabel(id) {
+  if (!id) return 'No table'
+  const m = String(id).match(/^T?(\d+)$/i)
+  return m ? `Table ${m[1]}` : String(id)
+}
+
+/** How long the guest has been waiting for somebody to look. */
+function waitingFor(created) {
+  if (!created) return ''
+  const mins = Math.max(0, Math.round((Date.now() - new Date(created.replace(' ', 'T') + 'Z').getTime()) / 60000))
+  if (!Number.isFinite(mins)) return ''
+  return mins < 1 ? 'just now' : `${mins} min`
+}
+
+/** The order's lines, short enough to read at a glance. */
+function summarise(items) {
+  let list = items
+  if (typeof list === 'string') {
+    try { list = JSON.parse(list) } catch { return list }
+  }
+  if (!Array.isArray(list)) return ''
+  return list.map(i => `${i.qty || 1}x ${i.name}`).join(', ')
+}
+
 // ─── Data loading ───
 
 async function loadTables() {
@@ -591,7 +685,7 @@ async function loadOrders() {
 }
 
 async function refreshAll() {
-  await Promise.all([loadTables(), loadOrders()])
+  await Promise.all([loadTables(), loadOrders(), loadPending()])
   toast('Refreshed', 'info')
 }
 
@@ -755,23 +849,57 @@ async function addTable() {
 
 // ─── Lifecycle ───
 
+let pendingInterval = null
+
 onMounted(async () => {
-  await Promise.all([loadTables(), loadOrders()])
+  await Promise.all([loadTables(), loadOrders(), loadPending()])
   loading.value = false
   setupSSE()
   timerInterval = setInterval(() => {
     // Trigger reactive update for occupancy timers without full re-render
     tick.value++
   }, 10000)
+  // A guest sitting at a table has no way to chase anybody, so the floor has
+  // to notice on its own. Half a minute is often enough to feel prompt without
+  // making the screen busy.
+  pendingInterval = setInterval(loadPending, 30000)
 })
 
 onUnmounted(() => {
   sseDisconnect()
   if (timerInterval) clearInterval(timerInterval)
+  if (pendingInterval) clearInterval(pendingInterval)
 })
 </script>
 
 <style scoped>
+/* Orders waiting for a waiter. Deliberately loud — a guest is sitting there
+   wondering whether anybody saw it. */
+.tm-pending {
+  margin: 10px 0 14px;
+  border: 1px solid var(--warning, #b45309);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--warning, #b45309) 8%, transparent);
+  padding: 10px 12px;
+}
+.tm-pending-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.tm-pending-hint { font-size: .78rem; opacity: .75; }
+.tm-pending-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.tm-pending-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, rgba(0,0,0,.12));
+  border-radius: 8px; padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.tm-pending-where { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tm-pending-table { font-weight: 700; }
+.tm-pending-ago { font-size: .75rem; opacity: .7; }
+.tm-pending-items { font-size: .85rem; line-height: 1.35; }
+.tm-pending-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tm-pending-total { font-weight: 600; }
+@media (max-width: 640px) {
+  .tm-pending-list { grid-template-columns: 1fr; }
+}
 /* Toolbar — removes duplicate title from topbar */
 .tm-toolbar {
   display: flex;

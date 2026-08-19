@@ -6,7 +6,56 @@
         <span class="sse-badge" :class="{ online: sse.connected.value }">
           {{ sse.connected.value ? '● Live' : '○ Connecting' }}
         </span>
+        <base-button text="QR cards" variant="btn-secondary" extra-class="btn-sm" :on-click="openQrSheet" />
         <base-button text="Refresh" variant="btn-secondary" extra-class="btn-sm" :on-click="loadAll" />
+      </div>
+    </div>
+
+    <!--
+      The cards that go on the tables.
+
+      One code per table and never more: a table carrying separate codes for the
+      menu, for ordering and for paying is exactly where a counterfeit sticker
+      hides, because among three a fourth looks like it belongs. The table name
+      is printed large under the code so staff and guests can both tell at a
+      glance which table a card belongs to — and so a card moved to the wrong
+      table is obvious rather than silently wrong.
+
+      Rendered locally. The URL contains the table's key, so it must never be
+      sent to an image service to be turned into a QR code.
+    -->
+    <div v-if="showQr" class="qr-sheet-backdrop" @click.self="showQr = false">
+      <div class="qr-sheet">
+        <div class="qr-sheet-bar no-print">
+          <div>
+            <strong>Table cards</strong>
+            <span class="qr-sheet-hint">
+              Print, cut, and fix one to each table — under glass or on the table card, not as a loose sticker.
+            </span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <base-button text="Print" variant="btn-primary" extra-class="btn-sm" :on-click="printSheet" />
+            <base-button text="Close" variant="btn-ghost" extra-class="btn-sm" :on-click="() => { showQr = false }" />
+          </div>
+        </div>
+
+        <p v-if="qrLoading" class="no-print">Loading…</p>
+        <p v-else-if="qrError" class="no-print" style="color:var(--danger)">{{ qrError }}</p>
+
+        <div v-else class="qr-grid">
+          <div v-for="c in qrCards" :key="c.id" class="qr-card">
+            <img v-if="c.image" :src="c.image" :alt="`QR code for ${c.name}`" class="qr-img" />
+            <div v-else class="qr-missing">
+              <span>No code yet</span>
+              <button class="btn btn-sm btn-primary no-print" @click="mint(c)">Create</button>
+            </div>
+            <div class="qr-name">{{ c.name }}</div>
+            <div class="qr-caption">Scan to see the menu and order</div>
+            <button v-if="c.image" class="btn btn-sm btn-ghost no-print" @click="mint(c)">
+              Replace code
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -124,7 +173,8 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
-import { apiGet, apiPut } from '../api'
+import { apiGet, apiPut, apiPost } from '../api'
+import QRCode from 'qrcode'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { localTime } from '../lib/datetime'
 import { formatOrderItems } from '../lib/formatters'
@@ -132,6 +182,7 @@ import { useSSE } from '../composables/useSSE'
 import { useButtonState } from '../composables/useButtonState'
 
 const toast = inject('toast')
+const confirmDelete = inject('confirm')
 const sse = useSSE()
 const btnState = useButtonState({ successDuration: 1500 })
 const tables = ref([])
@@ -216,6 +267,70 @@ async function loadAll() {
   } catch (e) { toast('Failed to load data', 'error') }
 }
 
+// ─── The cards that go on the tables ───
+
+const showQr = ref(false)
+const qrCards = ref([])
+const qrLoading = ref(false)
+const qrError = ref('')
+
+/**
+ * Where the printed code should point.
+ *
+ * Taken from the site the cafe actually publishes rather than from wherever the
+ * backoffice happens to be open, because a card printed from a staging URL
+ * would look identical and work for nobody.
+ */
+const PUBLIC_SITE = 'https://fufutcoffee.com'
+
+async function openQrSheet() {
+  showQr.value = true
+  qrLoading.value = true
+  qrError.value = ''
+  try {
+    const res = await apiGet(`tables/qr?origin=${encodeURIComponent(PUBLIC_SITE)}`)
+    qrCards.value = await withImages(res.tables || [])
+  } catch (e) {
+    qrError.value = e.message || 'Could not load the table codes'
+  } finally {
+    qrLoading.value = false
+  }
+}
+
+/**
+ * Draw each code here in the browser.
+ *
+ * The URL carries the table's key, so handing it to an image service would be
+ * publishing the secret the code exists to protect.
+ */
+async function withImages(rows) {
+  return Promise.all(
+    rows.map(async (t) => ({
+      ...t,
+      image: t.url
+        ? await QRCode.toDataURL(t.url, { width: 420, margin: 1, errorCorrectionLevel: 'M' })
+        : null,
+    }))
+  )
+}
+
+async function mint(card) {
+  const replacing = Boolean(card.image)
+  if (replacing && !(await confirmDelete(`Replace the code for ${card.name}? The printed card stops working immediately.`))) return
+  try {
+    const res = await apiPost(`tables/${card.id}/qr?origin=${encodeURIComponent(PUBLIC_SITE)}`, {})
+    const image = await QRCode.toDataURL(res.url, { width: 420, margin: 1, errorCorrectionLevel: 'M' })
+    qrCards.value = qrCards.value.map((c) => (c.id === card.id ? { ...c, url: res.url, hasKey: true, image } : c))
+    toast(replacing ? `${card.name}: new code — reprint that card` : `${card.name}: code created`, 'success')
+  } catch (e) {
+    toast(e.message || 'Could not create the code', 'error')
+  }
+}
+
+function printSheet() {
+  window.print()
+}
+
 async function loadOrders() { try { orders.value = await apiGet('orders') } catch (e) { toast('Failed to load orders', 'error') } }
 
 function selectTable(table) {
@@ -236,6 +351,32 @@ async function updateTableStatus() {
 
 <style scoped>
 /* ─── Toolbar ─── */
+/* The card sheet. On screen it is a modal; on paper it is only the cards. */
+.qr-sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;z-index:60}
+.qr-sheet{background:var(--surface,#fff);border-radius:12px;padding:16px;max-width:1000px;width:100%}
+.qr-sheet-bar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.qr-sheet-hint{display:block;font-size:.8rem;opacity:.75;margin-top:2px;max-width:52ch}
+.qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.qr-card{border:1px solid var(--border,rgba(0,0,0,.15));border-radius:10px;padding:12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;break-inside:avoid}
+.qr-img{width:100%;max-width:190px;height:auto;image-rendering:pixelated}
+.qr-missing{width:100%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--border,rgba(0,0,0,.25));border-radius:8px;font-size:.85rem;opacity:.8}
+/* Large, because it is the human check: a card on the wrong table should be
+   obvious to anyone glancing at it, and so should a code that has been
+   covered by somebody else's sticker. */
+.qr-name{font-size:1.15rem;font-weight:700}
+.qr-caption{font-size:.75rem;opacity:.7}
+
+@media print{
+  /* Everything except the sheet disappears, so a manager gets cards rather
+     than a screenshot of the backoffice. */
+  body :not(.qr-sheet-backdrop):not(.qr-sheet-backdrop *){visibility:hidden}
+  .qr-sheet-backdrop{position:static;background:none;padding:0;overflow:visible;display:block}
+  .qr-sheet{box-shadow:none;max-width:none;padding:0}
+  .no-print{display:none !important}
+  .qr-grid{grid-template-columns:repeat(3,1fr);gap:10mm}
+  .qr-card{border:1px solid #999}
+}
+
 .table-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
 .table-toolbar h3{font-size:1.05rem;color:var(--text-heading);font-weight:600}
 
