@@ -7,7 +7,8 @@
         <select v-model="statusFilter" class="select select-sm" style="width:auto">
           <option value="">All Status</option><option>new</option><option>confirmed</option><option>cancelled</option><option>completed</option>
         </select>
-        <button class="btn btn-primary" @click="loadReservations">Filter</button>
+        <button v-if="filtersApplied" class="btn btn-ghost" @click="dateFilter=''; statusFilter=''">Clear</button>
+        <button class="btn btn-primary" @click="loadReservations">Refresh</button>
         <button class="btn btn-secondary" @click="showForm=true;editing=null;form={}">+ Add</button>
       </div>
     </div>
@@ -24,8 +25,8 @@
         :rows="filtered"
         stack-on-mobile
         caption="Table reservations"
-        empty-title="No reservations"
-        empty-hint="Bookings appear here once taken."
+        :empty-title="filtersApplied ? 'No reservations match the filter' : 'No reservations'"
+        :empty-hint="filtersApplied ? emptyHintWithFilter : 'Bookings appear here once taken.'"
       >
         <template #cell-name="{ row }"><strong>{{ row.name }}</strong></template>
         <template #cell-status="{ row }">
@@ -85,7 +86,17 @@ const toast = inject('toast')
 const confirmDelete = inject('confirm')
 const btnState = useButtonState({ successDuration: 2000 })
 const reservations = ref([])
-const dateFilter = ref(TODAY())
+/**
+ * No date filter until somebody asks for one.
+ *
+ * This defaulted to today, so the screen showed a booking only if it happened
+ * to be for today — and said "No reservations" when it did not. The bookings
+ * were all there, visible on the admin dashboard, which applies no such
+ * filter. A screen that hides the data it exists to show, and then reports
+ * emptiness as if it were a fact about the venue, is worse than one that shows
+ * too much.
+ */
+const dateFilter = ref('')
 const statusFilter = ref('')
 const showForm = ref(false)
 const editing = ref(null)
@@ -108,6 +119,19 @@ const filtered = computed(() => reservations.value.filter(r => {
   if (statusFilter.value && r.status !== statusFilter.value) return false
   return true
 }))
+
+/**
+ * An empty table has two very different meanings, and saying "No reservations"
+ * for both is how somebody concludes the bookings are gone.
+ */
+const filtersApplied = computed(() => Boolean(dateFilter.value || statusFilter.value))
+
+const emptyHintWithFilter = computed(() => {
+  const parts = []
+  if (dateFilter.value) parts.push(`date ${dateFilter.value}`)
+  if (statusFilter.value) parts.push(`status ${statusFilter.value}`)
+  return `${reservations.value.length} booking${reservations.value.length === 1 ? '' : 's'} in total — clear the ${parts.join(' and ')} filter to see ${reservations.value.length === 1 ? 'it' : 'them'}.`
+})
 
 onMounted(loadReservations)
 async function loadReservations() { try { reservations.value = await apiGet('reservations') } catch (e) { console.error(e) } }
