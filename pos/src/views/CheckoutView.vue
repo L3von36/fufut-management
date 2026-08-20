@@ -775,6 +775,10 @@ async function processPayment() {
       store.lastOrderId = store.activeOpenOrderId || res.id || res.orderId || '—'
       store.activeOpenOrderId = null
       store.isAddRound = false
+      // Clear the cart so the next order starts fresh. The receipt data is
+      // already captured in lastPayload, and clearCart() removes both the
+      // in-memory items and the localStorage persistence.
+      store.clearCart()
       store.checkoutStep = 'success'
       toast('Order placed successfully!', 'success')
       // Fix #9: Audio feedback on successful payment
