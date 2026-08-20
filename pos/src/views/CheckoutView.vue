@@ -23,13 +23,12 @@
             <div style="display:flex;gap:4px;align-items:center">
               <button type="button" class="btn btn-xs btn-outline" style="font-size:.68rem;padding:1px 5px" @click="showAllTables = !showAllTables">
                 {{ showAllTables ? 'Showing All' : 'Show All' }}
-              </button>
-              <button
-                v-if="store.tableNum && isSelectedTableOccupied"
+              </button>          <!-- Fix #16: Free up table with confirmation -->
+          <button v-if="store.tableNum && isSelectedTableOccupied"
                 type="button"
                 class="btn btn-xs btn-warning"
                 style="font-size:.68rem;padding:1px 5px"
-                @click="freeUpTable(store.tableNum)"
+                @click="promptFreeTable(store.tableNum)"
               >
                 Free Up #{{ store.tableNum }}
               </button>
@@ -82,7 +81,8 @@
             <button class="qty-btn" @click="store.incrementQty(entry.uid)">+</button>
           </div>
           <div class="cl-total">ETB {{ (store.lineTotal(entry) * entry.qty).toFixed(0) }}</div>
-          <button class="cl-remove" @click="store.removeItem(entry.uid)">✕</button>
+          <!-- Fix #2: Undo toast on remove, Fix #17: 44px touch target -->
+          <button class="cl-remove" @click="removeWithUndo(entry)" title="Remove item">✕</button>
         </div>
       </div>
 
@@ -127,7 +127,9 @@
           <div class="sc-title-row">
             <span class="sc-icon">💎</span>
             <span class="sc-title">Add Tip</span>
+            <!-- Fix #7: Show tip badge when collapsed -->
             <span v-if="store.calculatedTip > 0" class="sc-badge">ETB {{ store.calculatedTip.toFixed(0) }}</span>
+            <span v-else-if="store.tipType === 'none' && !tipExpanded" class="sc-badge" style="background:var(--neutral-50);color:var(--text-muted);border:1px dashed var(--border-strong)">Tap to add</span>
           </div>
           <svg :class="{ rotated: tipExpanded }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sc-chevron" style="width:18px;height:18px"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
@@ -272,12 +274,24 @@
             </div>
           </div>
 
-          <!-- Card / Mobile panel -->
-          <div v-else class="card-panel">
+          <!-- Fix #10: Differentiated Card / Mobile / Transfer panels -->
+          <div v-if="store.paymentMethod === 'card'" class="card-panel">
             <div class="card-panel-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;color:var(--primary)"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             </div>
-            <p class="card-panel-text">Tap <strong>Process Payment</strong> once the {{ store.paymentMethod === 'card' ? 'card' : 'transfer' }} has gone through.</p>
+            <p class="card-panel-text">Tap <strong>Process Payment</strong> once the card terminal has confirmed.</p>
+          </div>
+          <div v-else-if="store.paymentMethod === 'mobile'" class="card-panel">
+            <div class="card-panel-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;color:var(--primary)"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            </div>
+            <p class="card-panel-text">Ask the guest to complete the transfer on their phone, then tap <strong>Process Payment</strong>.</p>
+          </div>
+          <div v-else-if="['telebirr','cbe','bank'].includes(store.paymentMethod)" class="card-panel">
+            <div class="card-panel-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;color:var(--primary)"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/></svg>
+            </div>
+            <p class="card-panel-text">Verify the transfer reference below, then tap <strong>Process Payment</strong>.</p>
           </div>
 
           <!--
@@ -367,6 +381,10 @@
           </div>
 
           <!-- Validation message -->
+          <!-- Fix #12: Split bill auto-fill note -->
+          <div v-if="store.splitPayments.length > 1" style="font-size:.72rem;color:var(--text-muted);margin-top:4px;text-align:center">
+            Each new payment covers the remaining balance.
+          </div>
           <div v-if="store.splitPayments.length > 0 && !store.splitIsValid" class="split-validation">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             <span>Payments must total ETB {{ store.grandTotal.toFixed(0) }}</span>
@@ -393,6 +411,11 @@
         <div v-if="store.calculatedTip > 0" class="ps-line">
           <span>Tip</span>
           <span>ETB {{ store.calculatedTip.toFixed(0) }}</span>
+        </div>
+        <!-- Fix #13: Delivery fee line -->
+        <div v-if="store.chargedDeliveryFee > 0" class="ps-line">
+          <span>Delivery Fee</span>
+          <span>ETB {{ store.chargedDeliveryFee.toFixed(0) }}</span>
         </div>
         <div class="ps-total">
           <span>Grand Total</span>
@@ -429,7 +452,8 @@
         </p>
 
         <div class="success-actions">
-          <button class="btn btn-primary" @click="printReceipt">
+          <!-- Fix #8: Auto-focus ref -->
+          <button class="btn btn-primary" ref="successBtnRef" @click="printReceipt">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             Print Receipt
           </button>
@@ -446,24 +470,63 @@
       @confirm="onModifierConfirm"
       @cancel="showModifierSheet = false"
     />
+
+    <!-- Fix #1: Clear All confirmation -->
+    <transition name="modal">
+      <div v-if="showClearConfirm" class="modal-overlay" @click.self="showClearConfirm = false">
+        <div class="confirm-dialog">
+          <div class="confirm-icon">🗑️</div>
+          <div class="confirm-title">Clear All Items?</div>
+          <div class="confirm-text">This will remove {{ store.cartItemCount }} item{{ store.cartItemCount !== 1 ? 's' : '' }} from the order. This can't be undone.</div>
+          <div class="confirm-actions">
+            <button class="btn btn-danger" @click="clearOrder(); showClearConfirm = false">Yes, Clear All</button>
+            <button class="btn btn-secondary" @click="showClearConfirm = false">Keep Items</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Fix #16: Free up table confirmation -->
+    <transition name="modal">
+      <div v-if="showFreeConfirm" class="modal-overlay" @click.self="showFreeConfirm = null">
+        <div class="confirm-dialog">
+          <div class="confirm-icon">⚠️</div>
+          <div class="confirm-title">Free Table {{ showFreeConfirm }}?</div>
+          <div class="confirm-text">This will disconnect any open tab on this table. The existing party's order may be lost.</div>
+          <div class="confirm-actions">
+            <button class="btn btn-danger" @click="confirmFreeTable">Yes, Free Table</button>
+            <button class="btn btn-secondary" @click="showFreeConfirm = null">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiGet, apiPut, apiPost } from '../api'
 import { useOrderStore } from '../stores/order'
 import { useAuthStore } from '../stores/auth'
+import { useAudioAlerts } from '../composables/useAudioAlerts'
+import { customerReceipt } from '../lib/print'
 import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
 
 const router = useRouter()
 const toast = inject('toast')
 const store = useOrderStore()
 const auth = useAuthStore()
+const { playOrderReady } = useAudioAlerts()
 const processing = ref(false)
 const tables = ref([])
 const showAllTables = ref(false)
+// Fix #1: Clear all confirmation
+const showClearConfirm = ref(false)
+// Fix #16: Free up table confirmation
+const showFreeConfirm = ref(null)
+// Fix #14: Keyboard shortcuts
+const processBtnRef = ref(null)
 
 const availableTables = computed(() => {
   if (showAllTables.value) return tables.value
@@ -484,7 +547,13 @@ async function loadTables() {
   try { tables.value = (await apiGet('tables')) || [] } catch (e) { console.error(e) }
 }
 
-async function freeUpTable(tableNum) {
+// Fix #16: Free up table with confirmation
+function promptFreeTable(tableNum) {
+  showFreeConfirm.value = tableNum
+}
+async function confirmFreeTable() {
+  const tableNum = showFreeConfirm.value
+  showFreeConfirm.value = null
   const match = tables.value.find(t => String(t.number) === String(tableNum))
   if (!match) return
   try {
@@ -555,9 +624,41 @@ const modifierTarget = ref({})
 const tipExpanded = ref(false)
 const discountExpanded = ref(false)
 const lastPayload = ref({})
+const successBtnRef = ref(null)
+
+// Fix #14: Keyboard shortcuts for cashier speed
+function handleKeydown(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return
+  if (step.value === 'payment') {
+    if (e.key === 'Enter' && store.canProcess && !processing.value) {
+      e.preventDefault()
+      processPayment()
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      step.value = 'cart'
+    }
+  }
+  if (step.value === 'success') {
+    if (e.key === 'Enter' || e.key === 'Escape') {
+      e.preventDefault()
+      newOrder()
+    }
+  }
+}
+
+onMounted(() => { document.addEventListener('keydown', handleKeydown) })
+onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
+
+// Fix #8: Auto-focus New Order button on success
+const successBtnRef2 = computed(() => {
+  if (step.value === 'success') nextTick(() => successBtnRef.value?.focus())
+  return null
+})
 
 const step = computed(() => store.checkoutStep)
 
+// Fix #5: Add transfer payment methods
 const paymentOptions = [
   {
     value: 'cash',
@@ -573,6 +674,21 @@ const paymentOptions = [
     value: 'mobile',
     label: 'Mobile Money',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:24px;height:24px"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'
+  },
+  {
+    value: 'telebirr',
+    label: 'Telebirr',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:24px;height:24px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'
+  },
+  {
+    value: 'cbe',
+    label: 'CBE Birr',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:24px;height:24px"><path d="M4 4h16v16H4z"/><path d="M4 12h16"/><path d="M12 4v16"/></svg>'
+  },
+  {
+    value: 'bank',
+    label: 'Bank Transfer',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:24px;height:24px"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/></svg>'
   }
 ]
 
@@ -583,20 +699,22 @@ const splitPaymentOptions = [
 ]
 
 // Quick tender amounts based on grand total
+// Fix #6: Quick tender always includes amounts below and above total
 const quickAmounts = computed(() => {
   const total = store.grandTotal
-  const amounts = []
   const notes = [10, 50, 100, 200, 500, 1000]
-  for (const n of notes) {
-    if (n >= total && !amounts.includes(n)) amounts.push(n)
-  }
-  if (amounts.length < 3) {
+  const below = notes.filter(n => n <= total).slice(-1) // largest note <= total
+  const above = notes.filter(n => n >= total).slice(0, 3) // smallest notes >= total
+  const amounts = [...below, ...above]
+  // Deduplicate and ensure at least 3 options
+  const unique = [...new Set(amounts)]
+  if (unique.length < 3) {
     for (const n of notes) {
-      if (n > total && !amounts.includes(n)) amounts.push(n)
-      if (amounts.length >= 4) break
+      if (!unique.includes(n)) unique.push(n)
+      if (unique.length >= 4) break
     }
   }
-  return amounts.slice(0, 4)
+  return unique.slice(0, 4)
 })
 
 function goToPayment() {
@@ -648,9 +766,6 @@ async function processPayment() {
               newSeating: true,
             })
           } catch (e) {
-            // The bill is already taken, so this cannot fail the sale — but the
-            // floor plan will not show this table as busy, and a waiter who is
-            // never told will find somebody else sitting there.
             toast(e.message || `Order taken, but table ${store.tableNum} could not be held`, 'error')
           }
         }
@@ -660,6 +775,10 @@ async function processPayment() {
       store.isAddRound = false
       store.checkoutStep = 'success'
       toast('Order placed successfully!', 'success')
+      // Fix #9: Audio feedback on successful payment
+      playOrderReady()
+      // Fix #8: Auto-focus New Order button
+      nextTick(() => { successBtnRef.value?.focus() })
     } else {
       throw new Error(res.error || 'Order failed')
     }
@@ -677,74 +796,44 @@ function newOrder() {
   router.push('/app/menu-view')
 }
 
-function escapeHtml(s) {
-  if (!s) return ''
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-}
-
+// Fix #4: Use shared esc() from lib/print.js
+// Fix #3, #15: Use shared customerReceipt from lib/print.js
 function printReceipt() {
   const p = lastPayload.value
-  const w = window.open('', '_blank')
-  if (!w) return
-  const id = store.lastOrderId || '—'
-  const date = new Date().toLocaleString()
-  const lines = store.items.map(i =>
-    `${i.qty}x ${escapeHtml(i.name)}${(i.selectedModifiers||[]).length ? ' ['+i.selectedModifiers.map(m=>escapeHtml(m.name)).join(', ')+']' : ''}  ETB ${(store.lineTotal(i)*i.qty).toFixed(0)}`
-  ).join('<br>')
-  
-  // Discount line
-  let discountLine = ''
-  if (p.discount > 0) {
-    discountLine = `<div class="line" style="color:#c00"><span>Discount${p.discountReason ? ' ('+p.discountReason+')' : ''}</span><span>-ETB ${p.discount.toFixed(0)}</span></div>`
+  const payload = {
+    ...p,
+    id: store.lastOrderId || '—',
+    deliveryFee: store.chargedDeliveryFee || 0,
   }
-  
-  // Tip line
-  let tipLine = ''
-  if (p.tip > 0) {
-    tipLine = `<div class="line"><span>Tip</span><span>ETB ${p.tip.toFixed(0)}</span></div>`
-  }
-  
-  // Payment breakdown
-  let paymentLines = ''
-  if (p.paymentBreakdown && p.paymentBreakdown.length > 0) {
-    for (const pb of p.paymentBreakdown) {
-      paymentLines += `<div class="line"><span>${escapeHtml(pb.method.charAt(0).toUpperCase()+pb.method.slice(1))}</span><span>ETB ${pb.amount.toFixed(0)}</span></div>`
-      if (pb.tendered !== undefined) {
-        paymentLines += `<div class="line" style="font-size:11px;color:#666"><span>Tendered</span><span>ETB ${pb.tendered.toFixed(0)}</span></div>`
-        paymentLines += `<div class="line" style="font-size:11px;color:#666"><span>Change</span><span>ETB ${pb.change.toFixed(0)}</span></div>`
-      }
-    }
-  } else {
-    paymentLines = `<div class="line"><span>Payment</span><span>${escapeHtml(p.payment)}</span></div>`
-  }
+  const ok = customerReceipt(payload, store.items, { lineTotal: store.lineTotal })
+  if (!ok) toast('Allow pop-ups for this site to print receipts', 'error')
+}
 
-  w.document.write(`<html><head><title>Receipt #${id}</title>
-    <style>body{font-family:monospace;padding:20px;max-width:320px;margin:0 auto;font-size:13px}
-    h2{text-align:center;margin-bottom:4px}.center{text-align:center}
-    hr{border:none;border-top:1px dashed #000;margin:10px 0}
-    .line{display:flex;justify-content:space-between;padding:2px 0}
-    .total{font-weight:700;border-top:2px solid #000;padding-top:8px;display:flex;justify-content:space-between}
-    </style></head><body>
-    <h2>FU FUT Caf\u00e9</h2>
-    <p class="center">Receipt #${id}<br>${date}</p>
-    <hr>
-    <p>Type: ${escapeHtml(p.type)} ${p.tableNum ? '· Table '+escapeHtml(p.tableNum) : ''}<br>
-    Customer: ${escapeHtml(p.customer) || 'Walk-in'}</p>
-    <hr>
-    ${lines}
-    <hr>
-    <div class="line"><span>Subtotal</span><span>ETB ${(p.subtotal || 0).toFixed(0)}</span></div>
-    ${discountLine}
-    ${tipLine}
-    <div class="total"><span>GRAND TOTAL</span><span>ETB ${p.total}</span></div>
-    <hr>
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;color:#666">Payment</div>
-    ${paymentLines}
-    <hr>
-    <p class="center" style="margin-top:12px">Thank you for visiting!<br>FU FUT COFFEE</p>
-    </body></html>`)
-  w.document.close()
-  w.print()
+// Fix #2: Remove with undo toast
+function removeWithUndo(entry) {
+  const name = entry.name
+  const uid = entry.uid
+  store.removeItem(uid)
+  toast(`${name} removed — 3s to undo`, 'info', {
+    action: {
+      label: 'Undo',
+      onClick: () => {
+        // Re-add the item with same quantity
+        for (let i = 0; i < entry.qty; i++) {
+          store.addItem({
+            menuItemId: entry.menuItemId,
+            name: entry.name,
+            basePrice: entry.basePrice,
+            selectedModifiers: entry.selectedModifiers || [],
+            notes: entry.notes || '',
+            course: entry.course || 'main'
+          })
+        }
+        toast(`${name} restored`, 'success')
+      }
+    },
+    duration: 3000
+  })
 }
 
 // Modifier handling
@@ -864,14 +953,15 @@ onMounted(() => {
   font-weight: 600; font-size: .9rem;
   min-width: 70px; text-align: right;
 }
+/* Fix #17: 44px touch target for remove button */
 .cl-remove {
-  width: 28px; height: 28px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   border: none; background: transparent; color: var(--text-muted);
   cursor: pointer; display: flex; align-items: center;
-  justify-content: center; font-size: .78rem;
+  justify-content: center; font-size: .88rem; flex-shrink: 0;
   transition: all var(--duration-fast);
 }
-.cl-remove:hover {
+.cl-remove:hover, .cl-remove:active {
   background: var(--red-50); color: var(--danger);
 }
 
@@ -1424,4 +1514,15 @@ onMounted(() => {
     flex-wrap: wrap;
   }
 }
+
+/* Fix #1, #16: Confirmation dialog */
+.confirm-dialog {
+  background: var(--surface); border-radius: 16px; padding: 28px;
+  max-width: 380px; width: 100%; text-align: center;
+  box-shadow: 0 24px 60px rgba(0,0,0,.25); border: 1px solid var(--border);
+}
+.confirm-icon { font-size: 2.5rem; margin-bottom: 12px; }
+.confirm-title { font-size: 1.1rem; font-weight: 700; color: var(--text-heading); margin-bottom: 8px; }
+.confirm-text { font-size: .82rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
+.confirm-actions { display: flex; gap: 10px; justify-content: center; }
 </style>

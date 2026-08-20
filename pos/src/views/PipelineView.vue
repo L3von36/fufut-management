@@ -26,9 +26,12 @@
         class="pipeline-lane"
         :class="{ 'drag-over': dragOver === stage.key }"
         :style="{ '--accent': stage.accent }"
+        :data-stage="stage.key"
         @dragover.prevent="dragOver = stage.key"
         @dragleave="dragOver = null"
         @drop="onDrop($event, stage.key); dragOver = null"
+        @touchmove.passive="onTouchMove"
+        @touchend="onTouchEnd"
       >
         <!-- Lane header -->
         <div class="lane-header">
@@ -49,6 +52,7 @@
               :class="{ 'card-urgent': order.timer > 600 }"
               draggable="true"
               @dragstart="onDragStart($event, order)"
+              @touchstart="onTouchStart($event, order)"
               @click="selectOrder(order)"
             >
               <div class="card-top">
@@ -164,6 +168,28 @@
         </div>
       </div>
     </transition>
+
+    <!-- Fix #10: Cancel confirmation dialog -->
+    <transition name="modal">
+      <div v-if="cancelConfirm" class="modal-overlay" @click.self="dismissCancel">
+        <div class="confirm-modal">
+          <div class="confirm-icon">⚠️</div>
+          <div class="confirm-title">Cancel Order?</div>
+          <div class="confirm-text">
+            Order #{{ cancelConfirm.id?.slice(-5).toUpperCase() }} will be cancelled.
+            This action cannot be undone.
+          </div>
+          <div class="confirm-actions">
+            <button class="btn btn-danger" @click="confirmCancel">Yes, Cancel Order</button>
+            <button class="btn btn-secondary" @click="dismissCancel">Keep Order</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -172,15 +198,20 @@ import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { useSSE } from '../composables/useSSE'
 import { useAuthStore } from '../stores/auth'
-import { formatOrderItems } from '../lib/formatters'
+import { useAudioAlerts } from '../composables/useAudioAlerts'
+import { getStructuredLines, getOrderLines } from '../lib/orderLines'
 
 const toast = inject('toast')
 const auth = useAuthStore()
 const sse = useSSE()
+const { muted: audioMuted, playNewOrder, playOrderReady, playOrderUpdate } = useAudioAlerts()
 const orders = ref([])
+const activeItems = ref([])
 const selectedOrder = ref(null)
 const dragOrder = ref(null)
 const dragOver = ref(null)
+// Fix #10: Cancel confirmation state
+const cancelConfirm = ref(null)
 
 const stages = [
   { key: 'new',       label: 'New Orders',     accent: '#3B82F6', icon: '📋', emptyIcon: '📭', emptyText: 'No new orders' },
@@ -220,6 +251,10 @@ const currentStepIdx = computed(() => {
 })
 
 let timerInterval = null
+// Fix #7: Touch drag state
+let touchStartCard = null
+let touchClone = null
+let touchOrderId = null
 
 onMounted(() => {
   loadOrders()
@@ -227,15 +262,19 @@ onMounted(() => {
   sse.on('new_order', (data) => {
     orders.value.push({ ...data, timer: 0 })
     toast(`New order #${data.id}`, 'success')
+    playNewOrder()
   })
   sse.on('order_update', (data) => {
     const idx = orders.value.findIndex(o => o.id === data.id)
     if (idx !== -1) orders.value[idx] = { ...orders.value[idx], ...data }
+    if (data.status === 'ready') playOrderReady()
+    else playOrderUpdate()
   })
+  // Fix #9: Timer for all active statuses (new + preparing), not just preparing
   timerInterval = setInterval(() => {
     const now = Date.now()
     orders.value.forEach(o => {
-      if (o.status === 'preparing' && o.created) {
+      if (o.created && (o.status === 'preparing' || o.status === 'new')) {
         o.timer = Math.floor((now - new Date(o.created).getTime()) / 1000)
       }
     })
@@ -252,56 +291,85 @@ function formatTimer(s) {
   return `${m}:${(s % 60).toString().padStart(2, '0')}`
 }
 
-function formatModName(mod) {
-  return String(mod).split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-}
 
-function getStructuredLines(order) {
-  const structured = order.order_items || order.orderItems
-  if (Array.isArray(structured) && structured.length > 0) {
-    return structured.map(item => ({
-      qty: item.qty || 1,
-      name: item.name || 'Unknown',
-      modifiers: (item.modifiers || []).map(m => formatModName(m.name || m))
-    }))
-  }
-  const flat = order.items
-  if (!flat) return []
-  if (typeof flat === 'string' && (flat.trim().startsWith('[') || flat.trim().startsWith('{'))) {
-    try {
-      const parsed = JSON.parse(flat.trim())
-      const arr = Array.isArray(parsed) ? parsed : [parsed]
-      return arr.map(i => {
-        if (typeof i === 'string') return { qty: 1, name: i, modifiers: [] }
-        return { qty: i.qty || i.quantity || 1, name: i.name || i.title || 'Item', modifiers: Array.isArray(i.modifiers) ? i.modifiers.map(m => formatModName(m.name || m)) : [] }
-      })
-    } catch {}
-  }
-  if (typeof flat !== 'string') return []
-  const lines = []
-  const parts = flat.split(/,(?=\s*\d+x)/)
-  for (const part of parts) {
-    const trimmed = part.trim()
-    const qtyMatch = trimmed.match(/^(\d+)x\s*(.*)/)
-    if (!qtyMatch) continue
-    const rest = qtyMatch[2].trim()
-    const modMatch = rest.match(/\[([^\]]*)\]/)
-    const mods = modMatch ? modMatch[1].split(',').map(m => formatModName(m.trim())).filter(Boolean) : []
-    const name = rest.replace(/\[[^\]]*\]/, '').replace(/\([^)]*\)/, '').trim()
-    if (name) lines.push({ qty: parseInt(qtyMatch[1], 10), name, modifiers: mods })
-  }
-  return lines
-}
+
+// getStructuredLines and getOrderLines are now imported from lib/orderLines.js (Fix #13)
 
 async function loadOrders() {
   try {
-    orders.value = (await apiGet('orders')) || []
+    const [ordersRes, itemsRes] = await Promise.allSettled([
+      apiGet('orders'),
+      apiGet('orders/items/active')
+    ])
+    if (ordersRes.status === 'fulfilled') orders.value = ordersRes.value || []
+    // Fix #12: Load per-line tracking items for structured rendering
+    if (itemsRes.status === 'fulfilled' && Array.isArray(itemsRes.value)) {
+      activeItems.value = itemsRes.value
+    }
   } catch (e) { console.error(e) }
 }
+
+/** Items belonging to one order, from the active tracking feed. */
+const itemsByOrder = computed(() => {
+  const map = new Map()
+  for (const item of activeItems.value) {
+    if (!map.has(item.order_id)) map.set(item.order_id, [])
+    map.get(item.order_id).push(item)
+  }
+  return map
+})
 
 function onDragStart(e, order) {
   dragOrder.value = order
   e.dataTransfer.effectAllowed = 'move'
+}
+
+// Fix #7: Touch drag & drop handlers for mobile
+function onTouchStart(e, order) {
+  const touch = e.touches[0]
+  touchStartCard = { x: touch.clientX, y: touch.clientY, order }
+  touchOrderId = order.id
+}
+
+function onTouchMove(e) {
+  if (!touchStartCard) return
+  e.preventDefault()
+  const touch = e.touches[0]
+  const dx = touch.clientX - touchStartCard.x
+  const dy = touch.clientY - touchStartCard.y
+  // Start drag after 10px movement
+  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+    if (!touchClone) {
+      touchClone = document.createElement('div')
+      touchClone.className = 'touch-drag-clone'
+      touchClone.textContent = `#${touchStartCard.order.id?.slice(-5).toUpperCase()}`
+      touchClone.style.cssText = 'position:fixed;z-index:9999;padding:8px 14px;background:var(--surface);border:2px solid var(--primary);border-radius:10px;font-size:.8rem;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.2);pointer-events:none;transform:rotate(3deg);'
+      document.body.appendChild(touchClone)
+    }
+    touchClone.style.left = `${touch.clientX - 40}px`
+    touchClone.style.top = `${touch.clientY - 20}px`
+    // Detect lane under touch
+    const el = document.elementFromPoint(touch.clientX, touch.clientY)
+    const lane = el?.closest('.pipeline-lane')
+    dragOver.value = lane?.dataset?.stage || null
+  }
+}
+
+function onTouchEnd(e) {
+  if (touchClone) {
+    document.body.removeChild(touchClone)
+    touchClone = null
+  }
+  if (touchStartCard && dragOver.value) {
+    // Find the order object from current state
+    const order = orders.value.find(o => o.id === touchOrderId)
+    if (order && order.status !== dragOver.value) {
+      doStatusUpdate(order.id, dragOver.value)
+    }
+  }
+  touchStartCard = null
+  touchOrderId = null
+  dragOver.value = null
 }
 
 async function onDrop(e, targetStatus) {
@@ -309,10 +377,18 @@ async function onDrop(e, targetStatus) {
   const order = dragOrder.value
   if (order.status === targetStatus) { dragOrder.value = null; return }
   dragOrder.value = null
+  doStatusUpdate(order.id, targetStatus)
+}
+
+// Shared status update function used by drag, touch, and modal
+async function doStatusUpdate(id, targetStatus) {
   try {
-    await apiPut('orders/' + order.id, { id: order.id, status: targetStatus })
-    order.status = targetStatus
-    toast(`Order #${order.id} → ${targetStatus}`)
+    await apiPut('orders/' + id, { id, status: targetStatus })
+    const o = orders.value.find(x => x.id === id)
+    if (o) o.status = targetStatus
+    toast(`Order #${id.slice(-5)} → ${targetStatus}`)
+    if (targetStatus === 'ready') playOrderReady()
+    else playOrderUpdate()
   } catch { toast('Failed to update', 'error') }
 }
 
@@ -320,11 +396,24 @@ function selectOrder(order) { selectedOrder.value = order }
 
 async function updateStatus(status) {
   if (!selectedOrder.value) return
-  try {
-    await apiPut('orders/' + selectedOrder.value.id, { id: selectedOrder.value.id, status })
-    selectedOrder.value.status = status
-    toast(`Order #${selectedOrder.value.id} → ${status}`)
-  } catch { toast('Failed to update', 'error') }
+  // Fix #10: Confirmation for cancel
+  if (status === 'cancelled') {
+    cancelConfirm.value = selectedOrder.value
+    return
+  }
+  await doStatusUpdate(selectedOrder.value.id, status)
+  selectedOrder.value = null
+}
+
+async function confirmCancel() {
+  if (!cancelConfirm.value) return
+  await doStatusUpdate(cancelConfirm.value.id, 'cancelled')
+  cancelConfirm.value = null
+  selectedOrder.value = null
+}
+
+function dismissCancel() {
+  cancelConfirm.value = null
 }
 </script>
 
@@ -579,7 +668,21 @@ async function updateStatus(status) {
 }
 
 /* Responsive */
-@media (max-width: 1100px) { .pipeline { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 700px)  { .pipeline { grid-template-columns: repeat(2, 1fr); } }
+/* Fix #10: Cancel confirmation modal */
+.confirm-modal {
+  background: var(--surface); border-radius: 16px; padding: 28px;
+  max-width: 380px; width: 100%; text-align: center;
+  box-shadow: 0 24px 60px rgba(0,0,0,.25); border: 1px solid var(--border);
+}
+.confirm-icon { font-size: 2.5rem; margin-bottom: 12px; }
+.confirm-title { font-size: 1.1rem; font-weight: 700; color: var(--text-heading); margin-bottom: 8px; }
+.confirm-text { font-size: .82rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
+.confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
+/* Fix #8: Horizontal scroll on tablet for 5 columns */
+@media (max-width: 1100px) {
+  .pipeline { grid-template-columns: repeat(3, minmax(220px, 1fr)); overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+}
+@media (max-width: 700px)  { .pipeline { grid-template-columns: repeat(2, minmax(200px, 1fr)); } }
 @media (max-width: 460px)  { .pipeline { grid-template-columns: 1fr; } }
 </style>

@@ -150,7 +150,8 @@
         <div class="cart-sheet" @click.stop>
           <div class="cart-header">
             <h3>Current Order</h3>
-            <button v-if="orderStore.items.length" class="btn btn-sm btn-ghost" @click="clearOrder()">Clear All</button>
+            <!-- Fix #1: Clear All with confirmation -->
+            <button v-if="orderStore.items.length" class="btn btn-sm btn-ghost" @click="showClearConfirm = true">Clear All</button>
           </div>
           <!-- Docked, the panel is on screen before anything is ordered, so it
                has to say what it is rather than sit there blank. -->
@@ -218,6 +219,23 @@
       @confirm="onModifierConfirm"
       @cancel="showModifierSheet = false"
     />
+
+    <!-- Fix #1: Clear All confirmation -->
+    <transition name="cart-slide">
+      <div v-if="showClearConfirm" class="qty-overlay" @click.self="showClearConfirm = false">
+        <div class="qty-sheet" style="max-width:340px;text-align:center">
+          <div style="font-size:2.5rem;margin-bottom:12px">🗑️</div>
+          <div style="font-size:1.1rem;font-weight:700;color:var(--text-heading);margin-bottom:8px">Clear All Items?</div>
+          <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:20px;line-height:1.5">
+            This will remove {{ orderStore.cartItemCount }} item{{ orderStore.cartItemCount !== 1 ? 's' : '' }} from the order. This can't be undone.
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center">
+            <button class="btn btn-danger" @click="clearOrder()">Yes, Clear All</button>
+            <button class="btn btn-secondary" @click="showClearConfirm = false">Keep Items</button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -269,10 +287,13 @@ const activeCourse = ref('main')
  * Empty the cart and go back to the main course, so the next table does not
  * inherit the last one's dessert round.
  */
+const showClearConfirm = ref(false)
+
 function clearOrder() {
   orderStore.clearCart()
   activeCourse.value = 'main'
   showCart.value = false
+  showClearConfirm.value = false
 }
 
 const isDineIn = computed(() => orderStore.orderType === 'dine-in')

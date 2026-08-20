@@ -8,6 +8,12 @@
           <span class="ks-stat ks-prep">{{ preparingOrders.length }} prepping</span>
           <span class="ks-stat ks-ready">{{ readyOrders.length }} ready</span>
         </div>
+        <!-- Fix #1: Sort toggle -->
+        <div class="ks-sort">
+          <button class="ks-sort-btn" :class="{ active: sortBy === 'time' }" @click="sortBy = 'time'" title="Sort by time">🕐</button>
+          <button class="ks-sort-btn" :class="{ active: sortBy === 'table' }" @click="sortBy = 'table'" title="Sort by table">🪑</button>
+          <button class="ks-sort-btn" :class="{ active: sortBy === 'size' }" @click="sortBy = 'size'" title="Sort by order size">📏</button>
+        </div>
         <button class="btn btn-sm" :class="muted ? 'btn-danger' : 'btn-outline'" @click="toggleMute" :title="muted ? 'Unmute' : 'Mute'">
           <svg v-if="!muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46A4.5 4.5 0 0 1 18 12c0 1.21-.47 2.31-1.24 3.13l1.44 1.44A6.95 6.95 0 0 0 20 12c0-1.87-.73-3.58-1.93-4.84l-.03.03z"/></svg>
           <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -97,8 +103,12 @@
               <!-- §53. The digital board is the source of truth, but a paper
                    ticket still goes up on the rail in most kitchens, and until
                    now there was no way to produce one. -->
-              <button class="btn btn-sm btn-outline" @click="printTicket(o)" title="Print kitchen ticket">🖨</button>
-              <base-button text="Start All" variant="btn-primary" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'preparing')" />
+              <!-- Fix #5: SVG printer icon instead of emoji -->
+              <button class="btn btn-sm btn-outline" @click="printTicket(o)" title="Print kitchen ticket">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              </button>
+              <!-- Fix #4: Start All with undo -->
+              <base-button text="Start All" variant="btn-primary" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'preparing', { undo: true })" />
             </div>
           </div>
           <div v-if="!newOrders.length" class="kitchen-empty">
@@ -218,7 +228,10 @@
             </div>
 
             <div class="ko-footer">
+              <!-- Fix #2: Stale ready warning -->
+              <span v-if="isStaleReady(o)" class="ko-stale-badge">⏰ Pick up!</span>
               <span class="ko-waiting">Waiting {{ waitMinutes(o) }}m</span>
+              <!-- Fix #6: Bump to Pass -->
               <base-button text="Served" variant="btn-outline" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'fulfilled')" />
             </div>
           </div>
@@ -228,6 +241,13 @@
           </div>
         </div>
       </div>
+    </div>
+    <!-- Fix #15: Keyboard shortcut hint -->
+    <div class="kitchen-kb-hint">
+      <span class="kb-key">1</span> advance next New
+      <span class="kb-key">2</span> advance next Preparing
+      <span class="kb-key">3</span> serve next Ready
+      <span class="kb-key">R</span> refresh
     </div>
   </div>
 </template>
@@ -240,7 +260,7 @@ import { useButtonState } from '../composables/useButtonState'
 import { useAuthStore } from '../stores/auth'
 import { useSSE } from '../composables/useSSE'
 import { kitchenTicket } from '../lib/print'
-import { formatOrderItems } from '../lib/formatters'
+import { getOrderLines, formatModName as sharedFormatModName } from '../lib/orderLines'
 
 const toast = inject('toast')
 const auth = useAuthStore()
@@ -252,6 +272,10 @@ const orders = ref([])
 const activeItems = ref([])
 // Lines with a request in flight, so a double-tap cannot fire twice.
 const busyItems = ref(new Set())
+// Fix #1: Sort toggle for columns
+const sortBy = ref('time') // 'time' | 'table' | 'size'
+// Fix #4: Undo tracking for Start All
+const undoTimers = new Map()
 let timer = null
 let clockTimer = null
 const now = ref(Date.now())
@@ -354,33 +378,64 @@ async function advanceLine(order, line) {
   }
 }
 
+function sortFn(a, b) {
+  if (sortBy.value === 'table') {
+    const ta = a.table_number || a.tableNum || 'zzz'
+    const tb = b.table_number || b.tableNum || 'zzz'
+    return String(ta).localeCompare(String(tb), undefined, { numeric: true })
+  }
+  if (sortBy.value === 'size') {
+    const sa = getOrderLines(a).length || (a.items ? String(a.items).split(',').length : 0)
+    const sb = getOrderLines(b).length || (b.items ? String(b.items).split(',').length : 0)
+    return sb - sa // largest first
+  }
+  // default: oldest first
+  return (a.created || '').localeCompare(b.created || '')
+}
 const newOrders = computed(() =>
   orders.value
     .filter(o => o.status === 'new')
-    .sort((a, b) => (a.created || '').localeCompare(b.created || ''))
+    .sort(sortFn)
 )
 const preparingOrders = computed(() =>
   orders.value
     .filter(o => o.status === 'preparing')
-    .sort((a, b) => (a.created || '').localeCompare(b.created || ''))
+    .sort(sortFn)
 )
 const readyOrders = computed(() =>
   orders.value
     .filter(o => o.status === 'ready')
-    .sort((a, b) => (b.created || '').localeCompare(a.created || '')) // newest first
+    .sort((a, b) => {
+      if (sortBy.value === 'time') return (b.updated || b.created || '').localeCompare(a.updated || a.created || '')
+      return sortFn(a, b)
+    })
 )
 
 onMounted(() => {
   loadOrders()
   connectSSE()
   timer = setInterval(loadOrders, 15000)
-  clockTimer = setInterval(() => { now.value = Date.now() }, 1000)
+  clockTimer = setInterval(() => {
+    now.value = Date.now()
+    // Fix #3: Audio alert when any order crosses the 15-minute critical threshold
+    for (const o of orders.value) {
+      if (!o.created) continue
+      const ageMin = (Date.now() - new Date(o.created).getTime()) / 60000
+      if (ageMin >= 15 && !o._criticalAlerted) {
+        o._criticalAlerted = true
+        if (!muted.value) playOrderUpdate()
+      }
+    }
+  }, 1000)
+  // Fix #15: Keyboard navigation
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   sse.disconnect()
   if (timer) clearInterval(timer)
   if (clockTimer) clearInterval(clockTimer)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 async function loadOrders() {
@@ -416,9 +471,10 @@ function connectSSE() {
   })
 }
 
-async function updateStatus(id, status) {
+async function updateStatus(id, status, { undo = false } = {}) {
   const o = orders.value.find(x => x.id === id)
   if (!o) return
+  const previousStatus = o.status
   o.status = status
   try {
     await apiPut('orders/' + id, { status })
@@ -426,7 +482,26 @@ async function updateStatus(id, status) {
     if (status === 'ready') playOrderReady()
     else playOrderUpdate()
     loadOrders()
+
+    // Fix #4: 3-second undo toast for Start All
+    if (undo && previousStatus === 'new' && status === 'preparing') {
+      const toastId = toast(`Order #${shortId(id)} started — 3s to undo`, 'info', {
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            o.status = 'new'
+            try {
+              await apiPut('orders/' + id, { status: 'new' })
+              toast('Reverted to new', 'success')
+              loadOrders()
+            } catch { toast('Undo failed', 'error') }
+          }
+        },
+        duration: 3000
+      })
+    }
   } catch {
+    o.status = previousStatus
     toast('Failed to update', 'error')
   }
 }
@@ -449,85 +524,10 @@ function formatType(type) {
   return m[type] || type || 'Dine In'
 }
 
-function formatModName(mod) {
-  return String(mod).split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-}
+// Use shared formatModName from lib/orderLines.js (Fix #14)
+const formatModName = sharedFormatModName
 
-/**
- * Parse order into structured lines.
- * Uses `order_items` (Phase 1 structured JSON) when available,
- * falls back to flat `items` string.
- */
-function getOrderLines(order) {
-  // Try structured orderItems first (stored as order_items in DB, parsed by server)
-  const structured = order.order_items || order.orderItems
-  if (Array.isArray(structured) && structured.length > 0) {
-    return structured.map(item => ({
-      qty: item.qty || 1,
-      name: item.name || 'Unknown',
-      modifiers: (item.modifiers || []).map(m => ({
-        name: m.name || m,
-        priceDelta: m.priceDelta || 0
-      })),
-      notes: item.notes || ''
-    }))
-  }
-  // Fallback: parse flat string like "2x Latte [oat-milk, vanilla], 1x Espresso"
-  const flat = order.items
-  if (!flat || typeof flat !== 'string') return []
-  return parseFlatItems(flat)
-}
-
-/**
- * Parse flat item string into structured lines.
- * Handles: "2x Latte [oat-milk, vanilla] (extra hot), 1x Espresso"
- */
-function parseFlatItems(flat) {
-  if (!flat) return []
-  if (typeof flat === 'string' && (flat.trim().startsWith('[') || flat.trim().startsWith('{'))) {
-    try {
-      const parsed = JSON.parse(flat.trim())
-      const arr = Array.isArray(parsed) ? parsed : [parsed]
-      return arr.map(i => {
-        if (typeof i === 'string') return { qty: 1, name: i, modifiers: [], notes: '' }
-        return {
-          qty: i.qty || i.quantity || 1,
-          name: i.name || i.title || 'Item',
-          modifiers: Array.isArray(i.modifiers) ? i.modifiers.map(m => ({ name: typeof m === 'string' ? m : m.name, priceDelta: 0 })) : [],
-          notes: i.notes || ''
-        }
-      })
-    } catch {}
-  }
-  const lines = []
-  // Split by comma, but be careful with brackets and parens
-  const parts = flat.split(/,(?=\s*\d+x)/)
-  for (const part of parts) {
-    const trimmed = part.trim()
-    if (!trimmed) continue
-    // Match: "2x Item Name [mod1, mod2] (notes)"
-    const qtyMatch = trimmed.match(/^(\d+)x\s*(.*)/)
-    if (!qtyMatch) continue
-    const qty = parseInt(qtyMatch[1], 10)
-    const rest = qtyMatch[2].trim()
-    // Extract modifiers in brackets
-    const modMatch = rest.match(/\[([^\]]*)\]/)
-    const mods = modMatch
-      ? modMatch[1].split(',').map(m => ({ name: m.trim(), priceDelta: 0 })).filter(m => m.name)
-      : []
-    // Extract notes in parens
-    const noteMatch = rest.match(/\(([^)]*)\)/)
-    const notes = noteMatch ? noteMatch[1].trim() : ''
-    // Clean name: remove mod brackets and note parens
-    let name = rest
-      .replace(/\[[^\]]*\]/, '').trim()
-      .replace(/\([^)]*\)/, '').trim()
-    if (name) {
-      lines.push({ qty, name, modifiers: mods, notes })
-    }
-  }
-  return lines
-}
+// getOrderLines and parseFlatItems are now imported from lib/orderLines.js (Fix #13)
 
 function ageInMinutes(o) {
   if (!o.created) return 0
@@ -564,6 +564,39 @@ function waitMinutes(o) {
 }
 
 function refresh() { loadOrders() }
+
+// Fix #15: Keyboard navigation — 1/2/3 advance next item in New/Preparing/Ready columns
+function handleKeydown(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+  const key = e.key
+  if (key === '1') {
+    const o = newOrders.value[0]
+    if (o) {
+      const lines = trackedLines(o)
+      const next = lines.find(l => l.status !== 'served')
+      if (next) advanceLine(o, next)
+    }
+  } else if (key === '2') {
+    const o = preparingOrders.value[0]
+    if (o) {
+      const lines = trackedLines(o)
+      const next = lines.find(l => l.status !== 'served')
+      if (next) advanceLine(o, next)
+    }
+  } else if (key === '3') {
+    const o = readyOrders.value[0]
+    if (o) updateStatus(o.id, 'fulfilled')
+  } else if (key === 'r' && !e.ctrlKey && !e.metaKey) {
+    refresh()
+  }
+}
+
+// Fix #2: Check if a ready order has been waiting > 5 minutes
+function isStaleReady(o) {
+  if (!o.updated) return false
+  const waitMin = (now.value - new Date(o.updated).getTime()) / 60000
+  return waitMin >= 5
+}
 </script>
 
 <style scoped>
@@ -643,6 +676,25 @@ function refresh() { loadOrders() }
 .ks-new { background: var(--blue-50, #EFF6FF); color: var(--primary); }
 .ks-prep { background: var(--gold-50, #FFFBEB); color: var(--warning); }
 .ks-ready { background: var(--green-50, #F0FDF4); color: var(--success); }
+
+/* Fix #1: Sort toggle */
+.ks-sort { display: flex; gap: 2px; background: var(--neutral-50); border-radius: var(--radius-sm); padding: 2px; }
+.ks-sort-btn {
+  padding: 4px 8px; border: none; border-radius: 6px;
+  background: transparent; cursor: pointer; font-size: .85rem;
+  transition: background .15s, transform .1s;
+}
+.ks-sort-btn.active { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.ks-sort-btn:hover { background: var(--neutral-100); }
+
+/* Fix #2: Stale ready badge */
+.ko-stale-badge {
+  font-size: .72rem; font-weight: 700; color: var(--danger);
+  background: var(--red-50, #FEF2F2); padding: 2px 8px;
+  border-radius: 99px; border: 1px solid var(--danger);
+  animation: pulse-critical 1s infinite;
+  margin-right: 8px;
+}
 
 /* ─── Column Layout ─── */
 .kitchen-grid {
@@ -930,5 +982,21 @@ function refresh() { loadOrders() }
 }
 @media (max-width: 640px) {
   .kitchen-grid { grid-template-columns: 1fr; }
+}
+
+/* Fix #15: Keyboard hint */
+.kitchen-kb-hint {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 16px; margin-top: 12px;
+  font-size: .7rem; color: var(--text-muted);
+  background: var(--neutral-50); border-radius: var(--radius-sm);
+}
+.kb-key {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; padding: 0 5px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: 4px; font-family: var(--font-mono); font-size: .7rem;
+  font-weight: 700; color: var(--text-heading);
+  box-shadow: 0 1px 2px rgba(0,0,0,.08);
 }
 </style>

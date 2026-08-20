@@ -165,6 +165,68 @@ export function kitchenTicket(order, items = []) {
   return printDocument({ title: `Kitchen ticket ${order.id}`, body, paper: 'receipt', subtitle: 'KITCHEN' })
 }
 
+/**
+ * Customer receipt — the thing the guest takes home.
+ *
+ * Replaces the inline HTML in CheckoutView.printReceipt(). Uses the shared
+ * printDocument() so the receipt matches the kitchen ticket's paper size and
+ * font stack.
+ */
+export function customerReceipt(payload, storeItems, storeHelpers) {
+  const id = payload.id || '—'
+  const date = stamp()
+  const lines = storeItems.map(i => {
+    const modStr = (i.selectedModifiers || []).map(m => m.name).join(', ')
+    const nameParts = [i.name]
+    if (modStr) nameParts.push(`[${modStr}]`)
+    return line(
+      `${i.qty}x ${nameParts.join(' ')}`,
+      `ETB ${Math.round(storeHelpers.lineTotal(i) * i.qty)}`
+    )
+  }).join('')
+
+  const summary = [
+    line('Subtotal', `ETB ${Math.round(payload.subtotal || 0)}`),
+  ]
+  if (payload.discount > 0) {
+    summary.push(line(`Discount${payload.discountReason ? ' (' + esc(payload.discountReason) + ')' : ''}`, `-ETB ${Math.round(payload.discount)}`))
+  }
+  if (payload.tip > 0) {
+    summary.push(line('Tip', `ETB ${Math.round(payload.tip)}`))
+  }
+  if (payload.deliveryFee > 0) {
+    summary.push(line('Delivery Fee', `ETB ${Math.round(payload.deliveryFee)}`))
+  }
+
+  const paymentLines = (payload.paymentBreakdown || []).map(pb => {
+    const method = esc(pb.method.charAt(0).toUpperCase() + pb.method.slice(1))
+    let ln = line(method, `ETB ${Math.round(pb.amount)}`)
+    if (pb.tendered !== undefined) {
+      ln += line(`  Tendered`, `ETB ${Math.round(pb.tendered)}`)
+      ln += line(`  Change`, `ETB ${Math.round(pb.change || 0)}`)
+    }
+    return ln
+  }).join('')
+
+  const body = [
+    line('Type', `${esc(payload.type)}${payload.tableNum ? ' · Table ' + esc(payload.tableNum) : ''}`),
+    line('Customer', esc(payload.customer) || 'Walk-in'),
+    '<hr>',
+    lines,
+    '<hr>',
+    summary.join(''),
+    `<div class="ln total"><span>GRAND TOTAL</span><span>ETB ${esc(String(payload.total))}</span></div>`,
+    '<hr>',
+    `<div style="font-size:.82em;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;color:#666">Payment</div>`,
+    paymentLines,
+    '<hr>',
+    `<div class="foot">Thank you for visiting!<br>FU FUT COFFEE</div>`,
+    `<div class="foot">${esc(date)}</div>`,
+  ].join('')
+
+  return printDocument({ title: `Receipt #${id}`, body, paper: 'receipt', subtitle: 'FU FUT CAFÉ' })
+}
+
 function modsText(modifiers) {
   let list = modifiers
   if (typeof list === 'string') {
