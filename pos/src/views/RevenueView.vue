@@ -67,8 +67,24 @@ let charts = {}
 
 const totalRev = computed(() => orders.value.reduce((s, o) => s + parseFloat(o.total||0), 0))
 const avgOrder = computed(() => orders.value.length ? totalRev.value / orders.value.length : 0)
-const cashTotal = computed(() => orders.value.filter(o => o.payment === 'cash').reduce((s, o) => s + parseFloat(o.total||0), 0))
-const cardTotal = computed(() => totalRev.value - cashTotal.value)
+// Fix #14: Break down by individual payment method
+const paymentBreakdown = computed(() => {
+  const m = {}
+  for (const o of orders.value) {
+    const methods = (o.payment || 'unknown').split('+')
+    for (const method of methods) {
+      const key = method.trim()
+      m[key] = (m[key] || 0) + parseFloat(o.total || 0) / methods.length
+    }
+  }
+  return m
+})
+const cashTotal = computed(() => paymentBreakdown.value['cash'] || 0)
+const cardTotal = computed(() => {
+  return Object.entries(paymentBreakdown.value)
+    .filter(([k]) => k !== 'cash')
+    .reduce((s, [, v]) => s + v, 0)
+})
 const cashPct = computed(() => totalRev.value ? ((cashTotal.value/totalRev.value)*100).toFixed(1) : 0)
 const cardPct = computed(() => totalRev.value ? ((cardTotal.value/totalRev.value)*100).toFixed(1) : 0)
 
@@ -111,10 +127,14 @@ async function buildCharts() {
     })
   }
   if (paymentChart.value) {
+    // Fix #14: Show individual payment methods
+    const pmLabels = Object.keys(paymentBreakdown.value)
+    const pmData = Object.values(paymentBreakdown.value)
+    const pmColors = ['#0F7B78', '#D6B36A', '#2563EB', '#2E7D32', '#D97706', '#7C3AED', '#D32F2F']
     charts.payment = new Chart(paymentChart.value, {
       type: 'doughnut',
-      data: { labels: ['Cash', 'Card/Mobile'], datasets: [{ data: [cashTotal.value, cardTotal.value], backgroundColor: ['#0F7B78', '#D6B36A'] }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      data: { labels: pmLabels.map(l => l.charAt(0).toUpperCase() + l.slice(1)), datasets: [{ data: pmData, backgroundColor: pmColors.slice(0, pmLabels.length) }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
     })
   }
 }

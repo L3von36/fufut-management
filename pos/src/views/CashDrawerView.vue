@@ -6,6 +6,10 @@
         <base-button v-if="!activeDrawer" text="Open Drawer" variant="btn-primary" :on-click="openDrawerPrompt" />
         <base-button v-if="activeDrawer" text="Close Drawer" variant="btn-warning" :on-click="closeDrawerPrompt" />
         <base-button text="Refresh" variant="btn-outline" :on-click="loadData" />
+        <!-- Fix #8: Print drawer report -->
+        <button class="btn btn-outline" @click="printDrawer" title="Print drawer report">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        </button>
       </div>
     </div>
 
@@ -97,6 +101,7 @@
 import { ref, computed, onMounted , inject} from 'vue'
 import { apiGet, apiPost } from '../api'
 import { useButtonState } from '../composables/useButtonState'
+import { printReport } from '../lib/print'
 
 const toast = inject('toast')
 const btnState = useButtonState({ successDuration: 2000 })
@@ -150,6 +155,17 @@ async function handleOpenDrawer() {
 
 async function handleCloseDrawer() {
   if (!closingBal.value || !activeDrawer.value) return
+  // Fix #7: Validate closing balance
+  const expected = Number(expectedClose.value)
+  if (closingBal.value < 0) {
+    toast('Closing balance cannot be negative', 'error')
+    return
+  }
+  const variance = closingBal.value - expected
+  const variancePct = expected > 0 ? Math.abs(variance / expected * 100) : 0
+  if (variancePct > 20 && !confirm(`Large variance: ETB ${variance >= 0 ? '+' : ''}${variance.toFixed(0)} (${variancePct.toFixed(0)}% off). Close anyway?`)) {
+    return
+  }
   try {
     await apiPost('cashdrawer/close', { id: activeDrawer.value.id, closingBal: closingBal.value })
     toast('Drawer closed')
@@ -158,6 +174,31 @@ async function handleCloseDrawer() {
     activeDrawer.value = null
     await loadData()
   } catch { toast('Failed to close drawer', 'error'); throw new Error('Failed to close drawer') }
+}
+
+// Fix #8: Print drawer report
+function printDrawer() {
+  const rows = drawers.value.map(d => [
+    d.shift || d.id,
+    d.opened ? new Date(d.opened).toLocaleString() : '—',
+    `ETB ${parseFloat(d.openingBal||0).toFixed(0)}`,
+    `ETB ${parseFloat(d.cashSales||0).toFixed(0)}`,
+    `ETB ${parseFloat(d.closingBal||0).toFixed(0)}`,
+    `ETB ${parseFloat(d.expectedClose||0).toFixed(0)}`,
+    `${parseFloat(d.variance||0) >= 0 ? '+' : ''}ETB ${parseFloat(d.variance||0).toFixed(0)}`,
+    d.status,
+  ])
+  const ok = printReport({
+    title: 'Cash Drawer Report',
+    summary: [
+      ['Drawers today', drawers.value.length],
+      ['Cash sales', `ETB ${todayCashSales.value}`],
+      ['Total variance', `${totalVariance.value >= 0 ? '+' : ''}ETB ${totalVariance.value}`],
+    ],
+    headers: ['Shift', 'Opened', 'Opening', 'Cash Sales', 'Closing', 'Expected', 'Variance', 'Status'],
+    rows,
+  })
+  if (!ok) toast('Allow pop-ups for this site to print', 'error')
 }
 
 function openDrawerPrompt() { openingBal.value = 0; showOpenPrompt.value = true }

@@ -8,7 +8,10 @@
         <button class="btn btn-outline" @click="loadTab">Refresh</button>
         <!-- §53: the reorder list gets carried to a supplier, and a variance
              report gets discussed away from the screen. -->
-        <button class="btn btn-outline" @click="printTab" title="Print this view">🖨</button>
+        <!-- Fix #16: SVG printer icon -->
+        <button class="btn btn-outline" @click="printTab" title="Print this view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        </button>
       </div>
     </div>
 
@@ -355,5 +358,6 @@ async function postCount() {
 .tab-note { font-size: .78rem; color: var(--text-muted); margin: 0 0 12px; }
 .empty { text-align: center; padding: 40px; color: var(--text-muted); }
 .reasons { font-size: .72rem; color: var(--text-muted); max-width: 260px; }
-.count-input { width: 100px; }
+/* Fix #15: Larger stock count input */
+.count-input { width: 120px; min-height: 44px; padding: 8px 10px; font-size: .88rem; }
 </style>

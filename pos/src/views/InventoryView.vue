@@ -8,6 +8,8 @@
     <div class="table-toolbar">
       <h3>Inventory</h3>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <!-- Fix #6: Search input -->
+        <input v-model="search" type="text" placeholder="Search items..." class="input input-sm" style="max-width:200px" />
         <select v-model="filter" class="select">
           <option value="">All Items</option>
           <option value="low">Low Stock Only</option>
@@ -151,6 +153,7 @@ const schema = {
 const { errors: vErrors, validate } = useFormValidation(schema)
 const items = ref([])
 const filter = ref('')
+const search = ref('')
 const showModal = ref(false)
 const editing = ref(null)
 const form = ref({ name: '', category: '', quantity: 0, minLevel: 0, unit: 'kg', cost: 0 })
@@ -172,8 +175,13 @@ const canDeleteStock = computed(() => auth.roleKey === 'manager')
 const lowStockItems = computed(() => items.value.filter(i => isLow(i)))
 
 const filteredItems = computed(() => {
-  if (filter.value === 'low') return lowStockItems.value
-  return items.value
+  let result = filter.value === 'low' ? lowStockItems.value : items.value
+  // Fix #6: Text search
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    result = result.filter(i => i.name?.toLowerCase().includes(q) || i.category?.toLowerCase().includes(q))
+  }
+  return result
 })
 
 function isLow(i) { return parseInt(i.quantity||0) <= parseInt(i.minLevel||0) }

@@ -103,19 +103,34 @@ const filteredEntries = computed(() =>
   !staffFilter.value ? entries.value : entries.value.filter(e => e.staffId === staffFilter.value || e.staff_id === staffFilter.value || e.name === staffFilter.value)
 )
 
+// Fix #12: Use Date object for robust duration parsing
+function parseTime(t) {
+  if (!t) return null
+  // Handle full ISO timestamps
+  if (t.includes('T') || t.includes('-')) {
+    const d = new Date(t)
+    return isNaN(d) ? null : d
+  }
+  // Handle HH:MM or HH:MM:SS
+  const m = String(t).match(/^(\d{1,2}):(\d{2})/)
+  if (!m) return null
+  const d = new Date()
+  d.setHours(Number(m[1]), Number(m[2]), 0, 0)
+  return d
+}
+
 function formatDuration(e) {
   const inAt = e.clockIn || e.clock_in
   if (!inAt) return '—'
-  const mins = (t) => {
-    const m = String(t || '').match(/^(\d{1,2}):(\d{2})/)
-    return m ? Number(m[1]) * 60 + Number(m[2]) : null
-  }
-  const a = mins(inAt)
+  const a = parseTime(inAt)
+  if (!a) return '—'
   const outAt = e.clockOut || e.clock_out
-  const b = outAt ? mins(outAt) : new Date().getHours() * 60 + new Date().getMinutes()
-  if (a === null || b === null) return '—'
-  const total = b < a ? b + 1440 - a : b - a
-  return `${Math.floor(total / 60)}h ${total % 60}m`
+  const b = outAt ? parseTime(outAt) : new Date()
+  if (!b) return '—'
+  const diffMs = b - a
+  if (diffMs < 0) return '—'
+  const totalMin = Math.floor(diffMs / 60000)
+  return `${Math.floor(totalMin / 60)}h ${totalMin % 60}m`
 }
 
 async function loadMine() {

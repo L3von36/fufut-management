@@ -11,6 +11,11 @@
     <div class="summary-grid">
       <div class="summary-card"><div class="num">{{ wasteItems.length }}</div><div class="lbl">Entries</div></div>
       <div class="summary-card"><div class="num" style="color:var(--danger)">{{ totalWasteCost.toFixed(0) }}</div><div class="lbl">Total Cost (ETB)</div></div>
+      <!-- Fix #10: Category breakdown -->
+      <div v-for="cat in categoryBreakdown" :key="cat.name" class="summary-card">
+        <div class="num" style="color:var(--warning);font-size:1rem">{{ cat.total.toFixed(0) }}</div>
+        <div class="lbl">{{ cat.name }}</div>
+      </div>
     </div>
     <div class="table-wrap">
       <div class="table-scroll">
@@ -56,7 +61,7 @@
         <div class="form-group" v-if="!form.inventoryId"><label>Item</label><input v-model="form.name" :class="{ 'input-error': vErrors.name }" /><span v-if="vErrors.name" class="field-error">{{ vErrors.name }}</span></div>
         <div class="form-row">
           <div class="form-group"><label>Category</label><select v-model="form.category" class="select"><option value="">Select...</option><option value="Food">Food</option><option value="Beverage">Beverage</option><option value="Packaging">Packaging</option><option value="Other">Other</option></select></div>
-          <div class="form-group"><label>Qty {{ selectedUnit ? '(' + selectedUnit + ')' : '' }}</label><input v-model.number="form.quantity" type="number" step="any" :class="{ 'input-error': vErrors.quantity }" /><span v-if="vErrors.quantity" class="field-error">{{ vErrors.quantity }}</span></div>
+          <div class="form-group"><label>Qty {{ selectedUnit ? '(' + selectedUnit + ')' : '' }}</label><input v-model.number="form.quantity" type="number" step="any" @input="onQtyChanged" :class="{ 'input-error': vErrors.quantity }" /><span v-if="vErrors.quantity" class="field-error">{{ vErrors.quantity }}</span></div>
         </div>
         <div class="form-group"><label>Reason</label><select v-model="form.reason" class="select" :class="{ 'input-error': vErrors.reason }"><option value="">Select...</option><option value="spoiled">Spoiled</option><option value="overproduction">Overproduction</option><option value="quality">Quality</option><option value="damaged">Damaged</option><option value="other">Other</option></select></div>
         <div class="form-row">
@@ -87,6 +92,17 @@ const inventory = ref([])
 const form = ref(blankForm())
 const filteredWaste = computed(()=>!filter.value?wasteItems.value:wasteItems.value.filter(w=>w.category===filter.value))
 const totalWasteCost = computed(()=>wasteItems.value.reduce((s,w)=>s+parseFloat(w.cost||w.est_cost||0),0))
+// Fix #10: Category breakdown
+const categoryBreakdown = computed(() => {
+  const m = {}
+  for (const w of filteredWaste.value) {
+    const cat = w.category || 'Other'
+    m[cat] = (m[cat] || 0) + parseFloat(w.cost || w.est_cost || 0)
+  }
+  return Object.entries(m)
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total)
+})
 
 const selectedItem = computed(() => inventory.value.find(i => String(i.id) === String(form.value.inventoryId)))
 const selectedUnit = computed(() => selectedItem.value?.unit || '')
@@ -109,6 +125,16 @@ function onItemPicked() {
   if (!item) return
   form.value.name = item.name
   if (item.category) form.value.category = form.value.category || item.category
+  recalcCost()
+}
+
+// Fix #9: Recalculate cost when quantity changes (if inventory item selected)
+function onQtyChanged() {
+  if (form.value.inventoryId) recalcCost()
+}
+function recalcCost() {
+  const item = selectedItem.value
+  if (!item) return
   const unitCost = Number(item.avg_cost ?? item.cost ?? 0)
   form.value.cost = Math.round(unitCost * Number(form.value.quantity || 0) * 100) / 100
 }

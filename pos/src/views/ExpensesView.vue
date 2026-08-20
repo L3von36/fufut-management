@@ -7,9 +7,15 @@
           <option value="">All Categories</option>
           <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
         </select>
+        <!-- Fix #2: Date range filter -->
+        <input v-model="dateFrom" type="date" class="input input-sm" style="width:auto" />
+        <input v-model="dateTo" type="date" class="input input-sm" style="width:auto" />
         <button class="btn btn-primary" @click="openAdd">+ Add Expense</button>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
-        <button class="btn btn-outline" @click="printExpenses" title="Print expense record">🖨</button>
+        <!-- Fix #1: SVG printer icon -->
+        <button class="btn btn-outline" @click="printExpenses" title="Print expense record">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        </button>
       </div>
     </div>
 
@@ -83,6 +89,9 @@ import { printReport } from '../lib/print'
 const toast = inject('toast')
 const confirmDelete = inject('confirm')
 const expenses = ref([]); const filter = ref(''); const showModal = ref(false); const editing = ref(null)
+// Fix #2: Date range filter
+const dateFrom = ref(new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10))
+const dateTo = ref(new Date().toISOString().slice(0, 10))
 const form = ref({ category: '', description: '', amount: 0, date: '' })
 const categories = ['Rent','Utilities','Supplies','Equipment','Maintenance','Marketing','Other']
 const schema = {
@@ -91,7 +100,14 @@ const schema = {
   amount: { required: true, label: 'Amount', min: 0.01, maxVal: 9999999 }
 }
 const { errors: vErrors, validate } = useFormValidation(schema)
-const filteredExpenses = computed(() => !filter.value ? expenses.value : expenses.value.filter(e => e.category === filter.value))
+const filteredExpenses = computed(() => {
+  let result = expenses.value
+  if (filter.value) result = result.filter(e => e.category === filter.value)
+  // Fix #2: Date range filter
+  if (dateFrom.value) result = result.filter(e => e.date >= dateFrom.value)
+  if (dateTo.value) result = result.filter(e => e.date <= dateTo.value)
+  return result
+})
 const categoryTotals = computed(() => { const m={}; for(const e of filteredExpenses.value){ m[e.category]=(m[e.category]||0)+parseFloat(e.amount||0) }; return Object.entries(m).map(([c,t])=>({category:c,total:t})) })
 const allTotal = computed(() => filteredExpenses.value.reduce((s,e)=>s+parseFloat(e.amount||0),0))
 

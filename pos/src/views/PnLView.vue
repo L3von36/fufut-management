@@ -1,6 +1,15 @@
 <template>
   <div>
-    <div class="table-toolbar"><h3>Profit & Loss</h3><button class="btn btn-outline btn-sm" @click="loadData">Refresh</button></div>
+    <div class="table-toolbar">
+      <h3>Profit & Loss</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <!-- Fix #3: Date range picker -->
+        <input type="date" v-model="dateFrom" class="input input-sm" style="width:auto" />
+        <input type="date" v-model="dateTo" class="input input-sm" style="width:auto" />
+        <button class="btn btn-primary btn-sm" @click="loadData">Apply</button>
+        <button class="btn btn-outline btn-sm" @click="loadData">Refresh</button>
+      </div>
+    </div>
     <!-- Modifier class rather than an inline style, so the responsive rules in
          styles.css can still override it on small screens. -->
     <div class="kpi-grid kpi-grid-3">
@@ -44,11 +53,14 @@ async function _loadChart() {
 }
 
 const orders = ref([]); const expenses = ref([])
+// Fix #3: Date range state
+const dateFrom = ref(new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10))
+const dateTo = ref(new Date().toISOString().slice(0, 10))
 const pnlChart = ref(null); const expChart = ref(null); const netChart = ref(null)
 
-function isLast30(d) { return d >= new Date(Date.now() - 30*86400000).toISOString().slice(0,10) }
-const rev30 = computed(() => orders.value.filter(o => isLast30(o.created||'')).reduce((s,o) => s + parseFloat(o.total||0), 0))
-const exp30 = computed(() => expenses.value.filter(e => isLast30(e.date||'')).reduce((s,e) => s + parseFloat(e.amount||0), 0))
+function isInRange(d) { return d >= dateFrom.value && d <= dateTo.value }
+const rev30 = computed(() => orders.value.filter(o => isInRange((o.created||'').slice(0,10))).reduce((s,o) => s + parseFloat(o.total||0), 0))
+const exp30 = computed(() => expenses.value.filter(e => isInRange(e.date||'')).reduce((s,e) => s + parseFloat(e.amount||0), 0))
 const net30 = computed(() => rev30.value - exp30.value)
 
 onMounted(loadData)
@@ -59,8 +71,8 @@ async function loadData() {
 async function buildCharts() {
   const Chart = await _loadChart()
   if (!pnlChart.value||!expChart.value||!netChart.value) return
-  // Destroy old
-  [pnlChart, expChart, netChart].forEach(ref => { if (ref.value?.chart) ref.value.chart.destroy() })
+  // Fix #4: Update existing charts instead of destroying/recreating
+  const hasExisting = pnlChart.value?.chart
 
   const days=[]; const rev=[]; const exp=[]; const net=[]
   for (let i=29;i>=0;i--) {
