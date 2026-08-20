@@ -44,7 +44,12 @@
       <div class="tm-pending-list">
         <div v-for="o in pendingOrders" :key="o.id" class="tm-pending-card">
           <div class="tm-pending-where">
-            <span class="tm-pending-table">{{ tableLabel(o.tableNum) }}</span>
+            <span class="tm-pending-table">
+              {{ tableLabel(o.tableNum) }}
+              <span class="tm-source-badge" :class="o.source === 'qr' ? 'source-qr' : 'source-staff'">
+                {{ o.source === 'qr' ? 'QR' : 'Staff' }}
+              </span>
+            </span>
             <span class="tm-pending-ago">{{ waitingFor(o.created) }}</span>
           </div>
           <div class="tm-pending-items">{{ summarise(o.items) }}</div>
@@ -294,12 +299,12 @@
             Go to Checkout
           </button>
           <div class="tm-actions-spacer"></div>
-          <button v-if="authStore?.roleKey === 'manager'" class="btn btn-danger btn-sm" @click="deleteTable">
+          <button class="btn btn-secondary" @click="closeDetail">Close</button>
+          <button class="btn btn-primary" @click="saveDetail">Save Changes</button>
+          <button v-if="authStore?.roleKey === 'manager'" class="btn btn-danger btn-sm tm-delete-separated" @click="deleteTable">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             Delete
           </button>
-          <button class="btn btn-secondary" @click="closeDetail">Close</button>
-          <button class="btn btn-primary" @click="saveDetail">Save Changes</button>
         </div>
       </div>
     </div>
@@ -356,6 +361,7 @@ import { ref, computed, onMounted, onUnmounted , inject} from 'vue'
 import { useRouter } from 'vue-router'
 import { apiGet, apiPut, apiPost, apiDelete } from '../api'
 import { useSSE } from '../composables/useSSE'
+import { useAudioAlerts } from '../composables/useAudioAlerts'
 import { useAuthStore } from '../stores/auth'
 import { useOrderStore } from '../stores/order'
 import { formatOrderItems } from '../lib/formatters'
@@ -367,6 +373,7 @@ const confirmDelete = inject('confirm')
 const authStore = useAuthStore()
 const orderStore = useOrderStore()
 const { connected: sseConnected, connect: sseConnect, disconnect: sseDisconnect, on: sseOn } = useSSE()
+const { playNewOrder } = useAudioAlerts()
 
 const tables = ref([])
 const orders = ref([])
@@ -637,6 +644,7 @@ async function acceptOrder(order) {
     // Drop it immediately rather than waiting for the reload: the waiter has
     // just tapped it and needs to see that it went.
     pendingOrders.value = pendingOrders.value.filter(o => o.id !== order.id)
+    playNewOrder()
     toast(`Sent to the kitchen — ${tableLabel(order.tableNum)}`, 'success')
     await loadOrders()
   } catch (e) {
@@ -891,9 +899,16 @@ onUnmounted(() => {
   border-radius: 8px; padding: 8px 10px;
   display: flex; flex-direction: column; gap: 6px;
 }
-.tm-pending-where { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.tm-pending-table { font-weight: 700; }
+.tm-pending-where { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tm-pending-table { font-weight: 700; display: flex; align-items: center; gap: 6px; }
 .tm-pending-ago { font-size: .75rem; opacity: .7; }
+.tm-source-badge {
+  display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 999px;
+  font-size: .65rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  line-height: 1.4;
+}
+.tm-source-badge.source-qr { background: var(--teal-100, #ccfbf1); color: var(--primary, #0F7B78); }
+.tm-source-badge.source-staff { background: var(--neutral-100, #f5f5f4); color: var(--text-muted); }
 .tm-pending-items { font-size: .85rem; line-height: 1.35; }
 .tm-pending-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .tm-pending-total { font-weight: 600; }
@@ -1157,6 +1172,36 @@ onUnmounted(() => {
 .tm-actions-spacer {
   flex: 1;
 }
+.tm-delete-separated {
+  margin-left: 8px;
+}
+
+/* ═══ SECTION TABS (horizontally scrollable on mobile) ═══ */
+.tm-section-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+  margin-bottom: 14px;
+}
+.tm-section-tabs::-webkit-scrollbar { display: none; }
+.tm-tab {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: .82rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s;
+}
+.tm-tab:hover { border-color: var(--primary); color: var(--primary); }
+.tm-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 /* Refresh icon button */
 .tm-refresh-btn {

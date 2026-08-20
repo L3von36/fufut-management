@@ -512,8 +512,8 @@ async function buildCharts() {
 
 <style scoped>
 /* Dashboard header */
-.dash-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;gap:12px}
-.dash-greeting{font-size:1.2rem;font-weight:700;color:var(--text-heading);line-height:1.2}
+.dash-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;gap:12px}.dash-header>div{min-width:0;flex:1;overflow:hidden}.dash-header>div{min-width:0;flex:1;overflow:hidden}
+.dash-greeting{font-size:1.2rem;font-weight:700;color:var(--text-heading);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dash-subtitle{font-size:.78rem;color:var(--text-muted);margin-top:3px}
 .dash-refresh{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;min-height:44px}
 
