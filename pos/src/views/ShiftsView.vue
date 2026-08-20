@@ -24,12 +24,12 @@
           <thead><tr><th>Staff</th><th>Role</th><th>Shift</th><th>Date</th><th>Start</th><th>End</th><th>Actions</th></tr></thead>
           <tbody>
             <tr v-for="s in filteredShifts" :key="s.id">
-              <td data-label="Staff"><strong>{{ s.staffName||s.staff||'—' }}</strong></td>
-              <td data-label="Role">{{ s.role||'—' }}</td>
-              <td data-label="Shift"><span class="badge" :class="'badge-'+(s.shift||s.type||'')">{{ s.shift||s.type||'—' }}</span></td>
+              <td data-label="Staff"><strong>{{ staffName(s.staff_id) }}</strong></td>
+              <td data-label="Role">{{ staffRole(s.staff_id) }}</td>
+              <td data-label="Shift"><span class="badge" :class="'badge-'+(s.role||'')">{{ s.role||'—' }}</span></td>
               <td data-label="Date">{{ s.date||'—' }}</td>
-              <td data-label="Start">{{ s.start||'—' }}</td>
-              <td data-label="End">{{ s.end||'—' }}</td>
+              <td data-label="Start">{{ s.start_time||'—' }}</td>
+              <td data-label="End">{{ s.end_time||'—' }}</td>
               <td data-label="Actions"><template v-if="auth.roleKey === 'manager'"><button class="btn btn-sm btn-ghost" @click="openEdit(s)">Edit</button><button class="btn btn-sm btn-ghost danger" @click="handleDelete(s)">Delete</button></template><span v-else style="color:var(--text-muted);font-size:.78rem">View only</span></td>
             </tr>
             <tr v-if="!filteredShifts.length"><td colspan="7">
@@ -50,17 +50,17 @@
       <div class="modal" role="dialog" aria-modal="true" :aria-label="editing ? 'Edit shift' : 'Add shift'">
         <h3>{{ editing ? 'Edit' : 'Add' }} Shift</h3>
         <p class="modal-sub">{{ editing ? 'Update shift' : 'Schedule a shift' }}</p>
-        <div class="form-group"><label>Staff Name</label><input v-model="form.staffName" :class="{ 'input-error': vErrors.staffName }" /><span v-if="vErrors.staffName" class="field-error">{{ vErrors.staffName }}</span></div>
+        <div class="form-group"><label>Staff Member</label><select v-model="form.staff_id" class="select" data-field="staff_id" :class="{ 'input-error': vErrors.staff_id }"><option value="">Select staff…</option><option v-for="s in staffList" :key="s.id" :value="s.id">{{ s.firstName }} {{ s.lastName }}</option></select><span v-if="vErrors.staff_id" class="field-error">{{ vErrors.staff_id }}</span></div>
         <div class="form-row">
           <div class="form-group">
             <label>Shift Type</label>
-            <select v-model="form.shift" class="select" :class="{ 'input-error': vErrors.shift }"><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option></select>
+            <select v-model="form.role" class="select" :class="{ 'input-error': vErrors.role }"><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option></select>
           </div>
           <div class="form-group"><label>Date</label><input v-model="form.date" type="date" /></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Start</label><input v-model="form.start" type="time" :class="{ 'input-error': vErrors.start }" /><span v-if="vErrors.start" class="field-error">{{ vErrors.start }}</span></div>
-          <div class="form-group"><label>End</label><input v-model="form.end" type="time" :class="{ 'input-error': vErrors.end }" /><span v-if="vErrors.end" class="field-error">{{ vErrors.end }}</span></div>
+          <div class="form-group"><label>Start</label><input v-model="form.start_time" type="time" :class="{ 'input-error': vErrors.start_time }" /><span v-if="vErrors.start_time" class="field-error">{{ vErrors.start_time }}</span></div>
+          <div class="form-group"><label>End</label><input v-model="form.end_time" type="time" :class="{ 'input-error': vErrors.end_time }" /><span v-if="vErrors.end_time" class="field-error">{{ vErrors.end_time }}</span></div>
         </div>
         <div class="modal-actions"><button class="btn btn-secondary" @click="showModal=false">Cancel</button><button class="btn btn-primary" @click="saveItem">{{ editing ? 'Update' : 'Add' }}</button></div>
       </div>
@@ -77,29 +77,43 @@ const toast = inject('toast')
 const confirmDelete = inject('confirm')
 const auth = useAuthStore()
 const schema = {
-  staffName: { required: true, label: 'Staff Name', max: 100 },
-  shift: { required: true, label: 'Shift Type' },
-  start: { required: true, label: 'Start Time' },
-  end: { required: true, label: 'End Time' }
+  staff_id: { required: true, label: 'Staff Member' },
+  role: { required: true, label: 'Shift Type' },
+  start_time: { required: true, label: 'Start Time' },
+  end_time: { required: true, label: 'End Time' }
 }
 const { errors: vErrors, validate } = useFormValidation(schema)
 
 const shifts = ref([])
+const staffList = ref([])
 const filter = ref('')
 const search = ref('')
 const showModal = ref(false)
 const editing = ref(null)
-const form = ref({ staffName: '', shift: 'morning', date: '', start: '09:00', end: '17:00' })
+const form = ref({ staff_id: '', role: 'morning', date: '', start_time: '09:00', end_time: '17:00' })
+
+/* Look up staff name from ID */
+function staffName(id) {
+  if (!id) return '—'
+  const s = staffList.value.find(st => String(st.id) === String(id))
+  return s ? `${s.firstName} ${s.lastName}` : id
+}
+
+/* Look up staff role/position from ID */
+function staffRole(id) {
+  if (!id) return '—'
+  const s = staffList.value.find(st => String(st.id) === String(id))
+  return s?.role || '—'
+}
 
 const filteredShifts = computed(() => {
-  let result = !filter.value ? shifts.value : shifts.value.filter(s => (s.shift || s.type) === filter.value)
+  let result = !filter.value ? shifts.value : shifts.value.filter(s => (s.role || '') === filter.value)
   if (search.value) {
     const q = search.value.toLowerCase()
-    result = result.filter(s =>
-      (s.staffName && s.staffName.toLowerCase().includes(q)) ||
-      (s.staff && s.staff.toLowerCase().includes(q)) ||
-      (s.role && s.role.toLowerCase().includes(q))
-    )
+    result = result.filter(s => {
+      const name = staffName(s.staff_id).toLowerCase()
+      return name.includes(q)
+    })
   }
   return result
 })
@@ -107,32 +121,38 @@ const filteredShifts = computed(() => {
 onMounted(() => {
   form.value.date = new Date().toISOString().slice(0, 10)
   loadData()
+  loadStaff()
 })
 
 async function loadData() {
   try { shifts.value = await apiGet('shifts') } catch (e) { console.error(e) }
 }
 
+async function loadStaff() {
+  try { staffList.value = await apiGet('staff') } catch (e) { console.error(e) }
+}
+
 function openAdd() {
   editing.value = null
-  form.value = { staffName: '', shift: 'morning', date: new Date().toISOString().slice(0, 10), start: '09:00', end: '17:00' }
+  form.value = { staff_id: '', role: 'morning', date: new Date().toISOString().slice(0, 10), start_time: '09:00', end_time: '17:00' }
   showModal.value = true
 }
 
 function openEdit(s) {
   editing.value = s
-  form.value = { ...s }
+  form.value = { staff_id: s.staff_id || '', role: s.role || 'morning', date: s.date || '', start_time: s.start_time || '09:00', end_time: s.end_time || '17:00' }
   showModal.value = true
 }
 
 async function saveItem() {
   if (!validate(form.value)) { toast('Please fix the errors', 'error'); return }
   try {
+    const payload = { ...form.value }
     if (editing.value) {
-      await apiPut('shifts/' + editing.value.id, form.value)
+      await apiPut('shifts/' + editing.value.id, payload)
       toast('Updated')
     } else {
-      await apiPost('shifts', form.value)
+      await apiPost('shifts', payload)
       toast('Added')
     }
     showModal.value = false
