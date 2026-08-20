@@ -77,15 +77,45 @@
       </div>
       <div class="table-grid">
         <div v-for="table in tables" :key="table.id"
-          class="table-cell"
-          :class="'status-' + (table.status || 'available')"
+          class="tm-table-card"
+          :class="table.status || 'available'"
           @click="selectTable(table)"
+          tabindex="0"
+          role="button"
+          :aria-label="`Table ${table.number || table.id} - ${table.status || 'available'}`"
         >
-          <div class="table-number">{{ table.number || table.id }}</div>
-          <div class="table-status">{{ (table.status || 'available').toUpperCase() }}</div>
-          <div v-if="table.seats" class="table-seats">{{ table.seats }} seats</div>
-          <div v-if="table.status === 'occupied'" class="table-guest-count">
-            {{ tableOrders(table)?.length ? (tableOrders(table)[0].guests || '—') + ' guests' : '— guests' }}
+          <!-- Status pill -->
+          <div class="tfc-top">
+            <span class="tfc-status-pill" :class="table.status || 'available'">{{ table.status || 'available' }}</span>
+          </div>
+
+          <!-- Table icon + number -->
+          <div class="tfc-center">
+            <div class="tfc-icon" :class="table.status || 'available'">
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="16" width="28" height="18" rx="4" stroke="currentColor" stroke-width="2"/>
+                <circle cx="10" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="18" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="30" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="38" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="10" cy="38" r="3" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="18" cy="38" r="3" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="30" cy="38" r="3" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="38" cy="38" r="3" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="tfc-number">T-{{ String(table.number || table.id).padStart(2, '0') }}</div>
+          </div>
+
+          <!-- Bottom info -->
+          <div class="tfc-bottom">
+            <div class="tfc-info-row">
+              <span class="tfc-label">{{ table.seats || table.capacity || 4 }} Persons</span>
+            </div>
+            <div v-if="table.status === 'occupied' && tableOrders(table)?.length" class="tfc-info-row">
+              <span class="tfc-label">{{ tableOrders(table).length }} Order{{ tableOrders(table).length > 1 ? 's' : '' }}</span>
+              <span class="tfc-amount">ETB {{ parseFloat(tableOrders(table)[0].total || 0).toFixed(0) }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -413,17 +443,37 @@ async function updateTableStatus() {
 .legend-dot--danger{background:var(--danger)}
 .legend-dot--warning{background:var(--warning)}
 .legend-dot--info{background:var(--info)}
-.table-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
-.table-cell{border:2px solid var(--border);border-radius:var(--radius-md);padding:16px 12px;text-align:center;cursor:pointer;transition:all var(--duration-fast) var(--ease-out);background:var(--neutral-0);box-shadow:var(--shadow-card)}
-.table-cell:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
-.table-cell.status-available{border-color:var(--teal-300);background:var(--teal-50)}
-.table-cell.status-occupied{border-color:var(--danger);background:var(--red-50)}
-.table-cell.status-reserved{border-color:var(--warning);background:var(--gold-50)}
-.table-cell.status-cleaning{border-color:var(--info);background:var(--blue-50)}
-.table-number{font-size:1.2rem;font-weight:700;color:var(--text-heading)}
-.table-status{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-top:4px}
-.table-seats{font-size:.72rem;color:var(--text-muted);margin-top:2px}
-.table-guest-count{font-size:.68rem;color:var(--text-heading);font-weight:500;margin-top:4px}
+/* ═══ TABLE CARD GRID (matching POS design) ═══ */
+.table-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.tm-table-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:12px;min-height:180px;transition:transform var(--duration-fast) var(--ease-out),box-shadow var(--duration-fast) var(--ease-out),border-color var(--duration-fast) var(--ease-out);-webkit-tap-highlight-color:transparent;overflow:hidden}
+.tm-table-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
+.tm-table-card.available::before{background:var(--success)}
+.tm-table-card.occupied::before{background:var(--primary)}
+.tm-table-card.reserved::before{background:var(--info,#2563EB)}
+.tm-table-card.cleaning::before{background:var(--neutral-400)}
+.tm-table-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:var(--border-strong)}
+.tm-table-card:active{transform:scale(.98);box-shadow:var(--shadow-xs);transition-duration:60ms}
+.tm-table-card:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.tm-table-card.occupied{border-color:rgba(15,123,120,.2)}
+.tm-table-card.reserved{border-color:rgba(37,99,235,.2)}
+.tfc-top{display:flex;justify-content:flex-end;width:100%}
+.tfc-status-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:.68rem;font-weight:600;text-transform:capitalize;letter-spacing:.03em}
+.tfc-status-pill.available{background:#F0FDF4;color:#166534}
+.tfc-status-pill.occupied{background:#EFF6FF;color:#1E40AF}
+.tfc-status-pill.reserved{background:#FEF3C7;color:#92400E}
+.tfc-status-pill.cleaning{background:var(--neutral-50);color:var(--text-muted)}
+.tfc-center{display:flex;flex-direction:column;align-items:center;gap:8px;flex:1}
+.tfc-icon{width:52px;height:52px;display:flex;align-items:center;justify-content:center;border-radius:14px;transition:all var(--duration-fast) var(--ease)}
+.tfc-icon svg{width:36px;height:36px}
+.tfc-icon.available{color:var(--success);background:rgba(34,197,94,.08)}
+.tfc-icon.occupied{color:var(--primary);background:rgba(15,123,120,.08)}
+.tfc-icon.reserved{color:var(--info,#2563EB);background:rgba(37,99,235,.08)}
+.tfc-icon.cleaning{color:var(--neutral-400);background:var(--neutral-50)}
+.tfc-number{font-size:1.35rem;font-weight:700;font-family:var(--font-mono);color:var(--text-heading);letter-spacing:.02em}
+.tfc-bottom{width:100%;display:flex;flex-direction:column;gap:4px;align-items:center}
+.tfc-info-row{display:flex;align-items:center;justify-content:center;gap:6px;font-size:.78rem;color:var(--text-muted)}
+.tfc-label{font-weight:500}
+.tfc-amount{font-family:var(--font-mono);font-weight:700;font-size:.82rem;color:var(--text-heading)}
 
 /* ─── Table Modal ─── */
 .table-modal{width:640px}
@@ -455,7 +505,6 @@ async function updateTableStatus() {
 @media(max-width: 768px) {
   .kpi-grid--tables{grid-template-columns:repeat(2,1fr)}
   .table-grid{grid-template-columns:repeat(2,1fr);gap:12px}
-  .table-grid .table-cell{padding:14px 10px}
   .table-modal{width:90vw;max-width:520px}
   .table-occupied-info{grid-template-columns:repeat(2,1fr)}
   .table-modal-header{flex-direction:column;align-items:flex-start;gap:8px}
@@ -466,8 +515,10 @@ async function updateTableStatus() {
 
 @media(max-width: 420px) {
   .table-grid{grid-template-columns:repeat(2,1fr);gap:10px}
-  .table-cell{padding:12px 8px}
-  .table-number{font-size:1rem}
+  .tm-table-card{min-height:160px;padding:12px}
+  .tfc-number{font-size:1.1rem}
+  .tfc-icon{width:44px;height:44px}
+  .tfc-icon svg{width:30px;height:30px}
   .kpi-value{font-size:1.4rem}
 }
 </style>
