@@ -68,7 +68,11 @@
 
     <!-- Menu Grid -->
     <div class="menu-grid-wrapper">
-      <div class="menu-grid" :class="{ 'is-list': density === 'list' }">
+      <div v-if="loading" class="menu-loading">
+        <div class="menu-loading-spinner"></div>
+        <div>Loading menu…</div>
+      </div>
+      <div v-else class="menu-grid" :class="{ 'is-list': density === 'list' }">
         <div v-for="item in filteredItems" :key="itemKey(item)"
           class="menu-card"
           :class="{ unavailable: item.available === false, 'in-cart': storeCartCount(item.id) > 0 }"
@@ -109,6 +113,7 @@
           <div class="menu-empty-icon">🔍</div>
           <div v-if="search">No items matching "{{ search }}"</div>
           <div v-else>No items in this category</div>
+          <button v-if="search" class="btn btn-sm btn-outline" style="margin-top:12px" @click="search = ''">Clear search</button>
         </div>
       </div>
     </div>
@@ -173,7 +178,7 @@
                 <span class="qty-value">{{ entry.qty }}</span>
                 <button class="qty-btn" @click="orderStore.incrementQty(entry.uid)">+</button>
               </div>
-              <button class="cart-remove" @click="orderStore.removeItem(entry.uid); if (!orderStore.items.length) showCart=false">✕</button>
+              <button class="cart-remove" @click="removeWithUndo(entry)">✕</button>
             </div>
           </div>
           <div class="cart-footer">
@@ -251,6 +256,7 @@ const route = useRoute()
 const toast = inject('toast')
 const orderStore = useOrderStore()
 const items = ref([])
+const loading = ref(true)
 const activeCategory = ref('')
 const search = ref('')
 const showCart = ref(false)
@@ -288,6 +294,36 @@ const activeCourse = ref('main')
  * inherit the last one's dessert round.
  */
 const showClearConfirm = ref(false)
+
+/**
+ * Remove a cart line with a 3-second undo window.
+ * Matches the CheckoutView behavior so the waiter can recover from a mis-tap.
+ */
+function removeWithUndo(entry) {
+  const name = entry.name
+  const uid = entry.uid
+  orderStore.removeItem(uid)
+  if (!orderStore.items.length) showCart.value = false
+  toast(`${name} removed — 3s to undo`, 'info', {
+    action: {
+      label: 'Undo',
+      onClick: () => {
+        for (let i = 0; i < entry.qty; i++) {
+          orderStore.addItem({
+            menuItemId: entry.menuItemId,
+            name: entry.name,
+            basePrice: entry.basePrice,
+            selectedModifiers: entry.selectedModifiers || [],
+            notes: entry.notes || '',
+            course: entry.course || 'main'
+          })
+        }
+        toast(`${name} restored`, 'success')
+      }
+    },
+    duration: 3000
+  })
+}
 
 function clearOrder() {
   orderStore.clearCart()
@@ -625,6 +661,21 @@ function clearTable() {
 }
 
 // ─── Init ───
+// ─── Keyboard shortcuts ───
+// Escape closes cart / qty sheet; Enter opens checkout when cart has items.
+function handleKeydown(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return
+  if (e.key === 'Escape') {
+    if (qtyTarget.value) { qtyTarget.value = null; return }
+    if (showClearConfirm.value) { showClearConfirm.value = false; return }
+    if (showCart.value) { showCart.value = false; return }
+  }
+  if (e.key === 'Enter' && orderStore.items.length && !showCart.value) {
+    e.preventDefault()
+    goToCheckout()
+  }
+}
+
 onMounted(() => {
   const t = route.query.table
   if (t) {
@@ -639,10 +690,12 @@ onMounted(() => {
     if (dockQuery.addEventListener) dockQuery.addEventListener('change', syncDock)
     else dockQuery.addListener(syncDock)
   }
+  document.addEventListener('keydown', handleKeydown)
   loadData()
 })
 
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
   if (!dockQuery) return
   if (dockQuery.removeEventListener) dockQuery.removeEventListener('change', syncDock)
   else dockQuery.removeListener(syncDock)
@@ -654,6 +707,7 @@ async function loadData() {
     items.value.forEach(i => { if (i.category) catSet.add(i.category) })
     categories.value = Array.from(catSet)
   } catch (e) { console.error(e) }
+  loading.value = false
 }
 </script>
 
@@ -864,6 +918,9 @@ async function loadData() {
 .menu-add-btn:hover{background:var(--primary-hover);transform:scale(1.1)!important}
 .menu-add-btn svg{width:20px;height:20px}
 
+.menu-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--text-muted);gap:12px}
+.menu-loading-spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .menu-empty{grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--text-muted)}
 .menu-empty-icon{font-size:2.5rem;margin-bottom:12px}
 

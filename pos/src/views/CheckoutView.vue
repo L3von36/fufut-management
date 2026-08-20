@@ -525,8 +525,6 @@ const showAllTables = ref(false)
 const showClearConfirm = ref(false)
 // Fix #16: Free up table confirmation
 const showFreeConfirm = ref(null)
-// Fix #14: Keyboard shortcuts
-const processBtnRef = ref(null)
 
 const availableTables = computed(() => {
   if (showAllTables.value) return tables.value
@@ -626,6 +624,12 @@ const discountExpanded = ref(false)
 const lastPayload = ref({})
 const successBtnRef = ref(null)
 
+// Fix #1: Clear All — reset cart and go back to menu
+function clearOrder() {
+  store.resetFull()
+  router.push('/app/menu-view')
+}
+
 // Fix #14: Keyboard shortcuts for cashier speed
 function handleKeydown(e) {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return
@@ -649,13 +653,6 @@ function handleKeydown(e) {
 
 onMounted(() => { document.addEventListener('keydown', handleKeydown) })
 onUnmounted(() => { document.removeEventListener('keydown', handleKeydown) })
-
-// Fix #8: Auto-focus New Order button on success
-const successBtnRef2 = computed(() => {
-  if (step.value === 'success') nextTick(() => successBtnRef.value?.focus())
-  return null
-})
-
 const step = computed(() => store.checkoutStep)
 
 // Fix #5: Add transfer payment methods
@@ -695,7 +692,10 @@ const paymentOptions = [
 const splitPaymentOptions = [
   { value: 'cash', label: 'Cash' },
   { value: 'card', label: 'Card' },
-  { value: 'mobile', label: 'Mobile Money' }
+  { value: 'mobile', label: 'Mobile Money' },
+  { value: 'telebirr', label: 'Telebirr' },
+  { value: 'cbe', label: 'CBE Birr' },
+  { value: 'bank', label: 'Bank Transfer' }
 ]
 
 // Quick tender amounts based on grand total
@@ -1513,6 +1513,10 @@ onMounted(() => {
   .split-payment-row {
     flex-wrap: wrap;
   }
+  /* Fix: payment grid on narrow phones */
+  .payment-methods { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .pm-card { padding: 14px 8px; }
+  .quick-tender { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* Fix #1, #16: Confirmation dialog */
