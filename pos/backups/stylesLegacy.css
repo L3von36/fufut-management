@@ -362,140 +362,66 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .tm-section-header h4{font-size:.82rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
 .tm-section-count{font-size:.78rem;color:var(--text-muted);background:var(--neutral-50);padding:3px 10px;border-radius:99px;font-weight:500}
 
-/* ═══ TABLE CARD GRID ═══
-   Modern dashboard-style cards replacing the floor-plan layout. */
-.tm-table-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
-}
+/* Floor grid â€” denser than before so more of the room fits on one screen. */
+.tm-floor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px}
 
-/* ═══ TABLE CARD ═══
-   Clean white cards with subtle borders, soft shadows, rounded corners.
-   Status is communicated via the status pill and subtle top accent. */
-.tm-table-card {
-  position: relative;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  min-height: 180px;
-  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-  overflow: hidden;
-}
-.tm-table-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  border-radius: 14px 14px 0 0;
-}
-.tm-table-card.available::before { background: var(--success); }
-.tm-table-card.occupied::before  { background: var(--primary); }
-.tm-table-card.reserved::before  { background: var(--info, #2563EB); }
-.tm-table-card.cleaning::before  { background: var(--neutral-400); }
+/* â”€â”€ Table card â”€â”€
+   Status is carried by a left rail plus a faint wash, so the card no longer
+   repeats itself with a status pill. Hierarchy: table number, then how long
+   they have been seated, then everything else. */
+.tm-card{position:relative;background:var(--surface);border-radius:14px;box-shadow:var(--shadow-card);border:1px solid var(--border);cursor:pointer;overflow:hidden;
+  transition:transform var(--duration-fast) var(--ease-out),box-shadow var(--duration-fast) var(--ease-out),border-color var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color:transparent}
+.tm-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-card-hover)}
+.tm-card:active{transform:scale(.975);box-shadow:var(--shadow-xs);transition-duration:60ms}
+.tm-card:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 
-.tm-table-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-strong);
-}
-.tm-table-card:active {
-  transform: scale(0.98);
-  box-shadow: var(--shadow-xs);
-  transition-duration: 60ms;
-}
-.tm-table-card:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-.tm-table-card.occupied { border-color: rgba(15, 123, 120, 0.2); }
-.tm-table-card.reserved { border-color: rgba(37, 99, 235, 0.2); }
+.tm-rail{position:absolute;top:0;bottom:0;left:0;width:4px}
+.tm-card.available .tm-rail{background:var(--success)}
+.tm-card.occupied  .tm-rail{background:var(--primary)}
+.tm-card.reserved  .tm-rail{background:var(--warning)}
+.tm-card.cleaning  .tm-rail{background:var(--neutral-400)}
 
-/* Status Pill */
-.tfc-top { display: flex; justify-content: flex-end; width: 100%; }
-.tfc-status-pill {
-  display: inline-flex; align-items: center;
-  padding: 3px 10px; border-radius: 999px;
-  font-size: 0.68rem; font-weight: 600;
-  text-transform: capitalize; letter-spacing: 0.03em;
-}
-.tfc-status-pill.available { background: #F0FDF4; color: #166534; }
-.tfc-status-pill.occupied { background: #EFF6FF; color: #1E40AF; }
-.tfc-status-pill.reserved { background: #FEF3C7; color: #92400E; }
-.tfc-status-pill.cleaning { background: var(--neutral-50); color: var(--text-muted); }
-:global([data-theme="dark"]) .tfc-status-pill.available { background: rgba(34,197,94,.15); color: #4ade80; }
-:global([data-theme="dark"]) .tfc-status-pill.occupied { background: rgba(59,130,246,.15); color: #60a5fa; }
-:global([data-theme="dark"]) .tfc-status-pill.reserved { background: rgba(245,158,11,.15); color: #fbbf24; }
+.tm-card.occupied{border-color:rgba(15,123,120,.28);background:linear-gradient(180deg,rgba(15,123,120,.055),transparent 62%)}
+.tm-card.reserved{border-color:rgba(181,101,29,.26);background:linear-gradient(180deg,rgba(181,101,29,.05),transparent 62%)}
+.tm-card.cleaning{border-color:var(--border);background:var(--neutral-25)}
 
-/* Center: Table Icon + Number */
-.tfc-center { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
-.tfc-icon {
-  width: 52px; height: 52px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 14px;
-  transition: all var(--duration-fast) var(--ease);
-}
-.tfc-icon svg { width: 36px; height: 36px; }
-.tfc-icon.available { color: var(--success); background: rgba(34,197,94,.08); }
-.tfc-icon.occupied  { color: var(--primary); background: rgba(15,123,120,.08); }
-.tfc-icon.reserved  { color: var(--info, #2563EB); background: rgba(37,99,235,.08); }
-.tfc-icon.cleaning  { color: var(--neutral-400); background: var(--neutral-50); }
-.tfc-number {
-  font-size: 1.35rem; font-weight: 700;
-  font-family: var(--font-mono); color: var(--text-heading);
-  letter-spacing: 0.02em;
-}
+.tm-card-body{padding:12px 13px 12px 15px;display:flex;flex-direction:column;gap:3px}
 
-/* Server Badge */
-.tfc-server { position: absolute; top: 12px; left: 12px; }
-.tfc-server-badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 24px; height: 24px; padding: 0 6px;
-  border-radius: 999px; color: #fff;
-  font-size: 0.7rem; font-weight: 700; line-height: 24px;
-}
+.tm-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tm-table-num{font-size:1.9rem;font-weight:800;color:var(--text-heading);font-family:var(--font-mono);line-height:1;letter-spacing:-.02em}
+.tm-card-name{font-size:.78rem;color:var(--text-muted);font-weight:500;line-height:1.2}
 
-/* Bottom: Info */
-.tfc-bottom { width: 100%; display: flex; flex-direction: column; gap: 4px; align-items: center; }
-.tfc-info-row {
-  display: flex; align-items: center; justify-content: center;
-  gap: 6px; font-size: 0.78rem; color: var(--text-muted);
-}
-.tfc-label { font-weight: 500; }
-.tfc-timer-icon { width: 13px; height: 13px; flex-shrink: 0; }
-.tfc-timer-text { font-family: var(--font-mono); font-weight: 700; font-size: 0.82rem; }
-.tfc-timer-text.urg-fresh { color: var(--success-text); }
-.tfc-timer-text.urg-warm { color: var(--warning-text); }
-.tfc-timer-text.urg-late { color: var(--danger-text); }
-.tfc-timer-text.urg-none { color: var(--text-muted); }
-.tfc-amount { font-family: var(--font-mono); font-weight: 700; font-size: 0.82rem; color: var(--text-heading); }
-.tfc-tab-badge {
-  display: inline-block; padding: 2px 8px; border-radius: 999px;
-  background: var(--warning); color: #fff;
-  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.03em;
-}
-:global([data-theme="dark"]) .tfc-tab-badge { background: #b45309; }
-.tfc-reservation {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;
-}
-.tfc-res-time { font-family: var(--font-mono); font-size: 0.72rem; }
+/* Seats as dots. Replaces a tiny outline square that read as a broken
+   checkbox and told you nothing you could count. */
+.tm-seats{display:flex;align-items:center;gap:3px;flex-wrap:wrap;justify-content:flex-end;max-width:52px}
+.tm-seat{width:5px;height:5px;border-radius:50%;background:var(--neutral-300);display:block}
+.tm-card.occupied .tm-seat{background:var(--primary);opacity:.55}
+.tm-card.available .tm-seat{background:var(--success);opacity:.5}
+.tm-card.reserved .tm-seat{background:var(--warning);opacity:.55}
+.tm-seat-more{font-size:.78rem;color:var(--text-muted);font-weight:600;margin-left:1px}
 
-/* Responsive */
-@media (max-width: 480px) {
-  .tm-table-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .tm-table-card { min-height: 160px; padding: 12px; }
-  .tfc-number { font-size: 1.1rem; }
-  .tfc-icon { width: 44px; height: 44px; }
-  .tfc-icon svg { width: 30px; height: 30px; }
-}
+/* Seated time â€” the number a waiter is actually scanning for. */
+.tm-timer{display:flex;align-items:center;gap:4px;font-size:.9rem;font-weight:700;font-family:var(--font-mono);margin-top:5px;line-height:1}
+.tm-timer svg{width:13px;height:13px;flex-shrink:0}
+.tm-timer.urg-fresh{color:var(--success-text)}
+.tm-timer.urg-warm{color:var(--warning-text)}
+.tm-timer.urg-late{color:var(--danger-text)}
+.tm-timer.urg-none{color:var(--text-muted)}
+
+.tm-meta-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.78rem;color:var(--text-muted);margin-top:1px}
+.tm-meta-row .tm-server{color:var(--text-body);font-weight:600}
+.tm-meta-row .tm-server::before{content:'Â·';margin-right:6px;color:var(--neutral-300);font-weight:400}
+
+.tm-order-chip{margin-top:5px;align-self:flex-start;font-size:.78rem;font-weight:600;color:var(--primary);background:var(--teal-50);border:1px solid var(--teal-200);padding:2px 7px;border-radius:99px}
+
+.tm-state-line{font-size:.78rem;color:var(--text-muted);margin-top:5px;font-weight:500}
+.tm-state-line.tm-free{color:var(--success-text)}
+
+/* Shape: round tables get a rounder card, long tables a wider one. */
+.tm-card.shape-round{border-radius:22px}
+.tm-card.shape-long{grid-column:span 2}
+@media(max-width:480px){ .tm-card.shape-long{grid-column:span 1} }
 
 /* â•â•â• DETAIL MODAL â•â•â• */
 .tm-detail-modal{background:var(--surface);border-radius:var(--radius-lg);padding:0;box-shadow:var(--shadow-xl);width:600px;max-width:95vw;max-height:88vh;overflow-y:auto;border:1px solid var(--border);display:flex;flex-direction:column}

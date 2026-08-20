@@ -90,94 +90,94 @@
       </button>
     </div>
 
-    <!-- ═══ TABLE CARDS ═══ -->
+    <!-- ═══ FLOOR PLAN ═══ -->
     <div v-for="section in visibleSections" :key="section" class="tm-section">
       <div class="tm-section-header">
         <h4>{{ section }}</h4>
         <span class="tm-section-count">{{ sectionTables(section).length }} tables</span>
       </div>
-      <div class="tm-table-grid">
+      <div class="tm-floor-grid">
         <div
           v-for="t in sectionTables(section)"
           :key="t.id"
-          class="tm-table-card"
-          :class="t.status"
+          class="tm-card"
+          :class="[t.status, 'shape-' + (t.shape || 'square')]"
           @click="openDetail(t)"
           tabindex="0"
           role="button"
           @keydown.enter="openDetail(t)"
-          :aria-label="`Table ${t.number} - ${t.status}`"
         >
-          <!-- Top: Status pill -->
-          <div class="tfc-top">
-            <span class="tfc-status-pill" :class="t.status">{{ t.status }}</span>
-          </div>
+          <!-- Status rail: the card's colour already states the status, so the
+               old redundant badge is gone. -->
+          <span class="tm-rail"></span>
 
-          <!-- Center: Table icon + number -->
-          <div class="tfc-center">
-            <div class="tfc-icon" :class="t.status">
-              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="10" y="16" width="28" height="18" rx="4" stroke="currentColor" stroke-width="2"/>
-                <circle cx="10" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-                <circle cx="18" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-                <circle cx="30" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-                <circle cx="38" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
-                <circle cx="10" cy="38" r="3" stroke="currentColor" stroke-width="1.5"/>
-                <circle cx="18" cy="38" r="3" stroke="currentColor" stroke-width="1.5"/>
-                <circle cx="30" cy="38" r="3" stroke="currentColor" stroke-width="1.5"/>
-                <circle cx="38" cy="38" r="3" stroke="currentColor" stroke-width="1.5"/>
-              </svg>
+          <div class="tm-card-body">
+            <div class="tm-card-head">
+              <span class="tm-table-num">{{ t.number }}</span>
+              <!-- Server identity as a coloured initials badge. Colour is derived
+                   from the name, so the same server is the same colour on every
+                   tile and a waiter can pick out their own section without
+                   reading a single word. -->
+              <span
+                v-if="t.server"
+                class="tm-server-badge"
+                :style="serverColor(t.server)"
+                :title="'Server: ' + t.server"
+                :aria-label="'Server ' + t.server"
+              >{{ serverInitials(t.server) }}</span>
+              <!-- Seats as dots — countable at a glance, and it makes a
+                   2-seater visibly different from an 8-seater. -->
+              <span class="tm-seats" :title="t.capacity + ' seats'" :aria-label="t.capacity + ' seats'">
+                <i v-for="n in Math.min(t.capacity || 0, 8)" :key="n" class="tm-seat"></i>
+                <span v-if="(t.capacity || 0) > 8" class="tm-seat-more">+{{ t.capacity - 8 }}</span>
+              </span>
             </div>
-            <div class="tfc-number">T-{{ String(t.number).padStart(2, '0') }}</div>
-          </div>
 
-          <!-- Server badge (if occupied) -->
-          <div v-if="t.server" class="tfc-server">
-            <span class="tfc-server-badge" :style="serverColor(t.server)">{{ serverInitials(t.server) }}</span>
-          </div>
+            <div class="tm-card-name">{{ t.name || ('Table ' + t.number) }}</div>
 
-          <!-- Bottom: Info based on status -->
-          <div class="tfc-bottom">
-            <!-- Available -->
-            <template v-if="t.status === 'available'">
-              <div class="tfc-info-row">
-                <span class="tfc-label">{{ t.capacity }} Persons</span>
-                <span class="tfc-label">&middot;</span>
-                <span class="tfc-label">{{ t.capacity <= 4 ? 'Small' : t.capacity <= 6 ? 'Medium' : 'Large' }}</span>
+            <!-- An active booking is shown whatever the table's own status says.
+                 The server decides what still counts as held, including the
+                 grace period, so a lapsed no-show simply stops appearing here
+                 rather than the floor plan having to know the rule. -->
+            <div v-if="t.reservedHold" class="tm-hold" :class="{ 'is-upcoming': !t.reservedHold.blocksNow }">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span class="tm-hold-text">
+                <strong>{{ t.reservedHold.name || 'Reserved' }}</strong>
+                <span class="tm-hold-when">{{ holdWindowLabel(t.reservedHold) }}</span>
+              </span>
+            </div>
+
+            <!-- Occupied tiles carry the three numbers table-service POS products
+                 converge on: how long they have sat, how many are sitting, and how
+                 much is on the table. Everything else is one tap away in the panel. -->
+            <template v-if="t.status === 'occupied'">
+              <div class="tm-vitals">
+                <div class="tm-timer" :class="'urg-' + occupancyUrgency(t)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+                  {{ occupancyTimer(t) }}
+                </div>
+                <div v-if="tableOrderTotals[t.id]" class="tm-spend">{{ formatETB(tableOrderTotals[t.id]) }}</div>
+                <span v-if="tableOpenTab[t.id]" class="tm-tab-badge" title="Open unpaid tab">Open Tab</span>
+              </div>
+              <div class="tm-meta-row">
+                <span v-if="t.guests" class="tm-guests">{{ t.guests }} guest{{ t.guests > 1 ? 's' : '' }}</span>
+                <span v-if="tableOrderCounts[t.id]" class="tm-ordercount">
+                  {{ tableOrderCounts[t.id] }} order{{ tableOrderCounts[t.id] > 1 ? 's' : '' }}
+                </span>
+                <span v-else class="tm-noorder">no order yet</span>
               </div>
             </template>
 
-            <!-- Occupied -->
-            <template v-else-if="t.status === 'occupied'">
-              <div class="tfc-info-row" v-if="occupancyTimer(t)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tfc-timer-icon"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
-                <span class="tfc-timer-text" :class="'urg-' + occupancyUrgency(t)">{{ occupancyTimer(t) }}</span>
-              </div>
-              <div class="tfc-info-row">
-                <span v-if="tableOrderCounts[t.id]" class="tfc-label">{{ tableOrderCounts[t.id] }} Order{{ tableOrderCounts[t.id] > 1 ? 's' : '' }}</span>
-                <span v-else class="tfc-label">No order</span>
-                <span v-if="tableOrderTotals[t.id]" class="tfc-amount">{{ formatETB(tableOrderTotals[t.id]) }}</span>
-              </div>
-              <span v-if="tableOpenTab[t.id]" class="tfc-tab-badge">Open Tab</span>
-            </template>
-
-            <!-- Reserved -->
             <template v-else-if="t.status === 'reserved'">
-              <div class="tfc-info-row">
-                <span class="tfc-label">{{ t.capacity }} Persons</span>
-              </div>
-              <div v-if="t.reservedHold" class="tfc-reservation">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tfc-timer-icon"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <span>{{ t.reservedHold.name || 'Reserved' }}</span>
-                <span class="tfc-res-time">{{ holdWindowLabel(t.reservedHold) }}</span>
-              </div>
+              <div class="tm-state-line">Reserved<span v-if="t.guests"> &middot; {{ t.guests }} guest{{ t.guests > 1 ? 's' : '' }}</span></div>
             </template>
 
-            <!-- Cleaning -->
             <template v-else-if="t.status === 'cleaning'">
-              <div class="tfc-info-row">
-                <span class="tfc-label">Needs cleaning</span>
-              </div>
+              <div class="tm-state-line">Needs cleaning</div>
+            </template>
+
+            <template v-else>
+              <div class="tm-state-line tm-free">Free &middot; {{ t.capacity }} seats</div>
             </template>
           </div>
         </div>
