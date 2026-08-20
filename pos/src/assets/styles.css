@@ -346,8 +346,39 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 /* â•â•â• PHASE 4: TABLE MANAGEMENT â•â•â• */
 .tm-page{} 
 .tm-toolbar-actions{display:flex;gap:8px;align-items:center}
-.tm-sse-dot{width:8px;height:8px;border-radius:50%;background:var(--neutral-400);display:inline-block;transition:background .2s}
-.tm-sse-dot.active{background:var(--success);box-shadow:0 0 6px rgba(46,125,50,.5);animation:ssePulse 2s ease-in-out infinite}
+/* Live button — distinct from green "available" tables */
+.tm-live-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px; font-size: .78rem; font-weight: 600;
+  border: 1.5px solid var(--border-strong); background: var(--surface);
+  color: var(--text-muted); cursor: pointer;
+  transition: all var(--duration-fast) var(--ease);
+}
+.tm-live-btn:hover { border-color: var(--primary); color: var(--primary); }
+.tm-live-btn.is-live {
+  border-color: var(--primary); background: var(--teal-50);
+  color: var(--primary);
+}
+.tm-live-btn.is-off {
+  border-color: var(--danger); background: rgba(211,47,47,.05);
+  color: var(--danger);
+}
+.tm-live-btn.is-off:hover {
+  background: rgba(211,47,47,.1); border-color: var(--danger);
+}
+.tm-sse-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--danger); display: inline-block;
+  transition: background .2s, box-shadow .2s;
+}
+.tm-sse-dot.active {
+  background: var(--primary); box-shadow: 0 0 8px rgba(15,123,120,.5);
+  animation: ssePulse 2s ease-in-out infinite;
+}
+@keyframes ssePulse {
+  0%,100% { box-shadow: 0 0 4px rgba(15,123,120,.4); }
+  50% { box-shadow: 0 0 12px rgba(15,123,120,.7); }
+}
 @keyframes ssePulse{0%,100%{box-shadow:0 0 4px rgba(46,125,50,.4)}50%{box-shadow:0 0 10px rgba(46,125,50,.7)}}
 
 /* Section tabs */

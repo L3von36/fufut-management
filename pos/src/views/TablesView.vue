@@ -12,9 +12,9 @@
         <span class="tm-toolbar-sub">{{ tables.length }} tables &middot; {{ occupancyPercent }}% occupied</span>
       </div>
       <div class="tm-toolbar-actions">
-        <button class="btn btn-sm" :class="sseConnected ? 'btn-success' : 'btn-outline'" @click="toggleSSE" :title="sseConnected ? 'Live updates active' : 'Connect live updates'">
+        <button class="btn btn-sm tm-live-btn" :class="{ 'is-live': sseConnected, 'is-off': !sseConnected }" @click="toggleSSE" :title="sseConnected ? 'Live updates active — click to disconnect' : 'Click to enable live updates'">
           <span class="tm-sse-dot" :class="{ active: sseConnected }"></span>
-          <span>{{ sseConnected ? 'Live' : 'Go Live' }}</span>
+          <span>{{ sseConnected ? 'Live' : 'Offline' }}</span>
         </button>
         <button v-if="authStore?.roleKey === 'manager'" class="btn btn-primary btn-sm" @click="openAddTable">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
