@@ -260,7 +260,7 @@ import { useButtonState } from '../composables/useButtonState'
 import { useAuthStore } from '../stores/auth'
 import { useSSE } from '../composables/useSSE'
 import { kitchenTicket } from '../lib/print'
-import { getOrderLines, formatModName as sharedFormatModName } from '../lib/orderLines'
+import { getOrderLines, formatModName as sharedFormatModName, formatOrderItems } from '../lib/orderLines'
 
 const toast = inject('toast')
 const auth = useAuthStore()

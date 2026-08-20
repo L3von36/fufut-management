@@ -186,10 +186,6 @@
         </div>
       </div>
     </transition>
-          </div>
-        </div>
-      </div>
-    </transition>
   </div>
 </template>
 
