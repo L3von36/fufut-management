@@ -1,0 +1,2 @@
+function e(e){if(!Array.isArray(e)||!e.length)return``;let n=[...new Set(e.flatMap(e=>Object.keys(e||{})))];return[n.join(`,`),...e.map(e=>n.map(n=>t(e?e[n]:void 0)).join(`,`))].join(`\r
+`)}function t(e){if(e==null)return``;let t=typeof e==`object`?JSON.stringify(e):String(e);return/[",\n\r]/.test(t)?`"${t.replace(/"/g,`""`)}"`:t}function n(e,t,n){let r=new Blob([e],{type:n}),i=document.createElement(`a`);i.href=URL.createObjectURL(r),i.download=t,i.click(),URL.revokeObjectURL(i.href)}export{e as n,n as t};
