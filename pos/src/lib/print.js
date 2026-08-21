@@ -285,3 +285,19 @@ export function printZReport(drawer) {
   return printDocument({ title: `Z-Report ${drawer.id || ''}`, body, paper: 'receipt', subtitle: 'CASH DRAWER CLOSE' });
 }
 
+/**
+ * Alias kept for backward-compatibility with the test suite and any callers
+ * that imported `printReport` before the function was renamed to `printDocument`.
+ *
+ * @param {object} opts
+ * @param {string} opts.title
+ * @param {string[]} opts.headers
+ * @param {string[][]} opts.rows
+ * @param {'receipt'|'a4'} [opts.paper]
+ * @returns {boolean}
+ */
+export function printReport({ title, headers, rows, paper = 'a4' }) {
+  return printDocument({ title, body: table(headers, rows), paper })
+}
+
+
