@@ -19,7 +19,9 @@
         empty-title="No shifts found"
         empty-hint="Add a shift to build the roster."
       >
-        <template #cell-staffName="{ row }"><strong>{{ row.staffName || row.staffId }}</strong></template>
+        <template #cell-staff_id="{ row }"><strong>{{ row.staffName || row.staff_id }}</strong></template>
+        <template #cell-start_time="{ row }">{{ row.start_time || '—' }}</template>
+        <template #cell-end_time="{ row }">{{ row.end_time || '—' }}</template>
         <template #cell-role="{ row }"><span class="badge badge-neutral">{{ row.role || '—' }}</span></template>
         <template #cell-actions="{ row }">
           <button class="btn btn-sm btn-ghost" @click="editShift(row)">Edit</button>
@@ -36,15 +38,15 @@
             <div class="form-group"><label>Date</label><input type="date" v-model="form.date" required /></div>
             <div class="form-group">
               <label>Staff</label>
-              <select v-model="form.staffId" required class="select">
+              <select v-model="form.staff_id" required class="select">
                 <option value="" disabled>Select staff member...</option>
                 <option v-for="s in staffList" :key="s.id" :value="s.id">{{ s.firstName }} {{ s.lastName }} ({{ s.role }})</option>
               </select>
             </div>
           </div>
           <div class="form-row">
-            <div class="form-group"><label>Start Time</label><input type="time" v-model="form.start" required /></div>
-            <div class="form-group"><label>End Time</label><input type="time" v-model="form.end" /></div>
+            <div class="form-group"><label>Start Time</label><input type="time" v-model="form.start_time" required /></div>
+            <div class="form-group"><label>End Time</label><input type="time" v-model="form.end_time" /></div>
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="showForm=false">Cancel</button>
@@ -76,13 +78,13 @@ const dateFrom = ref(TODAY())
 const dateTo = ref(TODAY())
 const showForm = ref(false)
 const editing = ref(null)
-const form = ref({ date: TODAY(), staffId: '', start: '09:00', end: '' })
+const form = ref({ date: TODAY(), staff_id: '', start_time: '09:00', end_time: '' })
 
 const columns = [
   { key: 'date', label: 'Date' },
-  { key: 'staffName', label: 'Staff' },
-  { key: 'start', label: 'Start' },
-  { key: 'end', label: 'End' },
+  { key: 'staff_id', label: 'Staff' },
+  { key: 'start_time', label: 'Start' },
+  { key: 'end_time', label: 'End' },
   { key: 'role', label: 'Role' },
   { key: 'actions', label: 'Actions' },
 ]
@@ -123,14 +125,14 @@ async function loadStaff() {
   } catch { /* optional — dropdown will just be empty */ }
 }
 
-function editShift(s) { editing.value = s; form.value = { date: s.date, staffId: s.staffId, start: s.start, end: s.end || '' }; showForm.value = true }
+function editShift(s) { editing.value = s; form.value = { date: s.date, staff_id: s.staff_id || '', start_time: s.start_time || '', end_time: s.end_time || '' }; showForm.value = true }
 
 async function saveShift() {
   btnState.setLoading()
   try {
     if (editing.value) { await apiPut('shifts', { ...form.value, id: editing.value.id }); toast('Shift updated') }
     else { await apiPost('shifts', form.value); toast('Shift added') }
-    showForm.value = false; editing.value = null; form.value = { date: TODAY(), staffId: '', start: '09:00', end: '' }
+    showForm.value = false; editing.value = null; form.value = { date: TODAY(), staff_id: '', start_time: '09:00', end_time: '' }
     await loadShifts()
     btnState.setSuccess()
   } catch (e) { toast(e.message, 'error'); btnState.setError(e.message) }
