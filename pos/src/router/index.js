@@ -83,6 +83,7 @@ const routes = [
       { path: 'suppliers', name: 'suppliers', component: SuppliersView },
       { path: 'purchases', name: 'purchases', component: PurchasesView },
       { path: 'stock-control', name: 'stock-control', component: StockControlView },
+      { path: 'customers', name: 'customers', component: () => import('../views/CustomersView.vue') },
       { path: 'audit', name: 'audit', component: () => import('../views/AuditLogView.vue') }
     ]
   }

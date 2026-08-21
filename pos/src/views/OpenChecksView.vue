@@ -45,7 +45,9 @@
             <span class="badge" :class="'badge-' + (c.payment_status || 'unpaid')">{{ c.payment_status || 'unpaid' }}</span>
           </div>
           <div class="oc-actions">
+            <button class="btn btn-sm btn-outline" @click="openSplit(c)">Split</button>
             <button class="btn btn-sm btn-outline" @click="openMove(c)">Move</button>
+            <button class="btn btn-sm btn-outline" @click="openMerge(c)">Merge</button>
             <button class="btn btn-sm btn-primary" @click="settle(c)">Settle</button>
           </div>
         </footer>
@@ -82,6 +84,48 @@
         </div>
       </div>
     </div>
+
+    <!-- ─── Split Bill Modal ─── -->
+    <div v-if="splitting" class="modal-overlay" @click.self="closeSplit">
+      <div class="modal">
+        <h3>Split Bill — {{ whereLabel(splitting) }}</h3>
+        <p class="oc-modal-sub">Divide total ETB {{ Number(splitting.total || 0).toFixed(0) }} evenly across guest seats.</p>
+        <div class="form-group">
+          <label>Number of Seats / Splits</label>
+          <input type="number" v-model.number="splitSeats" min="2" max="10" class="input" />
+          <span class="oc-hint">Each split bill will be ETB {{ (Number(splitting.total || 0) / Math.max(2, splitSeats)).toFixed(0) }}</span>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="closeSplit">Cancel</button>
+          <button class="btn btn-primary" :disabled="splitBusy" @click="confirmSplit">
+            {{ splitBusy ? 'Splitting…' : 'Create ' + splitSeats + ' Split Bills' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Merge Checks Modal ─── -->
+    <div v-if="merging" class="modal-overlay" @click.self="closeMerge">
+      <div class="modal">
+        <h3>Merge {{ whereLabel(merging) }} with Another Check</h3>
+        <p class="oc-modal-sub">Combine all items from this check into another open check.</p>
+        <div class="form-group">
+          <label>Merge into</label>
+          <select v-model="mergeTargetId" class="select">
+            <option value="">Select target check…</option>
+            <option v-for="other in checks.filter(x => x.id !== merging.id)" :key="other.id" :value="other.id">
+              {{ whereLabel(other) }} — ETB {{ Number(other.total || 0).toFixed(0) }}
+            </option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="closeMerge">Cancel</button>
+          <button class="btn btn-primary" :disabled="!mergeTargetId || mergeBusy" @click="confirmMerge">
+            {{ mergeBusy ? 'Merging…' : 'Merge Checks' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -107,6 +151,14 @@ const loading = ref(false)
 const moving = ref(null)
 const moveTarget = ref('')
 const movingBusy = ref(false)
+
+const splitting = ref(null)
+const splitSeats = ref(2)
+const splitBusy = ref(false)
+
+const merging = ref(null)
+const mergeTargetId = ref('')
+const mergeBusy = ref(false)
 
 const totalOwed = computed(() =>
   checks.value.reduce((sum, c) => sum + (Number(c.total) || 0), 0)
@@ -210,6 +262,55 @@ async function confirmMove() {
     toast(e.message || 'Could not move the check', 'error')
   } finally {
     movingBusy.value = false
+  }
+}
+
+function openSplit(c) {
+  splitting.value = c
+  splitSeats.value = 2
+}
+
+function closeSplit() {
+  splitting.value = null
+}
+
+async function confirmSplit() {
+  if (!splitting.value) return
+  splitBusy.value = true
+  try {
+    const res = await apiPost(`orders/${splitting.value.id}/split`, { seatCount: splitSeats.value })
+    toast(`Split into ${res.splits?.length || splitSeats.value} sub-orders`, 'success')
+    closeSplit()
+    await load()
+  } catch (e) {
+    toast(e.message || 'Could not split bill', 'error')
+  } finally {
+    splitBusy.value = false
+  }
+}
+
+function openMerge(c) {
+  merging.value = c
+  mergeTargetId.value = ''
+}
+
+function closeMerge() {
+  merging.value = null
+  mergeTargetId.value = ''
+}
+
+async function confirmMerge() {
+  if (!merging.value || !mergeTargetId.value) return
+  mergeBusy.value = true
+  try {
+    const res = await apiPost('orders/merge', { sourceOrderId: merging.value.id, targetOrderId: mergeTargetId.value })
+    toast('Checks merged successfully', 'success')
+    closeMerge()
+    await load()
+  } catch (e) {
+    toast(e.message || 'Could not merge checks', 'error')
+  } finally {
+    mergeBusy.value = false
   }
 }
 

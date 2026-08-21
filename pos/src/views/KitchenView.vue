@@ -3,6 +3,13 @@
     <div class="table-toolbar">
       <h3>Kitchen Display</h3>
       <div class="kitchen-toolbar-actions">
+        <!-- Station Filter -->
+        <select v-model="stationFilter" class="ks-station-select" title="Filter by station">
+          <option value="all">All Stations</option>
+          <option value="hot">Hot Kitchen</option>
+          <option value="bar">Bar & Drinks</option>
+          <option value="pass">Hot Pass Only</option>
+        </select>
         <div class="kitchen-stats">
           <span class="ks-stat ks-new">{{ newOrders.length }} new</span>
           <span class="ks-stat ks-prep">{{ preparingOrders.length }} prepping</span>
@@ -21,6 +28,11 @@
         </button>
         <base-button text="Refresh" variant="btn-outline" extra-class="btn-sm" :on-click="refresh" />
       </div>
+    </div>
+
+    <!-- Alert Banner for Critical Overdue Tickets -->
+    <div v-if="criticalOverdueCount &gt; 0" class="ks-alert-banner">
+      ⚠️ <strong>ALERT:</strong> {{ criticalOverdueCount }} ticket{{ criticalOverdueCount === 1 ? '' : 's' }} exceeded the 15-minute preparation SLA threshold!
     </div>
 
     <div class="kitchen-grid">
@@ -272,13 +284,29 @@ const orders = ref([])
 const activeItems = ref([])
 // Lines with a request in flight, so a double-tap cannot fire twice.
 const busyItems = ref(new Set())
-// Fix #1: Sort toggle for columns
+const stationFilter = ref('all') // 'all' | 'hot' | 'bar' | 'pass'
 const sortBy = ref('time') // 'time' | 'table' | 'size'
 // Fix #4: Undo tracking for Start All
 const undoTimers = new Map()
 let timer = null
 let clockTimer = null
 const now = ref(Date.now())
+
+const criticalOverdueCount = computed(() => {
+  return orders.value.filter(o => o.status !== 'fulfilled' && o.status !== 'cancelled' && ageInMinutes(o) >= 15).length
+})
+
+function onDragStart(e, order) {
+  e.dataTransfer.setData('text/plain', order.id)
+  e.dataTransfer.effectAllowed = 'move'
+}
+
+function onDrop(e, targetStatus) {
+  const orderId = e.dataTransfer.getData('text/plain')
+  if (orderId) {
+    updateStatus(orderId, targetStatus)
+  }
+}
 
 const ITEM_FLOW = ['new', 'preparing', 'ready', 'served']
 
@@ -998,5 +1026,39 @@ function isStaleReady(o) {
   border-radius: 4px; font-family: var(--font-mono); font-size: .7rem;
   font-weight: 700; color: var(--text-heading);
   box-shadow: 0 1px 2px rgba(0,0,0,.08);
+}
+
+/* Station selector */
+.ks-station-select {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-body);
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+/* Alert banner for overdue items */
+.ks-alert-banner {
+  background: #FEF2F2;
+  border: 1.5px solid var(--danger);
+  color: #991B1B;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: .85rem;
+  margin-bottom: 14px;
+  animation: pulse-critical 1.5s infinite;
+}
+
+/* QR Guest Order chip */
+.ko-qr-chip {
+  background: #EEF2FF;
+  color: #4F46E5;
+  border: 1px solid #C7D2FE;
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-size: .68rem;
+  font-weight: 700;
 }
 </style>

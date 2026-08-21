@@ -298,6 +298,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             Go to Checkout
           </button>
+          <button v-if="authStore?.roleKey === 'manager'" class="btn btn-outline btn-sm" @click="generateQrForTable(detailTable)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            QR Code
+          </button>
           <div class="tm-actions-spacer"></div>
           <button class="btn btn-secondary" @click="closeDetail">Close</button>
           <button class="btn btn-primary" @click="saveDetail">Save Changes</button>
@@ -305,6 +309,24 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             Delete
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ QR CODE MODAL ═══ -->
+    <div class="modal-overlay" v-if="qrModalData" @click.self="qrModalData = null">
+      <div class="modal" style="max-width:380px;text-align:center">
+        <h3>Table {{ qrModalData.table.number }} QR Code</h3>
+        <p class="modal-sub">Guests scan this code to view the menu and order</p>
+        <div style="padding:16px;background:#fff;border-radius:8px;margin:16px 0;display:inline-block">
+          <img :src="qrImageUrl" alt="QR Code" style="width:180px;height:180px;display:block" />
+        </div>
+        <div style="font-size:.78rem;color:var(--text-muted);word-break:break-all;margin-bottom:16px">
+          {{ qrModalData.url }}
+        </div>
+        <div class="modal-actions" style="justify-content:center">
+          <button class="btn btn-secondary" @click="qrModalData = null">Close</button>
+          <button class="btn btn-primary" @click="printQrCard">🖨️ Print QR Card</button>
         </div>
       </div>
     </div>
@@ -399,6 +421,47 @@ const graceMinutes = 15
 const leadMinutes = 60
 
 const isManager = computed(() => authStore?.roleKey === 'manager')
+
+const qrModalData = ref(null)
+const qrImageUrl = computed(() => {
+  if (!qrModalData.value || !qrModalData.value.url) return ''
+  return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrModalData.value.url)}`
+})
+
+async function generateQrForTable(table) {
+  if (!table) return
+  try {
+    const res = await apiPost(`tables/${table.id}/qr`)
+    if (res && res.ok) {
+      qrModalData.value = res
+      toast(`QR Code generated for Table ${table.number}`, 'success')
+    } else {
+      toast(res?.error || 'Could not generate QR code', 'error')
+    }
+  } catch (e) {
+    toast(e.message || 'QR generation failed', 'error')
+  }
+}
+
+function printQrCard() {
+  if (!qrModalData.value) return
+  const w = window.open('', '_blank', 'width=420,height=560')
+  if (!w) {
+    toast('Allow pop-ups to print QR card', 'error')
+    return
+  }
+  w.document.write(`<!doctype html><html><head><title>Table ${qrModalData.value.table.number} QR</title>
+  <style>body{font-family:sans-serif;text-align:center;padding:20px} .card{border:2px solid #000;border-radius:12px;padding:24px;display:inline-block}</style></head>
+  <body><div class="card">
+    <h2>FU FUT COFFEE</h2>
+    <h3>Table ${qrModalData.value.table.number}</h3>
+    <img src="${qrImageUrl.value}" width="180" height="180" style="margin:12px 0"/>
+    <p>Scan to view menu & order from your table</p>
+  </div></body></html>`)
+  w.document.close()
+  w.focus()
+  setTimeout(() => { w.print(); w.close() }, 200)
+}
 
 /** The live hold for the table open in the panel, read from the tables feed. */
 const detailHold = computed(() => {
