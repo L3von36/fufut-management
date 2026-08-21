@@ -44,7 +44,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { apiGet, TODAY } from '../api'
 import BaseTable from '../components/BaseTable.vue'
 
@@ -88,6 +88,24 @@ const totalHoursToday = computed(() => filtered.value.reduce((s, e) => {
   return s
 }, 0))
 
-onMounted(loadTime)
+/**
+ * The screen refreshes itself while it is open.
+ *
+ * The floor does not wait for the manager to click Filter: somebody clocks in
+ * on the POS and the entry exists the same second, but this view used to fetch
+ * once on mount, so a manager watching an already-open screen never saw anyone
+ * arrive or leave. There is no SSE channel for timeclock — the live stream
+ * covers tables and orders only — so the screen polls instead. It pauses while
+ * the tab is hidden, so a parked browser stops loading the API rather than
+ * polling a screen nobody is looking at.
+ */
+const POLL_MS = 15000
+let pollTimer = null
+
+onMounted(() => {
+  loadTime()
+  pollTimer = setInterval(() => { if (!document.hidden) loadTime() }, POLL_MS)
+})
+onUnmounted(() => clearInterval(pollTimer))
 async function loadTime() { try { entries.value = await apiGet('timeclock') } catch (e) { console.error(e) } }
 </script>
