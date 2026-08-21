@@ -22,6 +22,101 @@ SECRET_KEY = os.environ.get('JWT_SECRET', secrets.token_hex(32))
 # Rate limiting
 rate_limits = {}
 
+# ─── Role-Based Access Control ───────────────────────────────────────────
+# Mirrors the Cloudflare Workers ROLE_ACCESS matrix in fufut-api/src/auth.js.
+# Default-deny: unknown roles and unlisted resources are refused.
+# Manager gets wildcard access to everything.
+# "read" covers GET; "write" covers POST, PUT, DELETE.
+
+ROLE_ACCESS = {
+    'manager':             {'read': '*', 'write': '*'},
+    'head-chef':           {'read': ['orders','inventory','waste','expenses','recipes','units','suppliers','purchases','reports'],
+                            'write': ['orders','inventory','waste','menu-availability','recipes']},
+    'assistant-chef':      {'read': ['orders','inventory','recipes','units'],
+                            'write': ['orders']},
+    'head-waiter':         {'read': ['orders','tables','reservations','payments','tips','reports'],
+                            'write': ['orders','tables','reservations','tips']},
+    'cashier':             {'read': ['orders','tables','reservations','expenses','staff','timeclock','cashdrawer','payments','tips','delivery','reports'],
+                            'write': ['orders','tables','reservations','timeclock','cashdrawer','payments','tips','delivery','upload']},
+    'delivery-staff':      {'read': ['delivery','orders','payments','tips'],
+                            'write': ['delivery','payments','tips','upload']},
+    'cleaner':             {'read': ['waste','tables','inventory'],
+                            'write': ['waste']},
+    'accountant':          {'read': ['reports','orders','payments','tips','expenses','purchases','suppliers','staff','attendance','overtime','leave','adjustments','payroll','inventory','cashdrawer','timeclock','shifts','audit'],
+                            'write': ['expenses']},
+}
+
+# Resources any signed-in staff member may read (shared catalogue/CMS).
+ANY_STAFF_READ = {'menu', 'content', 'gallery', 'reviews', 'units', 'settings'}
+
+# Manager-only write operations (same as MANAGER_ONLY in the Worker).
+MANAGER_ONLY_PATHS = [
+    '/api/staff',
+    '/api/auth/reset-password',
+    '/api/auth/change-password',
+    '/api/settings',
+    '/api/payroll/run',
+]
+
+VALID_ROLES = set(ROLE_ACCESS.keys())
+
+
+def _normalize_role(role):
+    """Normalize a role string to the canonical lowercase-hyphenated form."""
+    if not role:
+        return None
+    key = str(role).strip().lower().replace(' ', '-').replace('_', '-')
+    return key if key in VALID_ROLES else None
+
+
+def _role_can_access(role_key, resource, is_write):
+    """Check whether a role may read or write a given resource. Default-deny."""
+    if not role_key or role_key not in ROLE_ACCESS:
+        return False
+    access = ROLE_ACCESS[role_key]
+    if access['read'] == '*' and access['write'] == '*':
+        return True
+    if not is_write and resource in ANY_STAFF_READ:
+        return True
+    allowed = access['write'] if is_write else access['read']
+    return isinstance(allowed, list) and resource in allowed
+
+
+def _resource_for_path(path):
+    """Map a URL path to the resource name it acts on."""
+    parts = path.split('/')
+    # parts[0] is empty (before first /), parts[1] is 'api'
+    if len(parts) < 3:
+        return None
+    head = parts[2]  # e.g. 'orders', 'staff', 'menu', 'events', 'export'
+    # /api/events/kitchen -> 'orders' (kitchen SSE streams order data)
+    if head == 'events':
+        return 'orders' if len(parts) > 3 and parts[3] == 'kitchen' else 'tables'
+    # /api/menus or /api/menus/save -> 'menu'
+    if head == 'menus':
+        return 'menu'
+    # /api/save-content -> 'content'
+    if head == 'save-content':
+        return 'content'
+    # /api/export/csv -> use the 'table' param from body (checked at call site)
+    if head == 'export':
+        return 'export'
+    # The DB table is "cashdrawers" (plural) but the ROLE_ACCESS resource is
+    # "cashdrawer" (singular), matching the Cloudflare Workers convention.
+    if head == 'cashdrawers':
+        return 'cashdrawer'
+    return head
+
+
+def _is_manager_only_path(path, method):
+    """Check if a path is restricted to managers regardless of the resource matrix."""
+    if method not in ('POST', 'PUT', 'DELETE'):
+        return False
+    for p in MANAGER_ONLY_PATHS:
+        if path == p or path.startswith(p + '/'):
+            return True
+    return False
+
 # SSE (Server-Sent Events) for real-time kitchen updates
 import queue
 sse_clients = {}  # client_id -> queue
@@ -451,23 +546,34 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             PUBLIC_ENDPOINTS = ['/api/auth/login', '/api/content']
             if self.path in PUBLIC_ENDPOINTS:
                 pass  # Allow through
-            elif self.path == '/api/staff':
-                # Allow public read of staff list (for login dropdown) - only safe fields
-                conn = sqlite3.connect(DB_PATH)
-                conn.row_factory = sqlite3.Row
-                rows = conn.execute('SELECT id, firstName, lastName, role, status FROM staff ORDER BY firstName').fetchall()
-                conn.close()
-                send_json(self, 200, [dict(row) for row in rows])
-                return
             else:
-                # Protect all other API routes
+                # Protect all other API routes — require auth
                 user, role = self._get_auth()
                 if not user:
                     send_json(self, 401, {"ok": False, "error": "Authentication required"})
                     return
 
+                role_key = _normalize_role(role)
+                if not role_key:
+                    send_json(self, 403, {"ok": False, "error": "Unrecognized role"})
+                    return
+
+                # Manager-only path check (staff CRUD, password ops, settings, payroll)
+                if _is_manager_only_path(self.path, 'GET'):
+                    # GET on manager-only paths is still allowed if role matrix grants read
+                    pass
+
         name = self._api_route()
         if name:
+            # ── Role-based access check on GET ──
+            user, role = self._get_auth()
+            if user:
+                role_key = _normalize_role(role)
+                resource = _resource_for_path(self.path)
+                if resource and not _role_can_access(role_key, resource, is_write=False):
+                    send_json(self, 403, {"ok": False, "error": "Your role does not have access to this data"})
+                    return
+
             conn = sqlite3.connect(DB_PATH)
             conn.row_factory = sqlite3.Row
             rows = conn.execute(f'SELECT * FROM {name} ORDER BY created DESC').fetchall()
@@ -476,6 +582,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             # Don't expose password hashes
             if name == 'staff':
                 data = [{k: v for k, v in row.items() if k != 'password_hash'} for row in data]
+                # Redact PII for non-managers
+                role_key = _normalize_role(role) if user else None
+                if role_key != 'manager':
+                    data = [{k: v for k, v in row.items() if k not in ('phone', 'email')} for row in data]
             send_json(self, 200, data)
             return
         
@@ -490,8 +600,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 send_json(self, 200, {})
             return
 
-        # SSE endpoint for real-time kitchen updates
+        # SSE endpoint for real-time kitchen updates — require auth + role check
         if self.path == '/api/events/kitchen':
+            user, role = self._get_auth()
+            if not user:
+                send_json(self, 401, {"ok": False, "error": "Authentication required"})
+                return
+            role_key = _normalize_role(role)
+            if not _role_can_access(role_key, 'orders', is_write=False):
+                send_json(self, 403, {"ok": False, "error": "Your role does not have access to kitchen events"})
+                return
             self.handle_sse()
             return
 
@@ -562,8 +680,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self.handle_export_receipt(data)
                 return
 
-            # Content save
+            # Content save — requires auth + manager role
             if self.path == '/save-content':
+                user, role = self._get_auth()
+                if not user:
+                    send_json(self, 401, {"ok": False, "error": "Authentication required"})
+                    return
+                role_key = _normalize_role(role)
+                if role_key != 'manager':
+                    send_json(self, 403, {"ok": False, "error": "Manager access required"})
+                    return
                 out_path = os.path.join(ROOT, 'content.json')
                 with open(out_path, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
@@ -577,8 +703,24 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 send_json(self, 401, {"ok": False, "error": "Authentication required"})
                 return
 
+            role_key = _normalize_role(role)
+            if not role_key:
+                send_json(self, 403, {"ok": False, "error": "Unrecognized role"})
+                return
+
+            # Manager-only path check for POST/PUT/DELETE
+            if _is_manager_only_path(self.path, 'POST'):
+                if role_key != 'manager':
+                    send_json(self, 403, {"ok": False, "error": "Manager access required"})
+                    return
+
             name = self._api_route()
             if name:
+                # Role-based access check on POST (create)
+                resource = _resource_for_path(self.path)
+                if resource and not _role_can_access(role_key, resource, is_write=True):
+                    send_json(self, 403, {"ok": False, "error": "Your role does not have write access to this data"})
+                    return
                 self.handle_create(name, data, user)
                 return
 
@@ -660,12 +802,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             pass
 
     def handle_change_password(self, data):
-        """Handle password change"""
-        user, _ = self._get_auth()
+        """Handle password change (manager-only, matching production API policy)"""
+        user, role = self._get_auth()
         if not user:
             send_json(self, 401, {"ok": False, "error": "Authentication required"})
             return
-        
+
+        role_key = _normalize_role(role)
+        if role_key != 'manager':
+            send_json(self, 403, {"ok": False, "error": "Manager access required"})
+            return
+
         current_password = data.get('currentPassword')
         new_password = data.get('newPassword')
         
@@ -720,15 +867,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         send_json(self, 200, {"ok": True, "message": f"Password reset for staff {staff_id}"})
 
     def handle_export_csv(self, data):
-        """Export data as CSV"""
+        """Export data as CSV — requires read access to the requested table"""
         user, role = self._get_auth()
         if not user:
             send_json(self, 401, {"ok": False, "error": "Authentication required"})
             return
 
+        role_key = _normalize_role(role)
         table = data.get('table', 'orders')
         if table not in TABLES:
             send_json(self, 400, {"ok": False, "error": "Invalid table"})
+            return
+
+        # Role check: user must have read access to this table's resource
+        if not _role_can_access(role_key, table, is_write=False):
+            send_json(self, 403, {"ok": False, "error": "Your role does not have access to export this data"})
             return
 
         conn = sqlite3.connect(DB_PATH)
@@ -829,9 +982,26 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             send_json(self, 401, {"ok": False, "error": "Authentication required"})
             return
 
+        role_key = _normalize_role(role)
+        if not role_key:
+            send_json(self, 403, {"ok": False, "error": "Unrecognized role"})
+            return
+
+        # Manager-only path check
+        if _is_manager_only_path(self.path, 'PUT'):
+            if role_key != 'manager':
+                send_json(self, 403, {"ok": False, "error": "Manager access required"})
+                return
+
         name = self._api_route()
         if not name:
             send_json(self, 404, {"ok": False, "error": "not found"})
+            return
+
+        # Role-based access check on PUT (update)
+        resource = _resource_for_path(self.path)
+        if resource and not _role_can_access(role_key, resource, is_write=True):
+            send_json(self, 403, {"ok": False, "error": "Your role does not have write access to this data"})
             return
 
         try:
@@ -889,9 +1059,26 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             send_json(self, 401, {"ok": False, "error": "Authentication required"})
             return
 
+        role_key = _normalize_role(role)
+        if not role_key:
+            send_json(self, 403, {"ok": False, "error": "Unrecognized role"})
+            return
+
+        # Manager-only path check
+        if _is_manager_only_path(self.path, 'DELETE'):
+            if role_key != 'manager':
+                send_json(self, 403, {"ok": False, "error": "Manager access required"})
+                return
+
         name = self._api_route()
         if not name:
             send_json(self, 404, {"ok": False, "error": "not found"})
+            return
+
+        # Role-based access check on DELETE
+        resource = _resource_for_path(self.path)
+        if resource and not _role_can_access(role_key, resource, is_write=True):
+            send_json(self, 403, {"ok": False, "error": "Your role does not have write access to this data"})
             return
 
         try:

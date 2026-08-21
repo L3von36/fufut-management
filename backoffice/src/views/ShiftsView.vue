@@ -34,7 +34,13 @@
         <form @submit.prevent="saveShift">
           <div class="form-row">
             <div class="form-group"><label>Date</label><input type="date" v-model="form.date" required /></div>
-            <div class="form-group"><label>Staff ID</label><input v-model="form.staffId" required /></div>
+            <div class="form-group">
+              <label>Staff</label>
+              <select v-model="form.staffId" required class="select">
+                <option value="" disabled>Select staff member...</option>
+                <option v-for="s in staffList" :key="s.id" :value="s.id">{{ s.firstName }} {{ s.lastName }} ({{ s.role }})</option>
+              </select>
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group"><label>Start Time</label><input type="time" v-model="form.start" required /></div>
@@ -65,6 +71,7 @@ const toast = inject('toast')
 const confirmDelete = inject('confirm')
 const btnState = useButtonState({ successDuration: 2000 })
 const shifts = ref([])
+const staffList = ref([])
 const dateFrom = ref(TODAY())
 const dateTo = ref(TODAY())
 const showForm = ref(false)
@@ -81,9 +88,40 @@ const columns = [
 ]
 
 
-onMounted(() => { const d = new Date(); d.setDate(d.getDate()-7); dateFrom.value = d.toISOString().slice(0,10); loadShifts() })
+onMounted(async () => {
+  const d = new Date(); d.setDate(d.getDate()-7); dateFrom.value = d.toISOString().slice(0,10)
+  await loadStaff()
+  await loadShifts()
+})
 
-async function loadShifts() { try { shifts.value = await apiGet('shifts') } catch (e) { console.error(e) } }
+async function loadShifts() {
+  try {
+    const data = await apiGet('shifts')
+    // Enrich rows with staff names from the local map
+    if (Array.isArray(data)) {
+      for (const s of data) {
+        if (!s.staffName) {
+          const staff = staffMap.value[s.staffId || s.staff_id]
+          if (staff) s.staffName = (staff.firstName || '') + ' ' + (staff.lastName || '')
+        }
+      }
+    }
+    shifts.value = Array.isArray(data) ? data : []
+  } catch (e) { console.error(e) }
+}
+
+const staffMap = ref({})
+async function loadStaff() {
+  try {
+    const list = await apiGet('staff')
+    if (Array.isArray(list)) {
+      staffList.value = list
+      const map = {}
+      for (const s of list) map[s.id] = s
+      staffMap.value = map
+    }
+  } catch { /* optional — dropdown will just be empty */ }
+}
 
 function editShift(s) { editing.value = s; form.value = { date: s.date, staffId: s.staffId, start: s.start, end: s.end || '' }; showForm.value = true }
 
