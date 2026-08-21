@@ -94,7 +94,7 @@ export const ROLE_PERMISSIONS = {
   manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'pipeline', 'tables', 'attendance', 'staff-requests', 'payroll'],
   'head-chef': ['dashboard', 'orders', 'inventory', 'waste', 'reports', 'pipeline'],
   'assistant-chef': ['dashboard', 'orders', 'inventory'],
-  'head-waiter': ['dashboard', 'orders', 'tables', 'reservations', 'delivery', 'reports', 'pipeline'],
+  'head-waiter': ['dashboard', 'orders', 'tables', 'reservations', 'reports', 'pipeline'],
   cashier: ['dashboard', 'orders', 'tables', 'reports', 'timeclock', 'reservations', 'revenue'],
   'delivery-staff': ['dashboard', 'delivery'],
   cleaner: ['dashboard', 'waste'],
