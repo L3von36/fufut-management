@@ -66,6 +66,10 @@
       <template #cell-status="{ row }">
         <span class="badge" :class="statusBadgeClass(row.status || 'active')">{{ row.status || 'active' }}</span>
       </template>
+      <template #cell-base_salary="{ row }">
+        <span v-if="row.base_salary" style="font-weight:600">ETB {{ Number(row.base_salary).toLocaleString() }}</span>
+        <span v-else class="badge badge-pending" title="No salary set — payroll will be ETB 0">not set</span>
+      </template>
       <template #cell-actions="{ row }">
         <button class="btn btn-sm btn-ghost" @click="editStaff(row)">Edit</button>
         <button class="btn btn-sm btn-ghost" @click="openPassword(row)">Set password</button>
@@ -109,6 +113,84 @@
             <label>Password (optional)</label>
             <input v-model="form.password" type="text" autocomplete="off" placeholder="Leave blank to generate one" />
             <span class="hint">They will be asked to choose their own the first time they sign in.</span>
+          </div>
+
+          <!-- ── Employment & Payroll ── -->
+          <div class="form-section-divider"><span>Employment &amp; Payroll</span></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Base Salary (ETB)</label>
+              <input v-model.number="form.base_salary" type="number" min="0" step="1" placeholder="e.g. 8000" />
+              <span class="hint">Monthly gross. Required for payroll to calculate payslips.</span>
+            </div>
+            <div class="form-group">
+              <label>Employment Type</label>
+              <select v-model="form.employment_type" class="select">
+                <option value="">Not set</option>
+                <option value="full-time">Full-time</option>
+                <option value="part-time">Part-time</option>
+                <option value="casual">Casual</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Hire Date</label>
+              <input v-model="form.hire_date" type="date" />
+            </div>
+            <div class="form-group">
+              <label>End Date</label>
+              <input v-model="form.end_date" type="date" />
+              <span class="hint">Leave blank if currently employed.</span>
+            </div>
+          </div>
+
+          <!-- ── Banking & Identification ── -->
+          <div class="form-section-divider"><span>Banking &amp; Identification</span></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Bank Account</label>
+              <input v-model="form.bank_account" placeholder="Account number" />
+            </div>
+            <div class="form-group">
+              <label>TIN (Tax ID)</label>
+              <input v-model="form.tin" placeholder="Taxpayer identification" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Pension ID</label>
+              <input v-model="form.pension_id" placeholder="Pension number" />
+            </div>
+            <div class="form-group">
+              <label>Salary Period</label>
+              <select v-model="form.salary_period" class="select">
+                <option value="monthly">Monthly</option>
+                <option value="weekly">Weekly</option>
+                <option value="daily">Daily</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- ── Emergency Contact ── -->
+          <div class="form-section-divider"><span>Emergency Contact</span></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Contact Name</label>
+              <input v-model="form.emergency_contact" placeholder="Name" />
+            </div>
+            <div class="form-group">
+              <label>Contact Phone</label>
+              <input v-model="form.emergency_phone" placeholder="Phone number" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Address</label>
+            <input v-model="form.address" placeholder="Home address" />
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea v-model="form.notes" rows="2" placeholder="Any notes about this staff member" style="width:100%;resize:vertical"></textarea>
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="showForm=false">Cancel</button>
@@ -224,13 +306,21 @@ const columns = [
   { key: 'name', label: 'Name' },
   { key: 'email', label: 'Email (sign-in)' },
   { key: 'role', label: 'Role' },
+  { key: 'base_salary', label: 'Salary' },
   { key: 'phone', label: 'Phone' },
   { key: 'status', label: 'Status' },
-  { key: 'actions', label: 'Actions' },
+  { key: 'actions', label: '' },
 ]
 
 function blankForm() {
-  return { firstName: '', lastName: '', email: '', role: 'cashier', phone: '', status: 'active', password: '' }
+  return {
+    firstName: '', lastName: '', email: '', role: 'cashier', phone: '', status: 'active', password: '',
+    base_salary: '', employment_type: '', salary_period: 'monthly',
+    hire_date: '', end_date: '',
+    bank_account: '', tin: '', pension_id: '',
+    emergency_contact: '', emergency_phone: '',
+    address: '', notes: '',
+  }
 }
 
 const filtered = computed(() => staff.value.filter(s => !search.value || s.firstName?.toLowerCase().includes(search.value.toLowerCase()) || s.lastName?.toLowerCase().includes(search.value.toLowerCase())))
@@ -265,10 +355,20 @@ function editStaff(s) {
   form.value = {
     ...blankForm(),
     firstName: s.firstName, lastName: s.lastName, email: s.email || '',
-    // Canonicalised, or a row still holding "Head Chef" selects nothing and the
-    // dropdown reads blank — the defect that made this look like no feature.
     role: canonical(s.role) || 'cashier',
     phone: s.phone || '', status: s.status || 'active',
+    base_salary: s.base_salary || '',
+    employment_type: s.employment_type || '',
+    salary_period: s.salary_period || 'monthly',
+    hire_date: s.hire_date || '',
+    end_date: s.end_date || '',
+    bank_account: s.bank_account || '',
+    tin: s.tin || '',
+    pension_id: s.pension_id || '',
+    emergency_contact: s.emergency_contact || '',
+    emergency_phone: s.emergency_phone || '',
+    address: s.address || '',
+    notes: s.notes || '',
   }
   showForm.value = true
 }
@@ -308,6 +408,12 @@ async function saveStaff() {
       // The server refuses a password on a staff update; there is exactly one
       // path to a credential and it is the reset endpoint, which is audited.
       const { password, ...fields } = form.value
+      // Convert empty strings to null for numeric/db fields so the backend
+      // stores NULL rather than "" in REAL and TEXT columns.
+      for (const k of ['base_salary', 'hire_date', 'end_date', 'bank_account', 'tin',
+                       'pension_id', 'emergency_contact', 'emergency_phone', 'address', 'notes']) {
+        if (fields[k] === '') fields[k] = null;
+      }
       await apiPut('staff', { ...fields, id: editing.value.id })
       toast('Staff updated')
       showForm.value = false
@@ -396,4 +502,16 @@ async function copyPassword() {
   letter-spacing: .12em; word-break: break-all;
 }
 .pw-known { font-size: 1rem; font-weight: 400; color: var(--text-muted); letter-spacing: normal; }
+
+/* Section dividers inside the edit/add modal */
+.form-section-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 18px 0 12px; font-size: .75rem; font-weight: 600;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em;
+}
+.form-section-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+/* The modal is now taller with payroll fields */
+:deep(.modal) { max-height: 90vh; overflow-y: auto; }
 </style>

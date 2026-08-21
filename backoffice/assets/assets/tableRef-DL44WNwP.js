@@ -1,0 +1,1 @@
+function e(e){if(e==null)return null;let t=String(e).trim();if(!t)return null;let n=t.match(/^(?:table|tbl|t)?[\s._-]*(\d+)(?:\.0+)?$/i);return n?String(parseInt(n[1],10)):t}function t(t,n){let r=e(t);return r===null||n==null?!1:typeof n==`object`?r===e(n.id)||r===e(n.number):r===e(n)}export{t};
