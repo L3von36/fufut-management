@@ -12,8 +12,8 @@
       </button>
     </div>
 
-    <!-- Quick actions — a waiter's dashboard should reach the floor in one tap -->
-    <div v-if="showQuickActions" class="dash-quick-actions">
+    <!-- Waiter Quick Actions -->
+    <div v-if="auth.roleKey === 'head-waiter'" class="dash-quick-actions">
       <button class="dash-qa" @click="router.push('/app/tables')">
         <span class="dash-qa-icon" v-html="ICONS.tables"></span>
         <span class="dash-qa-label">Floor Plan</span>
@@ -32,6 +32,59 @@
         <span class="dash-qa-icon" v-html="ICONS.reservations"></span>
         <span class="dash-qa-label">Reservations</span>
       </button>
+    </div>
+
+    <!-- Cashier Quick Actions Bar + Live Till Float Card -->
+    <div v-if="auth.roleKey === 'cashier'">
+      <div class="dash-quick-actions" style="grid-template-columns:repeat(5,1fr)">
+        <button class="dash-qa dash-qa-primary" @click="router.push('/app/menu-view')">
+          <span class="dash-qa-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+          <span class="dash-qa-label">Quick Sale</span>
+        </button>
+        <button class="dash-qa" @click="router.push('/app/cashdrawer')">
+          <span class="dash-qa-icon" v-html="ICONS.cash"></span>
+          <span class="dash-qa-label">Till Mgmt</span>
+        </button>
+        <button class="dash-qa" @click="router.push('/app/orders')">
+          <span class="dash-qa-icon" v-html="ICONS.orders"></span>
+          <span class="dash-qa-label">Open Checks</span>
+        </button>
+        <button class="dash-qa" @click="router.push('/app/cashdrawer')" style="position:relative">
+          <span class="dash-qa-icon">💵</span>
+          <span class="dash-qa-label">Paid In/Out</span>
+          <span v-if="digitalPending.length" class="qa-badge">{{ digitalPending.length }}</span>
+        </button>
+        <button class="dash-qa" @click="fetchShiftAudit">
+          <span class="dash-qa-icon">📜</span>
+          <span class="dash-qa-label">Audit Log</span>
+        </button>
+      </div>
+
+      <!-- Live Till Float Status Card -->
+      <div v-if="tillStatus" class="till-float-card">
+        <div class="till-float-left">
+          <div class="till-status-dot" :class="tillStatus.open ? 'dot-open' : 'dot-closed'"></div>
+          <div>
+            <div class="till-status-label">{{ tillStatus.open ? 'Drawer Open' : 'No Active Drawer' }}</div>
+            <div class="till-status-sub" v-if="tillStatus.open">Opened {{ tillStatus.openedAt }}</div>
+          </div>
+        </div>
+        <div class="till-float-stats" v-if="tillStatus.open">
+          <div class="till-stat">
+            <span class="till-stat-label">Float</span>
+            <span class="till-stat-val">ETB {{ tillStatus.opening }}</span>
+          </div>
+          <div class="till-stat">
+            <span class="till-stat-label">Cash Sales</span>
+            <span class="till-stat-val" style="color:var(--success)">ETB {{ tillStatus.cashSales }}</span>
+          </div>
+          <div class="till-stat">
+            <span class="till-stat-label">Expected</span>
+            <span class="till-stat-val" style="font-weight:700">ETB {{ tillStatus.expected }}</span>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline" @click="router.push('/app/cashdrawer')">{{ tillStatus.open ? 'Manage Till' : 'Open Drawer' }}</button>
+      </div>
     </div>
 
     <!-- KPI Grid — skeleton while loading first fetch -->
@@ -57,8 +110,8 @@
       </template>
     </div>
 
-    <!-- Charts (Manager & Cashier only) -->
-    <div v-if="showCharts" class="chart-grid">
+    <!-- Charts (Manager only) -->
+    <div v-if="showCharts && auth.roleKey !== 'cashier'" class="chart-grid">
       <div class="chart-card">
         <h3>Revenue (7 days)</h3>
         <canvas ref="revenueChart"></canvas>
@@ -66,6 +119,30 @@
       <div class="chart-card">
         <h3>Expense Breakdown</h3>
         <canvas ref="expenseChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Cashier Payment Breakdown Donut -->
+    <div v-if="auth.roleKey === 'cashier' && cashierPayBreakdown.length" class="chart-grid" style="grid-template-columns:1fr 1fr">
+      <div class="chart-card">
+        <h3>💳 Payment Method Mix</h3>
+        <canvas ref="payBreakdownChart" style="max-height:200px"></canvas>
+      </div>
+      <!-- Top-Selling Items Pad -->
+      <div class="chart-card">
+        <h3>⚡ Top Items — Fast Order</h3>
+        <div class="top-items-grid">
+          <button
+            v-for="item in topItems"
+            :key="item.id"
+            class="top-item-btn"
+            @click="quickAddItem(item)"
+          >
+            <span class="top-item-name">{{ item.name }}</span>
+            <span class="top-item-price">ETB {{ parseFloat(item.price || item.base_price || 0).toFixed(0) }}</span>
+          </button>
+          <div v-if="!topItems.length" style="grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:.82rem;padding:20px">Top items loading…</div>
+        </div>
       </div>
     </div>
 
@@ -113,6 +190,54 @@
         </div>
       </div>
     </div>
+
+    <!-- Cashier-Specific Real-Time Feeds & Audit Trail -->
+    <div v-if="auth.roleKey === 'cashier' || auth.roleKey === 'manager'" class="dash-grid" style="margin-top:20px">
+      <!-- Digital Transfer Verification Feed -->
+      <div class="card">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+          <h3>📱 Pending Digital Payment Verifications</h3>
+          <span class="badge badge-warning" v-if="digitalPending.length">{{ digitalPending.length }} pending</span>
+          <span class="badge badge-fulfilled" v-else>All verified</span>
+        </div>
+        <div v-if="digitalPending.length">
+          <div v-for="p in digitalPending.slice(0, 5)" :key="p.id" class="queue-item" style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <strong>ETB {{ Math.round(p.amount || 0) }}</strong> · <span style="text-transform:uppercase;font-size:.8rem;font-weight:600">{{ p.method }}</span>
+              <div style="font-size:.75rem;color:var(--text-muted)">Ref: {{ p.reference || 'N/A' }} · Order #{{ shortId(p.orderId || '') }}</div>
+            </div>
+            <button class="btn btn-sm btn-primary" @click="verifyDigitalPayment(p)">Verify</button>
+          </div>
+        </div>
+        <div v-else class="empty-state">
+          <div class="empty-state-icon" style="color:var(--success)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div>No unverified digital transfers</div>
+        </div>
+      </div>
+
+      <!-- Live Shift Audit Timeline -->
+      <div class="card">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+          <h3>📜 Shift Activity Audit Timeline</h3>
+          <button class="btn btn-sm btn-ghost" @click="fetchShiftAudit">Refresh Log</button>
+        </div>
+        <div v-if="shiftLogs.length" style="max-height:280px;overflow-y:auto;padding-right:6px">
+          <div v-for="log in shiftLogs.slice(0, 10)" :key="log.id || log.at" style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.82rem">
+            <div style="width:70px;color:var(--text-muted);font-size:.72rem">{{ log.at ? new Date(log.at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—' }}</div>
+            <div style="flex:1">
+              <strong style="text-transform:capitalize">{{ (log.action || '').replace('_', ' ') }}</strong>
+              <span v-if="log.reason" style="color:var(--text-muted)"> — {{ log.reason }}</span>
+              <div v-if="log.actorName" style="font-size:.72rem;color:var(--text-muted)">By {{ log.actorName }}</div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="empty-state">
+          <div style="color:var(--text-muted);font-size:.85rem">No cashier audit events recorded this shift</div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -120,7 +245,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { apiGet, TODAY } from '../api'
+import { apiGet, apiPost, TODAY } from '../api'
 import { useSSE } from '../composables/useSSE'
 
 const router = useRouter()
@@ -152,6 +277,10 @@ const showRecentOrders = ref(true)
 const showLowStock = ref(true)
 // Floor-facing roles get one-tap access to the screens they actually work from.
 const showQuickActions = computed(() => auth.roleKey === 'head-waiter')
+const tillStatus = ref(null)
+const topItems = ref([])
+const cashierPayBreakdown = ref([])
+const payBreakdownChart = ref(null)
 const recentOrders = ref([])
 const lowStockItems = ref([])
 const loading = ref(false)
@@ -212,6 +341,92 @@ function isToday(d) {
   return d.slice(0, 10) === TODAY()
 }
 
+const digitalPending = ref([])
+const shiftLogs = ref([])
+
+async function fetchShiftAudit() {
+  try {
+    const res = await apiGet('cashdrawer/shift-log')
+    shiftLogs.value = res.entries || []
+  } catch { shiftLogs.value = [] }
+}
+
+async function fetchDigitalPending() {
+  try {
+    const res = await apiGet('payments?verified=false')
+    digitalPending.value = res.payments || (Array.isArray(res) ? res : [])
+  } catch { digitalPending.value = [] }
+}
+
+async function verifyDigitalPayment(p) {
+  try {
+    await apiPost(`payments/${p.id}/verify`, { verified: true })
+    digitalPending.value = digitalPending.value.filter(item => item.id !== p.id)
+    await fetchShiftAudit()
+  } catch { /* ignore */ }
+}
+
+async function fetchTillStatus() {
+  try {
+    const res = await apiGet('cashdrawer')
+    const active = res.active || (res.drawers || []).find(d => d.status === 'open') || null
+    if (active) {
+      const opening = parseFloat(active.openingBal || active.opening_balance || 0)
+      const cashSales = parseFloat(active.cashSales || active.cash_sales || 0)
+      tillStatus.value = {
+        open: true,
+        opening: opening.toFixed(0),
+        cashSales: cashSales.toFixed(0),
+        expected: (opening + cashSales).toFixed(0),
+        openedAt: active.opened || active.opened_at
+          ? new Date(active.opened || active.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : '—'
+      }
+    } else {
+      tillStatus.value = { open: false }
+    }
+  } catch { tillStatus.value = { open: false } }
+}
+
+async function fetchTopItems() {
+  try {
+    const menu = await apiGet('menu')
+    const items = Array.isArray(menu) ? menu : (menu.items || menu.data || [])
+    topItems.value = items
+      .filter(i => i.available !== false && i.status !== 'unavailable')
+      .slice(0, 6)
+  } catch { topItems.value = [] }
+}
+
+function quickAddItem(item) {
+  // Navigate to menu-view so the cashier can pick the item — the order store
+  // does not live in the dashboard, so we route rather than mutate directly.
+  router.push('/app/menu-view')
+}
+
+async function buildPayBreakdownChart(methods) {
+  if (!methods || !methods.length) return
+  cashierPayBreakdown.value = methods
+  await nextTick()
+  if (!payBreakdownChart.value) return
+  const Chart = await _loadChart()
+  if (charts.payBreakdown) charts.payBreakdown.destroy()
+  const labels = methods.map(m => m.method.charAt(0).toUpperCase() + m.method.slice(1))
+  const data   = methods.map(m => Math.round(m.total || 0))
+  charts.payBreakdown = new Chart(payBreakdownChart.value, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: ['#0F7B78','#18B4B7','#D6B36A','#E4CB99','#2E7D32','#D97706'] }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } }
+    }
+  })
+}
+
 onMounted(async () => {
   await loadDashboard()
   const role = auth.roleKey
@@ -254,6 +469,15 @@ async function loadDashboard() {
       inventory.value = []
     }
     await Promise.allSettled(fetches)
+
+    if (auth.roleKey === 'cashier' || auth.roleKey === 'manager') {
+      fetchShiftAudit()
+      fetchDigitalPending()
+    }
+    if (auth.roleKey === 'cashier') {
+      fetchTillStatus()
+      fetchTopItems()
+    }
 
     todayOrders.value = orders.value.filter(o => isToday(o.created))
     todayExpenses.value = expenses.value.filter(e => isToday(e.date))
@@ -345,13 +569,20 @@ async function loadCashierKpis() {
     const digital = r.paymentMethods
       .filter(m => ['telebirr', 'cbe', 'bank', 'card', 'mobile'].includes(m.method))
       .reduce((s, m) => ({ total: s.total + m.total, count: s.count + m.count }), { total: 0, count: 0 })
+    const tips = r.tips || 0
 
     kpis.value = [
       { label: 'Today Sales', value: `ETB ${Math.round(r.sales.netSales)}`, sub: `${r.sales.orders} orders · excludes tips`, bar: 'teal', icon: ICONS.revenue },
       { label: 'Cash Taken',  value: `ETB ${Math.round(cash.total)}`,       sub: `${cash.count} payment(s)`,                 bar: 'blue', icon: ICONS.cash },
       { label: 'Digital',     value: `ETB ${Math.round(digital.total)}`,    sub: `${digital.count} transfer(s)`,             bar: 'gold', icon: ICONS.expenses },
       { label: 'Avg Order',   value: `ETB ${Math.round(r.sales.averageOrder)}`, sub: 'Per transaction',                      bar: 'teal', icon: ICONS.revenue },
+      { label: 'Tips Earned', value: `ETB ${Math.round(tips)}`, sub: 'Shift tips total',                                      bar: 'gold', icon: ICONS.cash },
     ]
+
+    // Build payment-method donut from live data
+    if (r.paymentMethods && r.paymentMethods.length) {
+      buildPayBreakdownChart(r.paymentMethods)
+    }
   } catch (e) {
     console.error(e)
   }
@@ -552,4 +783,30 @@ async function buildCharts() {
 /* Lists */
 .queue-item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:.82rem;gap:8px}
 .queue-item:last-child{border-bottom:none}
+
+/* Cashier Quick Action badge (pending count indicator) */
+.qa-badge{position:absolute;top:6px;right:6px;min-width:18px;height:18px;padding:0 5px;background:var(--danger);color:#fff;font-size:.65rem;font-weight:700;border-radius:9px;display:flex;align-items:center;justify-content:center;line-height:1}
+
+/* Live Till Float Status Card */
+.till-float-card{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:20px;flex-wrap:wrap}
+.till-float-left{display:flex;align-items:center;gap:12px}
+.till-status-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.dot-open{background:var(--success);box-shadow:0 0 0 4px rgba(34,197,94,.18);animation:tillPulse 2s ease-in-out infinite}
+.dot-closed{background:var(--text-muted)}
+@keyframes tillPulse{0%,100%{box-shadow:0 0 0 4px rgba(34,197,94,.18)}50%{box-shadow:0 0 0 8px rgba(34,197,94,.06)}}
+.till-status-label{font-size:.9rem;font-weight:700;color:var(--text-heading)}
+.till-status-sub{font-size:.75rem;color:var(--text-muted);margin-top:2px}
+.till-float-stats{display:flex;gap:24px;flex-wrap:wrap}
+.till-stat{display:flex;flex-direction:column;align-items:center}
+.till-stat-label{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.till-stat-val{font-size:.95rem;font-weight:700;color:var(--text-heading)}
+
+/* Top Items Fast-Order pad */
+.top-items-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-top:8px}
+.top-item-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 6px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--surface);cursor:pointer;transition:all var(--duration-fast) var(--ease);text-align:center}
+.top-item-btn:hover{border-color:var(--primary);background:var(--teal-50);color:var(--primary)}
+.top-item-btn:active{transform:scale(.96)}
+.top-item-name{font-size:.78rem;font-weight:600;color:var(--text-heading);line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.top-item-price{font-size:.72rem;color:var(--success);font-weight:700;margin-top:2px}
+:global([data-theme="dark"]) .top-item-btn:hover{background:rgba(15,123,120,.15)}
 </style>

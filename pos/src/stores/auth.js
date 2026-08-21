@@ -178,18 +178,13 @@ export const useAuthStore = defineStore('auth', () => {
     offlineIdentity.value = false
     forgetIdentity()
 
-    /**
-     * Leave nothing on the device for the next person.
-     *
-     * A till is shared. Every list the app reads is cached locally for offline
-     * use, keyed by endpoint with no record of who read it, so without this the
-     * cached orders, staff and takings of one shift are still sitting there
-     * when the next person signs in. The service worker keeps its own copy of
-     * every successful API GET, so that goes too.
-     *
-     * Queued writes are untouched: they are orders the venue has taken and not
-     * yet sent, and losing them at sign-out would be losing real work.
-     */
+    // Clear cart persistence and draft cart state so uncommitted orders do not leak across users
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('fufut.pos.cart.v1')
+      }
+    } catch { /* ignore */ }
+
     try { await dbClearCaches() } catch { /* nothing to clear */ }
     try {
       if (typeof caches !== 'undefined') {

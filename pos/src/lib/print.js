@@ -237,14 +237,51 @@ function modsText(modifiers) {
 }
 
 /** A4 document: title, optional summary lines, and a table. */
-export function printReport({ title, subtitle = '', summary = [], headers, rows, footer = '' }) {
-  const body = [
-    `<div class="meta"><strong>${esc(title)}</strong>${subtitle ? ' — ' + esc(subtitle) : ''}</div>`,
-    summary.length ? summary.map(([l, v]) => line(l, v)).join('') + '<hr>' : '',
-    headers && rows ? table(headers, rows) : '',
-    footer ? `<div class="foot">${esc(footer)}</div>` : '',
-    `<div class="foot">Printed ${esc(stamp())}</div>`,
-  ].join('')
+export function printZReport(drawer) {
+  const date = stamp();
+  const opened = drawer.opened ? stamp(new Date(drawer.opened)) : '—';
+  const closed = drawer.closed ? stamp(new Date(drawer.closed)) : stamp();
+  const opening = Math.round(Number(drawer.openingBal || drawer.opening_balance || 0));
+  const cashSales = Math.round(Number(drawer.cashSales || drawer.cash_sales || 0));
+  const expected = Math.round(Number(drawer.expectedClose || drawer.expected || opening + cashSales));
+  const closing = Math.round(Number(drawer.closingBal || drawer.closing_balance || 0));
+  const variance = Math.round(Number(drawer.variance || closing - expected));
 
-  return printDocument({ title, body, paper: 'a4', subtitle })
+  let denomsHtml = '';
+  if (drawer.denominations) {
+    try {
+      const d = typeof drawer.denominations === 'string' ? JSON.parse(drawer.denominations) : drawer.denominations;
+      denomsHtml = [
+        '<hr>',
+        '<div style="font-size:.82em;font-weight:700;margin-bottom:4px">BLIND CASH COUNT</div>',
+        line('200 ETB notes', `${d['200'] || 0} × 200 = ETB ${(d['200'] || 0) * 200}`),
+        line('100 ETB notes', `${d['100'] || 0} × 100 = ETB ${(d['100'] || 0) * 100}`),
+        line('50 ETB notes',  `${d['50'] || 0} × 50 = ETB ${(d['50'] || 0) * 50}`),
+        line('20 ETB notes',  `${d['20'] || 0} × 20 = ETB ${(d['20'] || 0) * 20}`),
+        line('10 ETB notes',  `${d['10'] || 0} × 10 = ETB ${(d['10'] || 0) * 10}`),
+        line('5 ETB notes',   `${d['5'] || 0} × 5 = ETB ${(d['5'] || 0) * 5}`),
+      ].join('');
+    } catch { /* ignore parse error */ }
+  }
+
+  const body = [
+    `<div style="text-align:center;margin-bottom:6px"><span class="badge-type">Z-REPORT</span></div>`,
+    `<h1 style="font-size:1.4em">SHIFT CLOSE</h1>`,
+    line('Shift ID', esc(drawer.id || 'CD-001')),
+    line('Opened', esc(opened)),
+    line('Closed', esc(closed)),
+    '<hr>',
+    line('Opening Balance', `ETB ${opening}`),
+    line('Cash Sales Collected', `ETB ${cashSales}`),
+    line('Expected Cash Total', `ETB ${expected}`),
+    line('Actual Cash Counted', `ETB ${closing}`),
+    `<div class="ln total"><span>NET VARIANCE</span><span style="color:${variance >= 0 ? '#0f7b78' : '#d9381e'}">${variance >= 0 ? '+' : ''}ETB ${variance}</span></div>`,
+    denomsHtml,
+    '<hr>',
+    `<div class="foot">FU FUT CAFÉ · SHIFT SUMMARY</div>`,
+    `<div class="foot">${esc(date)}</div>`,
+  ].join('');
+
+  return printDocument({ title: `Z-Report ${drawer.id || ''}`, body, paper: 'receipt', subtitle: 'CASH DRAWER CLOSE' });
 }
+

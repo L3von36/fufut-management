@@ -91,7 +91,7 @@ async function handleLogin() {
     toast('Welcome back, ' + (auth.user?.firstName || ''), 'success')
     // Brief pause so the success state is visible before navigating
     await new Promise(r => setTimeout(r, 600))
-    router.push('/app/' + auth.defaultView)
+    window.location.href = base + 'app/' + auth.defaultView
   } catch (e) {
     error.value = e.message || 'Login failed'
     btnState.setError(e.message || 'Login failed')

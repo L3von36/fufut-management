@@ -194,6 +194,6 @@ function navigate(view) {
 
 async function handleLogout() {
   await auth.logout()
-  router.push('/login')
+  window.location.href = base + 'login'
 }
 </script>
