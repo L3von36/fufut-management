@@ -304,16 +304,31 @@
           -->
           <div v-if="needsEvidence" class="evidence-panel">
             <div class="ev-head">
-              <span class="ev-title">Transfer evidence</span>
-              <span class="ev-note">Verified by a cashier before this counts as settled</span>
+              <span class="ev-title">Digital Receipt Verification</span>
+              <span class="ev-note">Auto-verify the transaction URL or ID</span>
             </div>
-            <div class="form-group" style="margin:0 0 8px">
-              <label>Reference / transaction number</label>
-              <input v-model="store.paymentReference" class="input input-sm" placeholder="From the transfer confirmation" />
+            <div class="form-group" style="margin:0 0 8px; display:flex; gap:8px">
+              <input v-model="store.paymentReference" class="input input-sm" style="flex:1" placeholder="Paste URL, FT, or Transaction ID..." />
+              <button class="btn btn-sm btn-primary" type="button" @click="verifyDigitalReceipt" :disabled="isVerifying || !store.paymentReference">
+                {{ isVerifying ? 'Verifying...' : 'Verify' }}
+              </button>
             </div>
+            
+            <div v-if="verificationResult" :style="{ padding: '8px', borderRadius: '4px', marginBottom: '12px', backgroundColor: verificationResult.ok ? 'var(--green-50)' : 'var(--red-50)', color: verificationResult.ok ? 'var(--green-700)' : 'var(--red-700)', border: '1px solid ' + (verificationResult.ok ? 'var(--green-200)' : 'var(--red-200)') }">
+               <div style="font-weight:600; font-size:0.85rem; margin-bottom: 2px;">
+                 {{ verificationResult.ok ? '✅ Verified' : '⚠️ Verification Failed' }}
+               </div>
+               <div style="font-size:0.8rem">{{ verificationResult.message }}</div>
+               <div v-if="verificationResult.data" style="font-size:0.75rem; margin-top:4px; opacity: 0.9">
+                 Payer: {{ verificationResult.data.payerName || 'Unknown' }} <br>
+                 Amount: ETB {{ verificationResult.data.amount }} <br>
+                 Date: {{ new Date(verificationResult.data.date).toLocaleString() }}
+               </div>
+            </div>
+
             <div class="ev-upload">
               <label class="btn btn-outline btn-sm ev-pick">
-                {{ evidenceName ? 'Replace screenshot' : 'Attach screenshot' }}
+                {{ evidenceName ? 'Replace screenshot (Fallback)' : 'Attach screenshot (Fallback)' }}
                 <input type="file" accept="image/*,application/pdf" capture="environment" @change="attachEvidence" hidden />
               </label>
               <span v-if="evidenceUploading" class="ev-status">Uploading…</span>
@@ -514,6 +529,7 @@ import { useAuthStore } from '../stores/auth'
 import { useAudioAlerts } from '../composables/useAudioAlerts'
 import { customerReceipt } from '../lib/print'
 import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
+import { verifyReceipt } from '../lib/receiptVerifier'
 
 const router = useRouter()
 const toast = inject('toast')
@@ -582,6 +598,40 @@ const evidenceError = ref('')
 const needsEvidence = computed(() =>
   ['telebirr', 'cbe', 'bank'].includes(store.paymentMethod)
 )
+
+const isVerifying = ref(false)
+const verificationResult = ref(null)
+
+async function verifyDigitalReceipt() {
+  if (!store.paymentReference) return
+  isVerifying.value = true
+  verificationResult.value = null
+  
+  try {
+    const data = await verifyReceipt(store.paymentMethod, store.paymentReference)
+    
+    if (data.amount < store.grandTotal) {
+      verificationResult.value = { 
+        ok: false, 
+        message: `Short payment. Receipt is for ETB ${data.amount}, but order is ETB ${store.grandTotal.toFixed(2)}.`, 
+        data 
+      }
+    } else {
+      verificationResult.value = { 
+        ok: true, 
+        message: 'Amount matches!', 
+        data 
+      }
+    }
+  } catch (e) {
+    verificationResult.value = { 
+      ok: false, 
+      message: e.message || 'Could not verify receipt.' 
+    }
+  } finally {
+    isVerifying.value = false
+  }
+}
 
 async function attachEvidence(event) {
   const file = event.target.files && event.target.files[0]
