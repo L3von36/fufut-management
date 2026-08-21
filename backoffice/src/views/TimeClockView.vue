@@ -30,7 +30,7 @@
       >
         <!-- The API returns snake_case; the original read only camelCase, so
              these cells were blank against real data. -->
-        <template #cell-staffId="{ row }"><strong>{{ row.staffId || row.staff_id }}</strong></template>
+        <template #cell-staffId="{ row }"><strong>{{ staffName(row) }}</strong></template>
         <template #cell-clockIn="{ row }">{{ row.clockIn || row.clock_in || '—' }}</template>
         <template #cell-clockOut="{ row }">{{ row.clockOut || row.clock_out || '—' }}</template>
         <template #cell-status="{ row }">
@@ -49,6 +49,7 @@ import { apiGet, TODAY } from '../api'
 import BaseTable from '../components/BaseTable.vue'
 
 const entries = ref([])
+const staffMap = ref({})
 const dateFilter = ref(TODAY())
 
 const columns = [
@@ -62,6 +63,23 @@ const columns = [
 
 /** Still on the clock. The API uses snake_case; the view read only camelCase. */
 function isOpen(e) { return !(e.clockOut || e.clock_out) }
+
+/**
+ * Resolve a timeclock entry's staff_id to a human-readable name.
+ *
+ * The API returns the raw auto-generated ID (e.g. "Sb4cd9bf1") which looks
+ * like a phone model name. We fetch the staff list once on mount and build
+ * a lookup map so the table shows "Amanuel Tadesse" instead.
+ */
+function staffName(row) {
+  const id = row.staffId || row.staff_id
+  // The API may include a joined name already
+  if (row.staffName || row.name) return row.staffName || row.name
+  if (!id) return '—'
+  const s = staffMap.value[id]
+  if (!s) return id
+  return (s.firstName || s.first_name || '') + ' ' + (s.lastName || s.last_name || '')
+}
 
 
 /**
@@ -102,8 +120,20 @@ const totalHoursToday = computed(() => filtered.value.reduce((s, e) => {
 const POLL_MS = 15000
 let pollTimer = null
 
+async function loadStaffMap() {
+  try {
+    const list = await apiGet('staff')
+    if (Array.isArray(list)) {
+      const map = {}
+      for (const s of list) map[s.id] = s
+      staffMap.value = map
+    }
+  } catch { /* staff list is optional — IDs will show as fallback */ }
+}
+
 onMounted(() => {
   loadTime()
+  loadStaffMap()
   pollTimer = setInterval(() => { if (!document.hidden) loadTime() }, POLL_MS)
 })
 onUnmounted(() => clearInterval(pollTimer))
