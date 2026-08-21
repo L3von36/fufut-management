@@ -43,7 +43,15 @@ import ReservationsView from '../../src/views/ReservationsView.vue'
 const cfg = { global: { provide: { toast: vi.fn(), confirm: vi.fn(() => Promise.resolve(true)) } } }
 
 async function open(view, rows) {
-  mockApiGet.mockImplementation(() => Promise.resolve(rows))
+  mockApiGet.mockImplementation((endpoint) => {
+    if (endpoint === 'staff') {
+      return Promise.resolve([
+        { id: 'S1', firstName: 'Selam', lastName: 'A', role: 'head-chef' },
+        { id: 'S2', firstName: 'Bethel', lastName: 'B', role: 'cashier' },
+      ])
+    }
+    return Promise.resolve(rows)
+  })
   const w = mount(view, cfg)
   await flushPromises()
   return w
@@ -87,8 +95,8 @@ describe('Expenses table', () => {
 
 describe('Shifts table', () => {
   const ROWS = [
-    { id: 'SH1', date: TODAY, staffId: 'S1', staffName: 'Selam', start: '09:00', end: '17:00', role: 'head-chef' },
-    { id: 'SH2', date: TODAY, staffId: 'S2', staffName: 'Bethel', start: '12:00', end: '', role: 'cashier' },
+    { id: 'SH1', date: TODAY, staff_id: 'S1', staffName: 'Selam', start_time: '09:00', end_time: '17:00', role: 'head-chef' },
+    { id: 'SH2', date: TODAY, staff_id: 'S2', staffName: 'Bethel', start_time: '12:00', end_time: '', role: 'cashier' },
   ]
   beforeEach(() => vi.clearAllMocks())
 
