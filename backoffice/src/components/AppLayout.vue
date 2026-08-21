@@ -196,4 +196,40 @@ async function handleLogout() {
   await auth.logout()
   window.location.href = base + 'login'
 }
+
+/**
+ * Detect session change when the tab regains focus.
+ *
+ * On a shared machine, staff A logs out and staff B logs in. If the
+ * backoffice tab was left open it still shows A's role in the sidebar
+ * and its route guard holds A's permissions. This re-check catches the
+ * change and reloads so the new user sees their own screens.
+ */
+const SESSION_RECHECK_MS = 10000
+let lastCheck = 0
+
+async function recheckSession() {
+  if (document.visibilityState !== 'visible') return
+  if (Date.now() - lastCheck < SESSION_RECHECK_MS) return
+  lastCheck = Date.now()
+
+  const verdict = await auth.revalidate()
+  if (verdict === 'ended') {
+    router.push('/login')
+    return
+  }
+  if (verdict === 'changed') {
+    window.location.reload()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', recheckSession)
+  window.addEventListener('focus', recheckSession)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', recheckSession)
+  window.removeEventListener('focus', recheckSession)
+})
 </script>

@@ -50,7 +50,8 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { NAV_ITEMS } from '../api'
+import { NAV_ITEMS, API } from '../api'
+import { invalidateAuthCache } from '../router'
 
 const router = useRouter()
 const route = useRoute()
@@ -103,8 +104,10 @@ function navigate(view) {
   router.push('/app/' + view)
 }
 
-function logout() {
+async function logout() {
   sessionStorage.removeItem('admin_auth')
+  invalidateAuthCache()
+  try { await fetch(`${API}/api/auth/logout`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({}) }) } catch { /* server unreachable */ }
   router.push('/login')
 }
 

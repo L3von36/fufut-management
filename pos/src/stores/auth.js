@@ -192,6 +192,10 @@ export const useAuthStore = defineStore('auth', () => {
         await Promise.all(names.map((n) => caches.delete(n)))
       }
     } catch { /* no service worker cache on this device */ }
+    // Clear the previous user's cart so the next person starts fresh.
+    // The cart persists to localStorage under fufut.pos.cart.v1 and survives
+    // logout, which means a shared tablet shows the last user's items.
+    try { localStorage.removeItem('fufut.pos.cart.v1') } catch {}
   }
 
   /**

@@ -53,11 +53,29 @@ export const useAuthStore = defineStore('auth', () => {
     return false
   }
 
+  /**
+   * Re-check who is signed in and report whether the session changed.
+   *
+   * The backoffice is used on shared machines where one staff member logs
+   * out and another logs in on the same browser. Without this, the sidebar
+   * and route guard keep using the stale role until a full page reload.
+   *
+   * Returns 'same', 'changed', 'ended' or 'unknown' (unreachable server).
+   */
+  async function revalidate() {
+    const wasId = user.value && user.value.id
+    const wasRole = roleKey.value
+    const ok = await checkSession()
+    if (!ok) return wasId ? 'ended' : 'same'
+    const nowId = user.value && user.value.id
+    return nowId !== wasId || roleKey.value !== wasRole ? 'changed' : 'same'
+  }
+
   async function logout() {
     try { await apiPost('auth/logout', {}) } catch {}
     user.value = null
     roleKey.value = ''
   }
 
-  return { user, roleKey, loading, isAuthenticated, permissions, defaultView, hasPermission, login, loginWithEmail, checkSession, logout }
+  return { user, roleKey, loading, isAuthenticated, permissions, defaultView, hasPermission, login, loginWithEmail, checkSession, revalidate, logout }
 })

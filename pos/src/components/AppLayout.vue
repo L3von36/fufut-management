@@ -114,6 +114,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { NAV_ITEMS, isOnline, onOnlineChange } from '../api'
 import { useSync } from '../composables/useSync'
+import { useOrderStore } from '../stores/order'
 
 const router = useRouter()
 const route = useRoute()
@@ -283,6 +284,11 @@ function navigate(view) {
 }
 
 async function handleLogout() {
+  // Clear the cart so the next person sees an empty POS, not the
+  // previous user's items. The localStorage copy is already wiped by
+  // auth.logout(); this resets the in-memory Pinia state.
+  const orderStore = useOrderStore()
+  orderStore.resetFull()
   await auth.logout()
   window.location.href = base + 'login'
 }

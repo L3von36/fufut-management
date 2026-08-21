@@ -99,15 +99,8 @@ async function login() {
       btnState.setError(data.error || 'Invalid password')
     }
   } catch (e) {
-    // Fallback: if backend is unreachable, try local auth as backup
-    if (password.value === 'futfut2026') {
-      sessionStorage.setItem('admin_auth', '1')
-      btnState.setSuccess()
-      setTimeout(() => router.push('/app/menu'), 800)
-    } else {
-      error.value = 'Invalid password'
-      btnState.setError('Invalid password')
-    }
+    error.value = 'Server unreachable. Please check your connection.'
+    btnState.setError('Server unreachable')
   }
 }
 </script>
