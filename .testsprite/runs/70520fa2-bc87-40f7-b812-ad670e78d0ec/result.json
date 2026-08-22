@@ -1,0 +1,20 @@
+{
+  "testId": "21ee1f98-699d-4ba4-8097-92824b51f39a",
+  "status": "failed",
+  "startedAt": null,
+  "finishedAt": "2026-08-21T12:26:23.141Z",
+  "videoUrl": "https://testsprite-videos.s3.us-east-1.amazonaws.com/20260821-122620-6df94f40.webm",
+  "failureAnalysisUrl": null,
+  "snapshotId": "snap_8bdaf77b4d52a740",
+  "runIdIfAvailable": "70520fa2-bc87-40f7-b812-ad670e78d0ec",
+  "codeVersion": "v1.0",
+  "targetUrl": null,
+  "targetUrlSource": null,
+  "failedStepIndex": 17,
+  "failureKind": "assertion",
+  "verdict": "failed",
+  "executionStatus": "completed",
+  "summary": "Failed (assertion) on step 17: The hosting/app likely retains POS state across account switches because the current-order/cart data is stored in a global or persistent client-side cache that is not being cleared when the manager session ends and the waiter session begins. In other words, the waiter is inheriting the manager’s active order from shared state, browser storage, or a reused session/order context. The blank /pos/app/staff route suggests there may also be a deployment/routing issue fo…",
+  "apiOutput": null,
+  "trace": null
+}

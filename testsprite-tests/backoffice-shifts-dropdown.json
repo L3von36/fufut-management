@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/TestSprite/testsprite-cli/v0.7.0/schemas/plan.schema.json",
+  "projectId": "9ae09ea1-3b6d-4d5a-9f29-2a8ab62063d3",
+  "type": "frontend",
+  "name": "Backoffice: Shifts form shows staff dropdown, not raw ID input",
+  "description": "Open the Shifts page, click Add Shift, verify the staff field is a dropdown with staff names (not a text input for raw IDs). Select a staff member, fill the form, save, and verify the new shift appears in the table with the staff name shown.",
+  "priority": "p0",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to https://backoffice.fufutcoffee.com/backoffice/login"
+    },
+    {
+      "type": "action",
+      "description": "Fill in email 'amanuel@fufut.coffee' and password 'selam@336', then click the Sign In or Login button"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify successful login: URL contains '/backoffice/app/' and the sidebar is visible with navigation items"
+    },
+    {
+      "type": "action",
+      "description": "Click on 'Shifts' or 'Time Clock' section in the sidebar to navigate to the Shifts page"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the Shifts page loads with a table showing shift entries and an 'Add Shift' button visible"
+    },
+    {
+      "type": "action",
+      "description": "Click the '+ Add Shift' button to open the add shift form/modal"
+    },
+    {
+      "type": "assertion",
+      "description": "CRITICAL: Verify the form shows a dropdown select element for Staff (not a plain text input). The dropdown should display staff names like 'Amanuel' or 'Yonas', not raw IDs like 'Sb4cd9bf1'. There should be a 'Select staff member...' placeholder option."
+    },
+    {
+      "type": "action",
+      "description": "Click on the Staff dropdown and select any staff member from the list (e.g. one showing a name like 'Amanuel Tadesse')"
+    },
+    {
+      "type": "action",
+      "description": "Fill in the Date field with today's date, set Start Time to '08:00' and End Time to '17:00'"
+    },
+    {
+      "type": "action",
+      "description": "Click the 'Save' button to submit the form"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the modal closes and the new shift appears in the shifts table below. The Staff column should show a human-readable name, not a raw auto-generated ID."
+    },
+    {
+      "type": "action",
+      "description": "Click 'Sign Out' to log out"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the user is redirected to /backoffice/login"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "testId": "edf4fe43-6e7e-4641-a0c3-ed0e234d2d52",
+  "status": "blocked",
+  "startedAt": null,
+  "finishedAt": "2026-08-21T12:02:11.315Z",
+  "videoUrl": "https://testsprite-videos.s3.us-east-1.amazonaws.com/20260821-120208-6f4e5078.webm",
+  "failureAnalysisUrl": null,
+  "snapshotId": "snap_dcb6587bb7f0d005",
+  "runIdIfAvailable": "b2d71547-956d-4208-a6e6-d8065331e5db",
+  "codeVersion": "v1.0",
+  "targetUrl": null,
+  "targetUrlSource": null,
+  "failedStepIndex": 7,
+  "failureKind": null,
+  "verdict": "blocked",
+  "executionStatus": "completed",
+  "summary": "Blocked before a verdict could be produced: The hosting side is likely serving a backoffice instance whose authentication data is out of sync with the expected test credentials: the manager account may not exist, may have a different password than the test expects, may be locked/disabled, or the app may be connected to the wrong database/environment. Another possibility is an auth configuration issue (e.g., password hash mismatch, identity provider misconfiguration, or stale credentials after d…",
+  "apiOutput": null,
+  "trace": null
+}

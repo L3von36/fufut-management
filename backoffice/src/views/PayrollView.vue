@@ -45,9 +45,17 @@
           <div v-if="s.description && s.description !== s.label" style="font-size:.7rem;color:var(--text-muted)">{{ s.description }}</div>
         </template>
         <template #cell-value="{ row: s }">
-          <input v-model="draft[s.key]" class="input input-sm"
-            :style="isJson(s.value) ? 'width:100%;font-family:var(--font-mono);font-size:.7rem' : 'width:120px'" />
-          <div v-if="isJson(s.value)" class="setting-preview">{{ formatSettingPreview(draft[s.key], s.key) }}</div>
+          <div v-if="!editing[s.key]">
+            <span style="font-size:.8rem">{{ formatSettingPreview(draft[s.key], s.key) || draft[s.key] || '—' }}</span>
+            <button v-if="isJson(s.value)" class="link-btn" style="margin-left:6px;font-size:.7rem" @click="editing[s.key] = true">edit raw</button>
+          </div>
+          <template v-else>
+            <textarea v-model="draft[s.key]" rows="3" class="input input-sm" style="width:100%;font-family:var(--font-mono);font-size:.7rem;resize:vertical" />
+            <div style="margin-top:4px;display:flex;gap:6px;align-items:center">
+              <span class="setting-preview">{{ formatSettingPreview(draft[s.key], s.key) }}</span>
+              <button class="link-btn" style="font-size:.7rem" @click="editing[s.key] = false">done</button>
+            </div>
+          </template>
         </template>
         <template #cell-actions="{ row: s }">
           <button class="btn btn-sm btn-primary" :disabled="draft[s.key] === s.value" @click="saveSetting(s)">Save</button>
@@ -171,6 +179,7 @@ const toast = inject('toast')
 
 const settings = ref([])
 const draft = ref({})
+const editing = ref({})
 const showRates = ref(false)
 const result = ref(null)
 const runs = ref([])

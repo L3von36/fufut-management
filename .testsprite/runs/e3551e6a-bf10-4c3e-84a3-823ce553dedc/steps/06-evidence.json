@@ -1,0 +1,8 @@
+[
+  {
+    "kind": "snapshot",
+    "stepIndex": 6,
+    "summary": "Step 6 'Login failed with an 'Invalid password' error and the login form remained visible, blocking the rest of the multi-role flow.' failed. Error: TEST BLOCKED\n\nThe test could not be run because the provided manager credentials were rejected at login and no alternate staff credentials were available to continue the multi-role switch flow.\n\nObservations:\n- After submitting the login form, an 'Invalid password' message is shown on the login page.\n- The page remained on the login screen (/pos/login) and did not redirect to a dashboard (no /pos/app/ URL or sidebar was visible).\n- No alternate staff account credentials were provided to continue the test as required by the steps.",
+    "path": "steps/06-snapshot.html"
+  }
+]

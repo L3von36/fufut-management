@@ -1,0 +1,20 @@
+{
+  "testId": "273d794f-c152-46e9-b41f-cab5e389f8ff",
+  "status": "blocked",
+  "startedAt": null,
+  "finishedAt": "2026-08-21T12:01:18.837Z",
+  "videoUrl": "https://testsprite-videos.s3.us-east-1.amazonaws.com/20260821-120115-1d4c43a0.webm",
+  "failureAnalysisUrl": null,
+  "snapshotId": "snap_746934963c6cb906",
+  "runIdIfAvailable": "e3551e6a-bf10-4c3e-84a3-823ce553dedc",
+  "codeVersion": "v1.0",
+  "targetUrl": null,
+  "targetUrlSource": null,
+  "failedStepIndex": 5,
+  "failureKind": null,
+  "verdict": "blocked",
+  "executionStatus": "completed",
+  "summary": "Blocked before a verdict could be produced: The hosting side likely has a credential or authentication configuration mismatch: the manager username/password expected by the test may not exist or may be out of sync with the live auth store, the account could be disabled/locked, or the deployed environment may be pointing at the wrong secrets/database. Because the login returned 'Invalid password' and stayed on /pos/login, the service is rejecting the provided manager credentials before the multi…",
+  "apiOutput": null,
+  "trace": null
+}

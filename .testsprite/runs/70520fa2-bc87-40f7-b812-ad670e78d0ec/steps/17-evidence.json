@@ -1,0 +1,8 @@
+[
+  {
+    "kind": "snapshot",
+    "stepIndex": 17,
+    "summary": "Step 17 'The waiter's cart was not cleared after switching accounts; items from the manager's session remain in the Current Order.' failed. Error: TEST FAILURE\n\nThe waiter session shows items in the Current Order that were added by the manager — the cart was not cleared when switching accounts.\n\nObservations:\n- The sidebar shows \"Yonas • Head Waiter\" and manager-only navigation items (e.g., \"Staff\", \"Amanuel\") are not present.\n- The Current Order (right panel) lists TEA and Espresso with a Total of ETB 220.\n- A prior direct navigation to /pos/app/staff produced no visible staff management content (page was blank), so staff access could not be validated via that route.",
+    "path": "steps/17-snapshot.html"
+  }
+]

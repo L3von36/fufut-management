@@ -1,0 +1,74 @@
+{
+  "$schema": "https://raw.githubusercontent.com/TestSprite/testsprite-cli/v0.7.0/schemas/plan.schema.json",
+  "projectId": "b37192fa-1cec-4530-8100-5edc8e090a9e",
+  "type": "frontend",
+  "name": "POS: Manager to Waiter role switch - cart cleared, correct dashboard",
+  "description": "Log in as manager, add items to cart, log out, then log in as waiter. Verify cart is empty and waiter sees their own permissions.",
+  "priority": "p0",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to https://pos.fufutcoffee.com/pos/login"
+    },
+    {
+      "type": "action",
+      "description": "Fill in email 'amanuel@fufut.coffee' and password 'selam@336', then click the Sign In button"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify successful login: URL contains '/pos/app/' and a sidebar with navigation items is visible. The sidebar should show the manager's name 'Amanuel' and role."
+    },
+    {
+      "type": "action",
+      "description": "Click on the menu or ordering view in the sidebar to navigate to the ordering screen"
+    },
+    {
+      "type": "action",
+      "description": "Add at least 2 different menu items to the cart by clicking on them"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the cart shows the added items with a non-zero total amount displayed"
+    },
+    {
+      "type": "action",
+      "description": "Click the 'Sign Out' button in the sidebar footer to log out"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the user is redirected back to the login page at /pos/login"
+    },
+    {
+      "type": "action",
+      "description": "Now fill in email 'yonas@fufut.coffee' and password 'selam@336' (waiter account), then click Sign In"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify successful login as the waiter: URL contains '/pos/app/', and the sidebar shows 'Yonas' (or the waiter's name) with role 'Head Waiter' or similar - NOT 'Amanuel'"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the cart is COMPLETELY EMPTY - no items from the previous manager's session. The cart should show zero items or an empty state."
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the sidebar shows only waiter-permitted navigation items (e.g., Tables, Orders) and does NOT show manager-only items like Staff, Recipes, or Inventory management"
+    },
+    {
+      "type": "action",
+      "description": "Try to directly navigate the browser URL to /pos/app/inventory (a manager-only page that waiters cannot access)"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the app redirects away from /pos/app/inventory to the waiter's default view 'tables', not showing inventory management content"
+    },
+    {
+      "type": "action",
+      "description": "Click 'Sign Out' to log out of the waiter account"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the user is redirected to /pos/login with a clean login form - no leftover state from either session"
+    }
+  ]
+}

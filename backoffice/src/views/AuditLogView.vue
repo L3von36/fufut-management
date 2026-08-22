@@ -57,9 +57,9 @@
                 -->
                 <div v-for="(to, field) in (entry.after || {})" :key="field" class="change">
                   <span class="field">{{ fieldLabel(entry, field) }}</span>
-                  <span v-if="entry.before && entry.before[field] !== undefined" class="from">{{ show(entry.before[field]) }}</span>
+                  <span v-if="entry.before && entry.before[field] !== undefined" class="from" v-html="show(entry.before[field])"></span>
                   <span v-if="entry.before && entry.before[field] !== undefined" class="arrow">→</span>
-                  <span class="to" v-html="show(to)" />
+                  <span class="to" v-html="show(to)"></span>
                 </div>
                 <div v-if="entry.reason" class="reason">{{ entry.reason }}</div>
                 <span v-if="!entry.after && !entry.reason" style="color:var(--text-muted)">—</span>
@@ -275,7 +275,7 @@ async function loadAudit() {
 .change .from { color: var(--text-muted); text-decoration: line-through; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .change .arrow { color: var(--text-muted); }
 .change .to { font-weight: 600; }
-.change .to :deep(.sub-key) { color: var(--text-muted); }
-.change .to :deep(.sub-sep) { color: var(--text-muted); margin: 0 2px; }
+.change :deep(.sub-key) { color: var(--text-muted); font-weight: 400; }
+.change :deep(.sub-sep) { color: var(--text-muted); margin: 0 2px; }
 .reason { font-size: .72rem; color: var(--text-muted); font-style: italic; margin-top: 3px; }
 </style>

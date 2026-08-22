@@ -1,0 +1,20 @@
+{
+  "testId": "19f9ab37-0605-4645-9c49-0aadd06f8152",
+  "status": "blocked",
+  "startedAt": null,
+  "finishedAt": "2026-08-21T12:01:52.985Z",
+  "videoUrl": "https://testsprite-videos.s3.us-east-1.amazonaws.com/20260821-120150-727e5ca1.webm",
+  "failureAnalysisUrl": null,
+  "snapshotId": "snap_1b797cede4f65a18",
+  "runIdIfAvailable": "bad3ce65-cb83-4d85-bf6e-bc799b63c780",
+  "codeVersion": "v1.0",
+  "targetUrl": null,
+  "targetUrlSource": null,
+  "failedStepIndex": 6,
+  "failureKind": null,
+  "verdict": "blocked",
+  "executionStatus": "completed",
+  "summary": "Blocked before a verdict could be produced: The most likely hosting-side issue is a credential/configuration mismatch in production: the admin login backend is validating against a different password or auth source than expected, so the supplied password is rejected as invalid. This can happen if the admin password was changed, an environment secret was rotated incorrectly, the service is connected to the wrong database/instance, or the deployed auth configuration/hash format does not match the…",
+  "apiOutput": null,
+  "trace": null
+}

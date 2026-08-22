@@ -1,0 +1,58 @@
+{
+  "$schema": "https://raw.githubusercontent.com/TestSprite/testsprite-cli/v0.7.0/schemas/plan.schema.json",
+  "projectId": "9ae09ea1-3b6d-4d5a-9f29-2a8ab62063d3",
+  "type": "frontend",
+  "name": "Backoffice: Manager to Waiter role switch - sidebar and permissions update",
+  "description": "Log in as manager in backoffice, verify full sidebar, log out, log in as waiter. Waiter should either be denied access or see a minimal sidebar.",
+  "priority": "p0",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to https://backoffice.fufutcoffee.com/backoffice/login"
+    },
+    {
+      "type": "action",
+      "description": "Fill in email 'amanuel@fufut.coffee' and password 'selam@336', then click the Sign In or Login button"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify successful login: URL contains '/backoffice/app/' and the sidebar shows multiple navigation sections (Staff, Inventory, Reports, etc.) appropriate for a manager"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the top-right user chip or sidebar shows the manager's name 'Amanuel'"
+    },
+    {
+      "type": "action",
+      "description": "Click the 'Sign Out' button in the sidebar footer"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the user is redirected to /backoffice/login"
+    },
+    {
+      "type": "action",
+      "description": "Now fill in email 'yonas@fufut.coffee' and password 'selam@336' (waiter account), then click Sign In"
+    },
+    {
+      "type": "assertion",
+      "description": "Either (a) the login is rejected with an error because waiters cannot access the backoffice, OR (b) if accepted, the sidebar shows ONLY waiter-permitted items - NOT Staff management, Inventory, or other manager-only sections. The user chip must NOT show 'Amanuel'."
+    },
+    {
+      "type": "action",
+      "description": "If logged in as waiter, try to navigate the browser URL directly to /backoffice/app/staff"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the app redirects to the waiter's default view or back to login, NOT showing staff management content"
+    },
+    {
+      "type": "action",
+      "description": "Click 'Sign Out' to log out"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the user is back at /backoffice/login with no residual session data"
+    }
+  ]
+}

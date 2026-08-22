@@ -1,0 +1,8 @@
+[
+  {
+    "kind": "snapshot",
+    "stepIndex": 7,
+    "summary": "Step 7 'Manager sign-in did not complete; the app did not navigate into /backoffice/app/ after submitting manager credentials.' failed. Error: TEST BLOCKED\n\nManager login cannot be completed because the provided manager credentials are rejected by the login form, preventing continuation of the role-switching verification.\n\nObservations:\n- The login page shows \"Invalid password\" after submitting amanuel@fufut.coffee with password 'fufut2026'.\n- The page remains on /backoffice/login with only the email and password fields and a \"Try Again\" button visible.\n- No alternate in-app navigation or account links are available from the visible login UI to proceed with the test.",
+    "path": "steps/07-snapshot.html"
+  }
+]

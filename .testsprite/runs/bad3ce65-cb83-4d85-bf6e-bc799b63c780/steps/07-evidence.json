@@ -1,0 +1,8 @@
+[
+  {
+    "kind": "snapshot",
+    "stepIndex": 7,
+    "summary": "Step 7 'Fresh login also failed — signing in again did not load the admin /app/ dashboard.' failed. Error: TEST BLOCKED\n\nThe test could not be run — login to the admin UI failed with the provided credentials, preventing verification of logout/server-session behavior.\n\nObservations:\n- The FU FUT COFFEE · Admin login page remains displayed and shows the red 'Invalid password' message under the password field.\n- Two sign-in attempts were made using the supplied password 'fufut2026'; both attempts failed and did not navigate to /app/.",
+    "path": "steps/07-snapshot.html"
+  }
+]

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/TestSprite/testsprite-cli/v0.7.0/schemas/plan.schema.json",
+  "projectId": "363ec403-49d7-4fe4-9393-9bb394df021c",
+  "type": "frontend",
+  "name": "Admin: Logout kills server session - protected page blocked after logout",
+  "description": "Log in to admin, browse pages, log out, then try to access a protected page without re-logging in. Verifies the server-side session cookie is actually destroyed.",
+  "priority": "p0",
+  "planSteps": [
+    {
+      "type": "action",
+      "description": "Navigate to https://admin.fufutcoffee.com/login"
+    },
+    {
+      "type": "action",
+      "description": "Fill in the password field with 'selam@336' and click the Sign In button (the email is hardcoded to amanuel@fufut.coffee)"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify successful login: URL changes to contain '/app/' and the admin dashboard is displayed with sidebar navigation items (Orders, Menu, Reviews, Gallery, etc.)"
+    },
+    {
+      "type": "action",
+      "description": "Navigate to /app/orders by clicking Orders in the sidebar, wait for the page to load"
+    },
+    {
+      "type": "action",
+      "description": "Navigate to /app/menu by clicking Menu in the sidebar, wait for the page to load"
+    },
+    {
+      "type": "action",
+      "description": "Click the 'Sign Out' button in the sidebar footer"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the user is redirected to /login"
+    },
+    {
+      "type": "action",
+      "description": "Without logging in again, directly navigate the browser URL to /app/menu (a protected admin page)"
+    },
+    {
+      "type": "assertion",
+      "description": "CRITICAL: Verify the app redirects back to /login and does NOT show admin dashboard content. This proves the server session was destroyed by the logout API call, not just the client-side flag removed."
+    },
+    {
+      "type": "action",
+      "description": "Now fill in the password field with 'selam@336' again and click Sign In to verify a fresh login works"
+    },
+    {
+      "type": "assertion",
+      "description": "Verify the fresh login succeeds and the admin dashboard loads with all navigation items visible"
+    }
+  ]
+}
