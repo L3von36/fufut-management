@@ -3,13 +3,13 @@
     <div class="table-toolbar">
       <h3>Attendance</h3>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <select v-model="staffId" class="select select-sm" style="width:auto">
+        <select v-model="staffId" class="select select-sm" style="width:auto" @change="() => load(true)">
           <option value="">Everyone</option>
           <option v-for="s in staff" :key="s.id" :value="s.id">{{ s.firstName }} {{ s.lastName }}</option>
         </select>
         <input type="date" v-model="from" class="input input-sm" style="width:auto" />
         <input type="date" v-model="to" class="input input-sm" style="width:auto" />
-        <base-button text="Filter" variant="btn-primary" :on-click="load" loading-label="Loading..." success-label="Loaded ✓" />
+        <base-button text="Filter" variant="btn-primary" :on-click="() => load(true)" loading-label="Loading..." success-label="Loaded ✓" />
       </div>
     </div>
 
@@ -153,9 +153,10 @@ async function loadGrace() {
   } catch { /* the default in the label is the same as the server's */ }
 }
 
-async function load() {
+async function load(userInitiated = false) {
   const params = new URLSearchParams({ from: from.value, to: to.value })
   if (staffId.value) params.set('staff_id', staffId.value)
+  const who = staffId.value ? staffName(staffId.value) || 'staff' : 'Everyone'
   try {
     const [res, people] = await Promise.all([
       apiGet(`attendance?${params.toString()}`),
@@ -169,6 +170,7 @@ async function load() {
     entries.value = Array.isArray(res) ? res : (res?.entries || [])
     summary.value = (Array.isArray(res) ? null : res?.summary) || {}
     if (!staff.value.length) staff.value = Array.isArray(people) ? people : []
+    if (userInitiated) toast(`Showing attendance for ${who}`)
   } catch (e) {
     console.error(e)
     toast(e.message || 'Could not load attendance', 'error')
