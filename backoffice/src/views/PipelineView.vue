@@ -50,14 +50,14 @@
               @click="selectOrder(order)"
             >
               <div class="card-top">
-                <span class="card-id">#{{ order.id?.slice(-5).toUpperCase() }}</span>
+                <span class="card-id" :title="order.id">{{ shortId(order.id) }}</span>
                 <span class="card-time">{{ localTime(order.created, true) }}</span>
               </div>
 
               <div class="card-meta">
                 <span v-if="order.table_number || order.tableId" class="meta-chip">🪑 Table {{ order.table_number || order.tableId }}</span>
                 <span v-if="order.customer && order.customer !== 'Walk-in'" class="meta-chip">👤 {{ order.customer }}</span>
-                <span v-if="order.order_type || order.type" class="meta-chip type-chip">{{ order.order_type || order.type }}</span>
+                <span v-if="order.order_type || order.type" class="meta-chip type-chip">{{ titleCase(order.order_type || order.type) }}</span>
               </div>
 
               <div class="card-items">
@@ -90,11 +90,11 @@
         <div class="detail-modal">
           <div class="detail-header">
             <div>
-              <div class="detail-order-id">#{{ selectedOrder.id }}</div>
+              <div class="detail-order-id" :title="selectedOrder.id">{{ shortId(selectedOrder.id) }}</div>
               <div class="detail-sub">
                 <span v-if="selectedOrder.table_number || selectedOrder.tableId">🪑 Table {{ selectedOrder.table_number || selectedOrder.tableId }}</span>
                 <span>ETB {{ parseFloat(selectedOrder.total||0).toFixed(0) }}</span>
-                <span class="detail-status-badge" :class="'status-' + selectedOrder.status">{{ selectedOrder.status }}</span>
+                <span class="detail-status-badge" :class="'status-' + selectedOrder.status">{{ statusLabel(selectedOrder.status) }}</span>
               </div>
             </div>
             <button class="modal-close" @click="selectedOrder = null">✕</button>
@@ -148,7 +148,8 @@
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { apiGet, apiPut } from '../api'
 import { localTime } from '../lib/datetime'
-import { formatOrderItems } from '../lib/formatters'
+import { formatOrderItems, shortId, titleCase } from '../lib/formatters'
+import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { useSSE } from '../composables/useSSE'
 import { useButtonState } from '../composables/useButtonState'
 
@@ -204,7 +205,7 @@ onMounted(() => {
   sse.connect('kitchen')
   sse.on('new_order', (data) => {
     orders.value.push({ ...data, timer: 0 })
-    toast(`New order #${data.id}`, 'success')
+    toast(`New order ${shortId(data.id)}`, 'success')
   })
   sse.on('order_update', (data) => {
     const idx = orders.value.findIndex(o => o.id === data.id)
@@ -250,7 +251,7 @@ async function onDrop(e, targetStatus) {
   try {
     await apiPut('orders/' + order.id, { status: targetStatus })
     order.status = targetStatus
-    toast(`Order #${order.id} → ${targetStatus}`)
+    toast(`Order ${shortId(order.id)} → ${statusLabel(targetStatus)}`)
   } catch { toast('Failed to update', 'error') }
 }
 

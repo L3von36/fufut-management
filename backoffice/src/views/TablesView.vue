@@ -170,7 +170,7 @@
           <h4>Active Orders</h4>
           <div v-for="order in tableOrders(selectedTable)" :key="order.id" class="table-order-card">
             <div class="order-card-top">
-              <span class="order-id">#{{ order.id }}</span>
+              <span class="order-id" :title="order.id">{{ shortId(order.id) }}</span>
               <span class="badge" :class="statusBadgeClass(order.status)">{{ statusLabel(order.status) }}</span>
             </div>
             <div class="order-items">{{ formatOrderItems(order.items) }}</div>
@@ -208,7 +208,7 @@ import { apiGet, apiPut, apiPost } from '../api'
 import QRCode from 'qrcode'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { localTime } from '../lib/datetime'
-import { formatOrderItems } from '../lib/formatters'
+import { formatOrderItems, shortId } from '../lib/formatters'
 import { sameTable } from '../lib/tableRef'
 import { useSSE } from '../composables/useSSE'
 import { useButtonState } from '../composables/useButtonState'

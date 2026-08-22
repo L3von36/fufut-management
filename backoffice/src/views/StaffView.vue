@@ -33,9 +33,6 @@
       :empty-hint="search ? 'Try a different search.' : ''"
       stack-on-mobile
     >
-      <template #cell-id="{ row }">
-        <span style="font-family:var(--font-mono);font-size:.78rem">{{ row.id }}</span>
-      </template>
       <template #cell-name="{ row }"><strong>{{ row.firstName }} {{ row.lastName }}</strong></template>
       <!--
         Sign-in is by email, so an account without one cannot log in at all. It
@@ -302,7 +299,6 @@ function canonical(role) {
 }
 
 const columns = [
-  { key: 'id', label: 'ID' },
   { key: 'name', label: 'Name' },
   { key: 'email', label: 'Email (sign-in)' },
   { key: 'role', label: 'Role' },

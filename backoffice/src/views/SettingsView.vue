@@ -8,8 +8,8 @@
       <div class="card">
         <h3 style="font-size:.9rem;color:var(--text-heading);margin-bottom:16px;font-weight:600">Profile</h3>
         <div class="form-group"><label>Full Name</label><input :value="profile.firstName" placeholder="First Name" readonly style="margin-bottom:8px" /><input :value="profile.lastName" placeholder="Last Name" readonly /></div>
-        <div class="form-group"><label>Role</label><input :value="profile.role" disabled style="opacity:.6" /></div>
-        <div class="form-group"><label>Staff ID</label><input :value="profile.id" disabled style="opacity:.6" /></div>
+        <div class="form-group"><label>Role</label><input :value="roleLabel(profile.role) || profile.role" disabled style="opacity:.6" /></div>
+        <div class="form-group"><label>Staff ID</label><input :value="shortId(profile.id) || profile.id" disabled style="opacity:.6" /></div>
       </div>
 
       <div class="card">
@@ -79,6 +79,7 @@ import { ref, computed, onMounted, inject } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { API, apiGet, apiPost, isOnline, onOnlineChange, TODAY } from '../api'
 import { useButtonState } from '../composables/useButtonState'
+import { shortId, roleLabel } from '../lib/formatters'
 import { toCsv, download } from '../lib/csv'
 
 const toast = inject('toast')

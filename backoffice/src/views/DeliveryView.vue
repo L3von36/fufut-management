@@ -27,7 +27,7 @@
       empty-hint="Delivery orders taken at the till appear here."
     >
       <template #cell-orderId="{ row }">
-        <span style="font-family:var(--font-mono);font-size:.78rem">{{ row.orderId }}</span>
+        <span style="font-family:var(--font-mono);font-size:.78rem" :title="row.orderId">{{ shortId(row.orderId) }}</span>
       </template>
       <template #cell-customerName="{ row }"><strong>{{ row.customerName || row.customer }}</strong></template>
       <!-- title, so a truncated address can still be read rather than simply
@@ -47,7 +47,7 @@
       <!-- The row carries driver_id and the resolved driver name; `driverId`
            was never a column, so this column was always blank. -->
       <template #cell-driverId="{ row }">
-        {{ row.driver || row.driver_id || '—' }}
+        {{ row.driver || driverName(row.driver_id) || '—' }}
       </template>
       <template #cell-actions="{ row }">
         <button class="btn btn-sm btn-ghost" @click="editDelivery(row)">Status</button>
@@ -110,7 +110,7 @@ import { apiGet, apiPost } from '../api'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 // statusLabel already renders "out_for_delivery" as "Out for delivery", and
 // statusBadgeClass already colours every state in the machine.
-import { formatOrderItems } from '../lib/formatters'
+import { formatOrderItems, shortId } from '../lib/formatters'
 import BaseTable from '../components/BaseTable.vue'
 import { useButtonState } from '../composables/useButtonState'
 
@@ -118,6 +118,7 @@ const toast = inject('toast')
 const btnState = useButtonState({ successDuration: 2000 })
 const deliveries = ref([])
 const drivers = ref([])
+const driverMap = ref({})
 const statusFilter = ref('')
 const showForm = ref(false)
 const editing = ref(null)
@@ -186,11 +187,13 @@ async function loadDelivery() {
   // the id it wrote never reached the database anyway.
   try {
     const staff = await apiGet('staff')
-    drivers.value = (Array.isArray(staff) ? staff : []).filter(
+    const active = (Array.isArray(staff) ? staff : []).filter(
       s => String(s.role || '').toLowerCase().replace(/[\s_]+/g, '-') === 'delivery-staff' &&
            (s.status || 'active') === 'active'
     )
-  } catch { drivers.value = [] }
+    drivers.value = active
+    driverMap.value = Object.fromEntries(active.map(s => [s.id, (s.firstName || '') + ' ' + (s.lastName || '')]))
+  } catch { drivers.value = []; driverMap.value = {} }
 }
 
 function editDelivery(d) {
@@ -209,6 +212,11 @@ function editDelivery(d) {
  * write appeared to succeed while skipping every one of those steps — and the
  * driverId it sent was dropped on the floor, because the column is driver_id.
  */
+function driverName(id) {
+  if (!id) return ''
+  return driverMap.value[id] || ''
+}
+
 async function saveDelivery() {
   if (!form.value.status) { toast('Choose what to change it to', 'error'); return }
   if (form.value.status === 'assigned' && !form.value.driverId) {

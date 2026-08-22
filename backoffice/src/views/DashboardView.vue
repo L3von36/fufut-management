@@ -41,7 +41,7 @@
           <div class="mini-lane-header" :style="{ background: stage.color }">{{ stage.label }} ({{ miniGrouped[stage.key]?.length || 0 }})</div>
           <div class="mini-lane-body">
             <div v-for="order in (miniGrouped[stage.key] || []).slice(0, 3)" :key="order.id" class="mini-order">
-              <span class="mini-order-id">#{{ order.id }}</span>
+              <span class="mini-order-id" :title="order.id">{{ shortId(order.id) }}</span>
               <span class="mini-order-items">{{ formatOrderItems(order.items) }}</span>
             </div>
             <div v-if="!(miniGrouped[stage.key]?.length)" class="mini-empty">{{ stage.emptyText }}</div>
@@ -62,8 +62,8 @@
           :class="'status-' + (table.status || 'available')"
           @click="navigateToTable(table)"
         >
-          <div class="dash-table-number">{{ table.number || table.id }}</div>
-          <div class="dash-table-status">{{ (table.status || 'available').slice(0, 4) }}</div>
+          <div class="dash-table-number">{{ table.number ? 'T-' + String(table.number).padStart(2, '0') : shortId(table.id) }}</div>
+          <div class="dash-table-status">{{ statusLabel(table.status || 'available') }}</div>
           <div v-if="table.status === 'occupied' && tableOrders(table)?.length" class="dash-table-guests">
             {{ tableOrders(table)[0].guests || '—' }} guests · ETB {{ parseFloat(tableOrders(table)[0].total || 0).toFixed(0) }}
           </div>
@@ -82,7 +82,8 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiGet, TODAY } from '../api'
 import { useAnimatedNumber } from '../composables/useAnimatedNumber'
-import { formatOrderItems } from '../lib/formatters'
+import { formatOrderItems, shortId } from '../lib/formatters'
+import { statusLabel } from '../composables/useStatusBadge'
 import { sameTable } from '../lib/tableRef'
 let _Chart = null
 async function _loadChart() {
@@ -287,7 +288,7 @@ async function buildPeakChart(orders) {
 .dash-table-cell.status-reserved{border-color:var(--warning);background:var(--gold-50)}
 .dash-table-cell.status-cleaning{border-color:var(--info);background:var(--blue-50)}
 .dash-table-number{font-size:1rem;font-weight:700;color:var(--text-heading)}
-.dash-table-status{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}
+.dash-table-status{font-size:.62rem;font-weight:600;text-transform:capitalize;letter-spacing:.04em;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dash-table-cell.status-occupied .dash-table-status{color:var(--danger)}
 .dash-table-cell.status-reserved .dash-table-status{color:var(--warning)}
 .dash-table-guests{font-size:.62rem;color:var(--text-heading);font-weight:500;margin-top:2px}

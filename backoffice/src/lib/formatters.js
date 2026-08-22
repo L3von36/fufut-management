@@ -4,6 +4,42 @@
  */
 
 /**
+ * Canonical role key → human-readable label.
+ * Single source of truth; every view that shows a role should use this.
+ */
+const ROLE_LABELS = {
+  manager: 'Manager',
+  'head-chef': 'Head Chef',
+  'assistant-chef': 'Assistant Chef',
+  'head-waiter': 'Head Waiter',
+  cashier: 'Cashier',
+  'delivery-staff': 'Delivery Staff',
+  cleaner: 'Cleaner',
+  accountant: 'Accountant',
+}
+
+/**
+ * Turn a raw role value ("head-chef", "Head Chef", "HEAD_CHEF") into
+ * a readable label. Falls back to title-casing whatever was given.
+ */
+export function roleLabel(role) {
+  if (!role || typeof role !== 'string') return ''
+  const key = role.trim().toLowerCase().replace(/[\s_]+/g, '-')
+  return ROLE_LABELS[key] || titleCase(role)
+}
+
+/**
+ * Shorten a long UUID/ID to a human-friendly display fragment.
+ * Takes the last 6 characters, uppercased — short enough to glance at,
+ * long enough to be unique in casual use.
+ */
+export function shortId(id) {
+  if (!id || typeof id !== 'string') return ''
+  if (id.length <= 8) return id
+  return '#' + id.slice(-6).toUpperCase()
+}
+
+/**
  * Capitalizes words and replaces hyphens/underscores with spaces.
  */
 export function titleCase(str) {

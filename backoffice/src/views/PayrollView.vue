@@ -41,8 +41,8 @@
         empty-title="No configurable rates found"
       >
         <template #cell-label="{ row: s }">
-          <strong>{{ s.label || s.key }}</strong>
-          <div style="font-size:.7rem;color:var(--text-muted)">{{ s.description || s.key }}</div>
+          <strong>{{ s.label || settingFriendlyName(s.key) }}</strong>
+          <div v-if="s.description && s.description !== s.label" style="font-size:.7rem;color:var(--text-muted)">{{ s.description }}</div>
         </template>
         <template #cell-value="{ row: s }">
           <input v-model="draft[s.key]" class="input input-sm"
@@ -163,6 +163,7 @@ import { apiGet, apiPost, apiPut } from '../api'
 import BaseButton from '../components/BaseButton.vue'
 import BaseTable from '../components/BaseTable.vue'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
+import { titleCase } from '../lib/formatters'
 import { printReport } from '../lib/print'
 
 const toast = inject('toast')
@@ -222,6 +223,13 @@ const editableSettings = computed(() =>
 
 function money(n) { return 'ETB ' + Math.round(Number(n) || 0).toLocaleString() }
 function isJson(v) { return typeof v === 'string' && (v.trim().startsWith('{') || v.trim().startsWith('[')) }
+/** Turn a settings key like 'payroll.overtime_rate_multiplier' into a readable label. */
+function settingFriendlyName(key) {
+  if (!key) return ''
+  // Remove common prefixes
+  const k = String(key).replace(/^(payroll|tax)\./, '')
+  return titleCase(k)
+}
 
 onMounted(() => { loadSettings(); loadRuns() })
 

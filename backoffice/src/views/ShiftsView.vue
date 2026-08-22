@@ -20,7 +20,7 @@
         empty-hint="Add a shift to build the roster."
       >
         <template #cell-staffName="{ row }"><strong>{{ staffNames[row.staff_id] || row.staff_id }}</strong></template>
-        <template #cell-role="{ row }"><span class="badge badge-neutral">{{ row.role || '—' }}</span></template>
+        <template #cell-role="{ row }"><span class="badge badge-neutral">{{ roleLabel(row.role) || '—' }}</span></template>
         <template #cell-actions="{ row }">
           <button class="btn btn-sm btn-ghost" @click="editShift(row)">Edit</button>
           <base-button text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => handleDelete(row.id)" />
@@ -38,7 +38,7 @@
               <label>Staff</label>
               <select v-model="form.staffId" required>
                 <option value="" disabled>Select staff</option>
-                <option v-for="s in staffList" :key="s.id" :value="s.id">{{ s.firstName }} {{ s.lastName }} ({{ s.role }})</option>
+                <option v-for="s in staffList" :key="s.id" :value="s.id">{{ s.firstName }} {{ s.lastName }} ({{ roleLabel(s.role) || s.role }})</option>
               </select>
             </div>
           </div>
@@ -66,6 +66,7 @@ import { ref, onMounted, inject } from 'vue'
 import { apiGet, apiPost, apiPut, apiDelete, TODAY } from '../api'
 import BaseTable from '../components/BaseTable.vue'
 import { useButtonState } from '../composables/useButtonState'
+import { roleLabel } from '../lib/formatters'
 
 const toast = inject('toast')
 const confirmDelete = inject('confirm')

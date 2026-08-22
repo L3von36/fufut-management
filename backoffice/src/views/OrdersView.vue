@@ -6,7 +6,7 @@
         <select v-model="statusFilter" class="select select-sm" style="width:auto">
           <option value="">All Status</option><option>new</option><option>preparing</option><option>ready</option><option>fulfilled</option><option>cancelled</option>
         </select>
-        <input v-model="search" placeholder="Search order ID..." class="input input-sm" style="width:160px" />
+        <input v-model="search" placeholder="Search order #..." class="input input-sm" style="width:160px" />
         <button class="btn btn-primary" @click="loadOrders">Refresh</button>
       </div>
     </div>
@@ -42,7 +42,10 @@
       :empty-hint="statusFilter || search ? 'Try clearing the filters.' : 'Orders will appear here as they are taken.'"
     >
       <template #cell-id="{ row }">
-        <span style="font-family:var(--font-mono);font-size:.78rem">{{ row.id }}</span>
+        <span style="font-family:var(--font-mono);font-size:.78rem" :title="row.id">{{ shortId(row.id) }}</span>
+      </template>
+      <template #cell-tableId="{ row }">
+        <span>{{ tableName(row.tableId) }}</span>
       </template>
       <!-- title so a truncated order is readable on hover rather than cut off
            with no way to see the rest -->
@@ -72,16 +75,29 @@ import { ref, computed, onMounted } from 'vue'
 import { apiGet } from '../api'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import { localTime } from '../lib/datetime'
-import { formatOrderItems } from '../lib/formatters'
+import { formatOrderItems, shortId, titleCase } from '../lib/formatters'
 import BaseTable from '../components/BaseTable.vue'
+import { sameTable } from '../lib/tableRef'
 
 const orders = ref([])
+const tables = ref([])
 const statusFilter = ref('')
 const search = ref('')
 
+function tableName(tableId) {
+  if (!tableId) return '—'
+  const t = tables.value.find(tb => sameTable(tb, { id: tableId, number: tableId }))
+  if (t) return 'T-' + String(t.number || t.id).padStart(2, '0')
+  if (String(tableId).length <= 6) return 'T-' + String(tableId).padStart(2, '0')
+  return 'T-' + String(tableId).slice(-2)
+}
+
 const filtered = computed(() => orders.value.filter(o => {
   if (statusFilter.value && o.status !== statusFilter.value) return false
-  if (search.value && !o.id?.toLowerCase().includes(search.value.toLowerCase())) return false
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    if (!o.id?.toLowerCase().includes(q) && !shortId(o.id).toLowerCase().includes(q)) return false
+  }
   return true
 }))
 /**
@@ -116,6 +132,12 @@ const columns = [
   { key: 'created', label: 'Time' },
 ]
 
-onMounted(loadOrders)
-async function loadOrders() { try { orders.value = await apiGet('orders') } catch (e) { console.error(e) } }
+onMounted(async () => {
+  try { orders.value = await apiGet('orders') } catch (e) { console.error(e) }
+  try { tables.value = await apiGet('tables') } catch { tables.value = [] }
+})
+async function loadOrders() {
+  try { orders.value = await apiGet('orders') } catch (e) { console.error(e) }
+  try { tables.value = await apiGet('tables') } catch { tables.value = [] }
+}
 </script>

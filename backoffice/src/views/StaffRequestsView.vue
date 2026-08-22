@@ -43,7 +43,7 @@
       :caption="`${TABS.find(t => t.key === tab).label} requests`"
       :empty-title="emptyText"
     >
-      <template #cell-staff_name="{ row }"><strong>{{ row.staff_name || row.staff_id }}</strong></template>
+      <template #cell-staff_name="{ row }"><strong>{{ row.staff_name || resolveStaffName(row.staff_id) || row.staff_id }}</strong></template>
       <template #cell-kind="{ row }">{{ (row.kind || 'normal').replace('_', ' ') }}</template>
       <template #cell-paid="{ row }">{{ row.paid ? 'Paid' : 'Unpaid' }}</template>
       <template #cell-taxable="{ row }">{{ row.taxable ? 'Yes' : 'No' }}</template>
@@ -182,6 +182,7 @@ import { apiGet, apiPost, TODAY } from '../api'
 import BaseTable from '../components/BaseTable.vue'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
 import BaseButton from '../components/BaseButton.vue'
+import { roleLabel } from '../lib/formatters'
 
 const toast = inject('toast')
 
@@ -202,6 +203,18 @@ const rejecting = ref(null)
 const rejectReason = ref('')
 const pending = ref({ leave: 0, overtime: 0, adjustments: 0 })
 const form = ref(blank())
+
+const staffMap = computed(() => {
+  const m = {}
+  staff.value.forEach(s => {
+    m[s.id] = (s.firstName || '') + ' ' + (s.lastName || '')
+  })
+  return m
+})
+function resolveStaffName(id) {
+  if (!id) return ''
+  return staffMap.value[id] || ''
+}
 
 /**
  * Columns per tab. The three record types share staff, reason, status and the

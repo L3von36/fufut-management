@@ -37,14 +37,14 @@
         :empty-title="loaded ? 'No time clock entries in this period' : 'Loading…'"
       >
         <template #cell-staffName="{ row: e }">
-          <strong>{{ e.staffName || e.staff_id }}</strong>
-          <div v-if="e.role" style="font-size:.7rem;color:var(--text-muted)">{{ e.role }}</div>
+          <strong>{{ e.staffName || staffName(e.staff_id) || e.staff_id }}</strong>
+          <div v-if="e.role" style="font-size:.7rem;color:var(--text-muted)">{{ roleLabel(e.role) }}</div>
         </template>
-        <template #cell-clock_in="{ row: e }">{{ e.clock_in || '—' }}</template>
-        <template #cell-clock_out="{ row: e }">{{ e.clock_out || '—' }}</template>
+        <template #cell-clock_in="{ row: e }"><span style="font-size:.78rem">{{ localDateTime(e.clock_in) || '—' }}</span></template>
+        <template #cell-clock_out="{ row: e }"><span style="font-size:.78rem">{{ localDateTime(e.clock_out) || '—' }}</span></template>
         <template #cell-scheduled="{ row: e }">
           <span style="font-size:.75rem;color:var(--text-muted)">
-            {{ e.scheduled_start ? e.scheduled_start + '–' + (e.scheduled_end || '?') : 'not set' }}
+            {{ e.scheduled_start ? e.scheduled_start.slice(0, 5) + '–' + (e.scheduled_end ? e.scheduled_end.slice(0, 5) : '?') : 'not set' }}
           </span>
         </template>
         <template #cell-hoursWorked="{ row: e }">{{ e.hoursWorked || 0 }}</template>
@@ -86,9 +86,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, inject } from 'vue'
+import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost, TODAY } from '../api'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
+import { localDateTime } from '../lib/datetime'
+import { roleLabel } from '../lib/formatters'
 import BaseButton from '../components/BaseButton.vue'
 import BaseTable from '../components/BaseTable.vue'
 
@@ -104,6 +106,18 @@ const to = ref(TODAY())
 const from = ref(TODAY())
 const scheduling = ref(null)
 const schedForm = ref({ start: '', end: '', notes: '' })
+
+const staffMap = computed(() => {
+  const m = {}
+  staff.value.forEach(s => {
+    m[s.id] = (s.firstName || '') + ' ' + (s.lastName || '')
+  })
+  return m
+})
+function staffName(id) {
+  if (!id) return ''
+  return staffMap.value[id] || ''
+}
 
 const columns = [
   { key: 'date', label: 'Date', class: 'nowrap' },
