@@ -37,7 +37,7 @@
         </template>
         <template #cell-actor_name="{ row: entry }">
           <strong>{{ entry.actor_name || '—' }}</strong>
-          <div v-if="entry.actor_role" style="font-size:.7rem;color:var(--text-muted)">{{ entry.actor_role }}</div>
+          <div v-if="entry.actor_role" style="font-size:.7rem;color:var(--text-muted)">{{ roleLabel(entry.actor_role) }}</div>
         </template>
         <template #cell-action="{ row: entry }">
           <span class="badge" :class="actionClass(entry.action)">{{ entry.action }}</span>
@@ -56,10 +56,10 @@
                   question an audit log is asked: what changed, from what, to what.
                 -->
                 <div v-for="(to, field) in (entry.after || {})" :key="field" class="change">
-                  <span class="field">{{ field }}</span>
+                  <span class="field">{{ fieldLabel(entry, field) }}</span>
                   <span v-if="entry.before && entry.before[field] !== undefined" class="from">{{ show(entry.before[field]) }}</span>
                   <span v-if="entry.before && entry.before[field] !== undefined" class="arrow">→</span>
-                  <span class="to">{{ show(to) }}</span>
+                  <span class="to" v-html="show(to)" />
                 </div>
                 <div v-if="entry.reason" class="reason">{{ entry.reason }}</div>
                 <span v-if="!entry.after && !entry.reason" style="color:var(--text-muted)">—</span>
@@ -87,7 +87,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { apiGet, TODAY } from '../api'
 import { localDayStartUtc, localDayEndUtc, localDateTime } from '../lib/datetime'
-import { formatValue } from '../lib/formatters'
+import { formatValue, roleLabel, titleCase } from '../lib/formatters'
 import BaseButton from '../components/BaseButton.vue'
 import BaseTable from '../components/BaseTable.vue'
 
@@ -106,7 +106,7 @@ import BaseTable from '../components/BaseTable.vue'
 // `tables` and `reservations` carry the manager overrides: taking a table off
 // the party on it, and seating over a booking. 'override' is its own action
 // because that is the thing somebody comes to this screen looking for.
-const ENTITIES = ['orders', 'payments', 'tips', 'inventory', 'recipes', 'purchases', 'suppliers', 'delivery', 'waste', 'stock_counts', 'staff', 'menu', 'tables', 'reservations', 'timeclock']
+const ENTITIES = ['orders', 'payments', 'tips', 'inventory', 'recipes', 'purchases', 'suppliers', 'delivery', 'waste', 'stock_counts', 'staff', 'menu', 'tables', 'reservations', 'timeclock', 'settings']
 const ACTIONS = ['create', 'update', 'override', 'void', 'refund', 'adjust', 'verify']
 
 const entries = ref([])
@@ -164,9 +164,82 @@ function actionClass(a) {
   return 'badge-pending'
 }
 
+/**
+ * For settings entries, the field is always "value" and the actual setting name
+ * lives in entity_id. Using entity_id as the label makes the audit row read
+ * "Overtime Multipliers: …" instead of the meaningless "value: …".
+ */
+function fieldLabel(entry, field) {
+  if (entry.entity === 'settings' && field === 'value' && entry.entity_id) {
+    return titleCase(entry.entity_id)
+  }
+  return titleCase(field)
+}
+
+/**
+ * Try to parse a value that might be a JSON string, then render it readably.
+ * Returns HTML so the template must use v-html.
+ */
+function tryParse(v) {
+  if (typeof v !== 'string') return v
+  const t = v.trim()
+  if ((t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'))) {
+    try { return JSON.parse(t) } catch { /* not valid JSON, return raw string */ }
+  }
+  return v
+}
+
+/**
+ * Format a parsed value into readable HTML for the audit changes column.
+ * Handles objects, arrays of objects (tax bands, multipliers), and scalars.
+ */
+function renderValue(val) {
+  if (val === null || val === undefined) return '<span style="color:var(--text-muted)">(empty)</span>'
+  if (typeof val === 'boolean') return val ? 'Yes' : 'No'
+  if (typeof val === 'number') return String(val)
+  if (typeof val === 'string') return escHtml(val)
+
+  // Array of objects (e.g. tax bands, stock counts)
+  if (Array.isArray(val)) {
+    if (!val.length) return '—'
+    if (val.every(item => item !== null && typeof item === 'object' && !Array.isArray(item))) {
+      // Render each object as a sub-row
+      return val.map(item =>
+        Object.entries(item).map(([k, v]) =>
+          `<span class="sub-key">${escHtml(titleCase(k))}</span> ${escHtml(typeof v === 'number' ? fmtPct(v) : String(v ?? '—'))}`
+        ).join('<span class="sub-sep"> · </span>')
+      ).join('<br>')
+    }
+    return val.map(v => renderValue(v)).join(', ')
+  }
+
+  // Plain object (e.g. overtime multipliers, pension rates)
+  if (typeof val === 'object') {
+    const entries = Object.entries(val)
+    if (!entries.length) return '—'
+    return entries.map(([k, v]) =>
+      `<span class="sub-key">${escHtml(titleCase(k))}</span> ${escHtml(typeof v === 'number' ? fmtPct(v) : String(v ?? '—'))}`
+    ).join('<span class="sub-sep"> · </span>')
+  }
+
+  return escHtml(String(val))
+}
+
+/** Show rates as percentages when they look like rates (0 < x < 1). */
+function fmtPct(n) {
+  if (typeof n !== 'number' || n <= 0 || n >= 1) return String(n)
+  return (n * 100).toFixed(n % 0.01 === 0 ? 0 : 1) + '%'
+}
+
+/** Minimal HTML escaping. */
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
 function show(v) {
   if (v === null || v === undefined || v === '') return '(empty)'
-  return formatValue(v)
+  const parsed = tryParse(v)
+  return renderValue(parsed)
 }
 
 onMounted(loadAudit)
@@ -196,11 +269,13 @@ async function loadAudit() {
 </script>
 
 <style scoped>
-.changes { max-width: 380px; }
-.change { display: flex; gap: 6px; align-items: baseline; font-size: .75rem; padding: 1px 0; flex-wrap: wrap; }
-.change .field { font-weight: 600; min-width: 90px; }
-.change .from { color: var(--text-muted); text-decoration: line-through; }
+.changes { max-width: 520px; }
+.change { display: flex; gap: 6px; align-items: baseline; font-size: .75rem; padding: 2px 0; flex-wrap: wrap; }
+.change .field { font-weight: 600; min-width: 110px; flex-shrink: 0; }
+.change .from { color: var(--text-muted); text-decoration: line-through; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .change .arrow { color: var(--text-muted); }
 .change .to { font-weight: 600; }
+.change .to :deep(.sub-key) { color: var(--text-muted); }
+.change .to :deep(.sub-sep) { color: var(--text-muted); margin: 0 2px; }
 .reason { font-size: .72rem; color: var(--text-muted); font-style: italic; margin-top: 3px; }
 </style>

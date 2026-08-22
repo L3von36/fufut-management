@@ -73,10 +73,13 @@ describe('Audit log table', () => {
   /** The whole question an audit log answers: what moved, from what, to what. */
   it('renders the change as a readable diff, not raw JSON', async () => {
     const w = await open()
-    expect(w.text()).toContain('yield_pct')
+    // fieldLabel title-cases field names: yield_pct → "Yield Pct"
+    expect(w.text()).toContain('Yield Pct')
     expect(w.text()).toContain('100')
     expect(w.text()).toContain('85')
     expect(w.text()).not.toContain('{"yield_pct"')
+    // actor_role is now formatted via roleLabel: manager → "Manager"
+    expect(w.text()).toContain('Manager')
   })
 
   it('shows the reason recorded against a change', async () => {
