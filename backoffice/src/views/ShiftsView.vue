@@ -19,7 +19,7 @@
         empty-title="No shifts found"
         empty-hint="Add a shift to build the roster."
       >
-        <template #cell-staffName="{ row }"><strong>{{ staffNames[row.staff_id] || row.staff_id }}</strong></template>
+        <template #cell-staffName="{ row }"><strong>{{ staffNames[row.staff_id] || row.staffName || row.staff_id }}</strong></template>
         <template #cell-role="{ row }"><span class="badge badge-neutral">{{ roleLabel(row.role) || '—' }}</span></template>
         <template #cell-actions="{ row }">
           <button class="btn btn-sm btn-ghost" @click="editShift(row)">Edit</button>
@@ -83,8 +83,8 @@ const form = ref({ date: TODAY(), staffId: '', start: '09:00', end: '' })
 const columns = [
   { key: 'date', label: 'Date' },
   { key: 'staffName', label: 'Staff' },
-  { key: 'start', label: 'Start' },
-  { key: 'end', label: 'End' },
+  { key: 'start_time', label: 'Start' },
+  { key: 'end_time', label: 'End' },
   { key: 'role', label: 'Role' },
   { key: 'actions', label: 'Actions' },
 ]
