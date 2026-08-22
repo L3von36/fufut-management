@@ -47,6 +47,7 @@
         <template #cell-value="{ row: s }">
           <input v-model="draft[s.key]" class="input input-sm"
             :style="isJson(s.value) ? 'width:100%;font-family:var(--font-mono);font-size:.7rem' : 'width:120px'" />
+          <div v-if="isJson(s.value)" class="setting-preview">{{ formatSettingPreview(draft[s.key], s.key) }}</div>
         </template>
         <template #cell-actions="{ row: s }">
           <button class="btn btn-sm btn-primary" :disabled="draft[s.key] === s.value" @click="saveSetting(s)">Save</button>
@@ -163,7 +164,7 @@ import { apiGet, apiPost, apiPut } from '../api'
 import BaseButton from '../components/BaseButton.vue'
 import BaseTable from '../components/BaseTable.vue'
 import { statusBadgeClass, statusLabel } from '../composables/useStatusBadge'
-import { titleCase } from '../lib/formatters'
+import { titleCase, formatValue } from '../lib/formatters'
 import { printReport } from '../lib/print'
 
 const toast = inject('toast')
@@ -223,6 +224,51 @@ const editableSettings = computed(() =>
 
 function money(n) { return 'ETB ' + Math.round(Number(n) || 0).toLocaleString() }
 function isJson(v) { return typeof v === 'string' && (v.trim().startsWith('{') || v.trim().startsWith('[')) }
+
+/**
+ * Render a JSON setting value as a short human-readable summary.
+ * The raw JSON stays editable above; this is the "what does this mean?" line.
+ */
+function formatSettingPreview(raw, key) {
+  if (!isJson(raw)) return ''
+  let parsed
+  try { parsed = JSON.parse(raw) } catch { return '' }
+  const k = String(key || '')
+
+  // Overtime multipliers: {"normal":1.5,"night":1.75,"rest_day":2}
+  if (k.includes('overtime') && k.includes('multipli')) {
+    if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return Object.entries(parsed)
+        .map(([label, val]) => `${titleCase(label)}: ${val}×`)
+        .join(' · ')
+    }
+  }
+
+  // Pension rates: {"employee":8.67,"employer":10.13}
+  if (k.includes('pension') && k.includes('rate')) {
+    if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return Object.entries(parsed)
+        .map(([who, pct]) => `${titleCase(who)}: ${pct}%`)
+        .join(' · ')
+    }
+  }
+
+  // Tax bands: [{"upto":666,"rate":0,"deduct":0}, …]
+  if (k.includes('tax') && k.includes('band')) {
+    if (Array.isArray(parsed)) {
+      return parsed.map((b, i) => {
+        const parts = []
+        if (b.upto != null) parts.push(`up to ${money(b.upto).replace('ETB ', '')}`)
+        if (b.rate != null) parts.push(`${(b.rate * 100).toFixed(0)}%`)
+        if (b.deduct != null) parts.push(`deduct ${money(b.deduct).replace('ETB ', '')}`)
+        return parts.length ? `Band ${i + 1}: ${parts.join(', ')}` : `Band ${i + 1}`
+      }).join(' | ')
+    }
+  }
+
+  // Fallback for any other JSON
+  return formatValue(parsed)
+}
 /** Turn a settings key like 'payroll.overtime_rate_multiplier' into a readable label. */
 function settingFriendlyName(key) {
   if (!key) return ''
@@ -383,4 +429,5 @@ async function openRun(r) {
 
 <style scoped>
 .link-btn { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
+.setting-preview { font-size: .72rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
 </style>
