@@ -514,6 +514,17 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .tfc-timer-text.urg-warm { color: var(--warning-text); }
 .tfc-timer-text.urg-late { color: var(--danger-text); }
 .tfc-timer-text.urg-none { color: var(--text-muted); }
+/* Past the venue's 4h sitting maximum: the server's sweep releases the table
+   to cleaning within the minute, so the timer pulses rather than just reddens. */
+.tfc-timer-text.urg-overdue { color: var(--danger-text); animation: urg-pulse 1.6s ease-in-out infinite; }
+@keyframes urg-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.tfc-overdue-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  background: var(--danger); color: #fff;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em;
+}
+:global([data-theme="dark"]) .tfc-overdue-badge { background: #dc2626; }
+.tm-overdue-note { color: var(--danger-text); font-weight: 600; }
 .tfc-amount { font-family: var(--font-mono); font-weight: 700; font-size: 0.82rem; color: var(--text-heading); }
 .tfc-tab-badge {
   display: inline-block; padding: 2px 8px; border-radius: 999px;
@@ -635,6 +646,9 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 [data-theme="dark"] .tm-timer.urg-fresh{color:#4ade80}
 [data-theme="dark"] .tm-timer.urg-warm{color:#fbbf24}
 [data-theme="dark"] .tm-timer.urg-late{color:#f87171}
+[data-theme="dark"] .tm-timer.urg-overdue{color:#f87171}
+[data-theme="dark"] .tfc-timer-text.urg-overdue{color:#f87171}
+[data-theme="dark"] .tm-overdue-note{color:#f87171}
 
 /* RESPONSIVE */
 @media(max-width:1024px){

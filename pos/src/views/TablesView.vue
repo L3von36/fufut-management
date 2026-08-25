@@ -153,6 +153,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tfc-timer-icon"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
                 <span class="tfc-timer-text" :class="'urg-' + occupancyUrgency(t)">{{ occupancyTimer(t) }}</span>
               </div>
+              <!-- Past the venue's sitting maximum: the sweep releases this
+                   table to cleaning within the minute. Shown so the floor can
+                   clear it on purpose rather than watch it disappear. -->
+              <span v-if="occupancyUrgency(t) === 'overdue'" class="tfc-overdue-badge">Releases soon — past 4h</span>
               <div class="tfc-info-row">
                 <span v-if="tableOrderCounts[t.id]" class="tfc-label">{{ tableOrderCounts[t.id] }} Order{{ tableOrderCounts[t.id] > 1 ? 's' : '' }}</span>
                 <span v-else class="tfc-label">No order</span>
@@ -281,6 +285,7 @@
         <div v-if="detailTable.status === 'occupied' && detailTable.seated_at" class="tm-occupancy-info">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span>Seated {{ occupancyTimer(detailTable) }} ago</span>
+          <span v-if="occupancyUrgency(detailTable) === 'overdue'" class="tm-overdue-note">— past the 4h maximum, releases to cleaning automatically</span>
         </div>
 
         <!-- Actions -->
@@ -387,6 +392,7 @@ import { useAudioAlerts } from '../composables/useAudioAlerts'
 import { useAuthStore } from '../stores/auth'
 import { useOrderStore } from '../stores/order'
 import { formatOrderItems } from '../lib/formatters'
+import { occupancyUrgency } from '../lib/tableUrgency'
 
 const router = useRouter()
 
@@ -619,18 +625,6 @@ const tableOpenTab = computed(() => {
 })
 
 // ─── Timer ───
-
-/**
- * Bucket a table's seated time so the card can colour it. A table 20 minutes in
- * needs nothing; one at two hours is either ready to pay or has been forgotten.
- */
-function occupancyUrgency(t) {
-  if (!t.seated_at) return 'none'
-  const mins = (Date.now() - new Date(t.seated_at).getTime()) / 60000
-  if (mins < 45) return 'fresh'
-  if (mins < 90) return 'warm'
-  return 'late'
-}
 
 function occupancyTimer(t) {
   if (!t.seated_at) return ''
