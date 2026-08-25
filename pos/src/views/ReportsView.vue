@@ -123,6 +123,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, TODAY } from '../api'
+import { isRealOrder } from '../lib/formatters'
 import { useAuthStore } from '../stores/auth'
 import { printReport } from '../lib/print'
 
@@ -132,8 +133,9 @@ const auth = useAuthStore()
 const orders = ref([])
 const expenses = ref([])
 
-const todayData = computed(() => orders.value.filter(o => (o.created||'').slice(0,10) === TODAY()))
-const monthData = computed(() => orders.value.filter(o => (o.created||'').slice(0,7) === TODAY().slice(0,7)))
+// Voided and cancelled orders are history, not revenue — see isRealOrder.
+const todayData = computed(() => orders.value.filter(o => isRealOrder(o) && (o.created||'').slice(0,10) === TODAY()))
+const monthData = computed(() => orders.value.filter(o => isRealOrder(o) && (o.created||'').slice(0,7) === TODAY().slice(0,7)))
 const todayExp = computed(() => expenses.value.filter(e => e.date === TODAY()))
 const monthExp = computed(() => expenses.value.filter(e => (e.date||'').slice(0,7) === TODAY().slice(0,7)))
 
@@ -163,7 +165,8 @@ const monthSummary = computed(() => {
 
 const topProducts = computed(() => {
   const counts = {}
-  for (const o of orders.value) {
+  // Top products is a sales ranking: a voided order's items were not sold.
+  for (const o of orders.value.filter(isRealOrder)) {
     let items = []
     const structured = o.order_items || o.orderItems
     if (Array.isArray(structured) && structured.length) {

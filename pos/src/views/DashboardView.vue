@@ -246,6 +246,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { apiGet, apiPost, TODAY } from '../api'
+import { isRealOrder } from '../lib/formatters'
 import { useSSE } from '../composables/useSSE'
 
 const router = useRouter()
@@ -479,7 +480,9 @@ async function loadDashboard() {
       fetchTopItems()
     }
 
-    todayOrders.value = orders.value.filter(o => isToday(o.created))
+    // Voided and cancelled orders are audit history, not today's revenue —
+    // isRealOrder mirrors the API's REAL_ORDERS rule in reports.js.
+    todayOrders.value = orders.value.filter(o => isRealOrder(o) && isToday(o.created))
     todayExpenses.value = expenses.value.filter(e => isToday(e.date))
     recentOrders.value = todayOrders.value.slice(0, 10)
     lowStockItems.value = inventory.value.filter(i => parseInt(i.quantity||0) <= parseInt(i.minLevel||0))
