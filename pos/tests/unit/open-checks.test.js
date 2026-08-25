@@ -36,6 +36,19 @@ describe('latestResumableCheck', () => {
     expect(latestResumableCheck(orders, 3).id).toBe('O-2')
   })
 
+  it('picks by created timestamp, not array position', () => {
+    // GET /orders returns newest first; "last element" would quietly pick the
+    // oldest open check when a table somehow has two.
+    const newestFirst = [
+      { id: 'O-new', status: 'fulfilled', table_number: '5', created: '2026-08-25T10:00:00Z' },
+      { id: 'O-old', status: 'fulfilled', table_number: '5', created: '2026-08-25T09:00:00Z' },
+    ]
+    expect(latestResumableCheck(newestFirst, 5).id).toBe('O-new')
+
+    const oldestFirst = [...newestFirst].reverse()
+    expect(latestResumableCheck(oldestFirst, 5).id).toBe('O-new')
+  })
+
   it('matches table numbers spelled differently across eras of the data', () => {
     expect(latestResumableCheck(orders, '3').id).toBe('O-2')
     expect(latestResumableCheck([{ id: 'O-9', status: 'new', tableNum: 'T-03' }], 'T-03').id).toBe('O-9')

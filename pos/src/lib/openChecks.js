@@ -25,8 +25,12 @@ export function isResumableCheck(order) {
 }
 
 /**
- * The open check a table's next action should attach to: the latest resumable
+ * The open check a table's next action should attach to: the newest resumable
  * order for that table number, or null when the table is starting fresh.
+ *
+ * "Newest" is by created timestamp, not array position — GET /orders returns
+ * rows newest-first, so "the last element" quietly selected the OLDEST open
+ * check whenever a table had more than one.
  *
  * Table ids are compared as strings because they have drifted between 'T-01',
  * 'Table 1' and '1' over the life of the data — the same trap the occupancy
@@ -35,10 +39,22 @@ export function isResumableCheck(order) {
 export function latestResumableCheck(orders, tableNum) {
   if (!Array.isArray(orders) || orders.length === 0) return null
   const target = String(tableNum)
-  const matches = orders.filter(
-    (o) =>
+  let best = null
+  let bestTime = -Infinity
+  for (const o of orders) {
+    if (
       isResumableCheck(o) &&
       (String(o.table_number || '') === target || String(o.tableNum || '') === target)
-  )
-  return matches.length ? matches[matches.length - 1] : null
+    ) {
+      const t = Date.parse(o.created || '')
+      const score = Number.isFinite(t) ? t : -Infinity
+      // >= so that, between rows with no parseable timestamp, the later array
+      // position wins — the behaviour the old "last element" code had.
+      if (score >= bestTime) {
+        bestTime = score
+        best = o
+      }
+    }
+  }
+  return best
 }

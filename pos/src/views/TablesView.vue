@@ -393,7 +393,7 @@ import { useAuthStore } from '../stores/auth'
 import { useOrderStore } from '../stores/order'
 import { formatOrderItems } from '../lib/formatters'
 import { occupancyUrgency } from '../lib/tableUrgency'
-import { latestResumableCheck } from '../lib/openChecks'
+import { isResumableCheck, latestResumableCheck } from '../lib/openChecks'
 
 const router = useRouter()
 
@@ -608,10 +608,7 @@ const tableOrderTotals = computed(() => {
  */
 const tableOpenTab = computed(() => {
   const map = {}
-  const open = orders.value.filter(
-    o => o.payment_status !== 'paid' &&
-         !['cancelled', 'completed', 'fulfilled'].includes(o.status)
-  )
+  const open = orders.value.filter(isResumableCheck)
   for (const o of open) {
     const tn = o.table_number || o.tableNum || ''
     if (!tn) continue
@@ -743,10 +740,24 @@ async function loadTables() {
   try { tables.value = await apiGet('tables') } catch (e) { console.error('Failed to load tables', e) }
 }
 
+/**
+ * Orders the floor plan still cares about: kitchen-flow tickets whatever their
+ * payment state, plus served-but-unpaid tabs. A fulfilled ticket that HAS been
+ * paid is history and stays off the board. Filtering 'fulfilled' outright —
+ * what this used to do — is what hid unpaid tabs from "Add Round", the
+ * open-tab badge and the table dialog the moment the chef marked food served.
+ */
+function floorRelevant(o) {
+  const status = String(o.status || '').toLowerCase()
+  if (status === 'completed' || status === 'cancelled') return false
+  const terminal = status === 'fulfilled' || status === 'served'
+  return !(terminal && String(o.payment_status || '').toLowerCase() === 'paid')
+}
+
 async function loadOrders() {
   try {
     const all = await apiGet('orders') || []
-    orders.value = all.filter(o => !['completed', 'cancelled', 'fulfilled'].includes(o.status))
+    orders.value = all.filter(floorRelevant)
   } catch (e) { console.error('Failed to load orders', e) }
 }
 
@@ -779,8 +790,11 @@ async function openDetail(t) {
   // Load orders for this specific table
   const tn = String(t.number)
   try {
-    detailOrders.value = await apiGet(`orders?table_number=${tn}`) || []
-    detailOrders.value = detailOrders.value.filter(o => !['completed', 'cancelled', 'fulfilled'].includes(o.status))
+    // Open checks only: the list is what the table owes. Served-but-unpaid
+    // counts — that is the normal state of a table between the kitchen
+    // finishing and the guest leaving, and hiding it made "No active orders"
+    // render over a tab of hundreds of birr.
+    detailOrders.value = (await apiGet(`orders?table_number=${tn}`) || []).filter(isResumableCheck)
   } catch {
     detailOrders.value = []
   }
