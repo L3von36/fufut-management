@@ -406,6 +406,36 @@ async function advanceLine(order, line) {
   }
 }
 
+/**
+ * Station classification, for the filter that shipped as a control that did
+ * nothing. A line belongs to the bar when its category — or, for rows written
+ * before categories were stamped, its name — reads as a drink; everything
+ * else is hot-kitchen work.
+ */
+const DRINK_WORDS = /drink|coffee|beverage|juice|water|soda|\bbar\b|\btea\b|latte|espresso|cappuccino|macchiato|americano|mocha|smoothie|shake|lemonade/i
+
+function lineIsDrink(line) {
+  if (DRINK_WORDS.test(String(line.category || ''))) return true
+  return DRINK_WORDS.test(String(line.name || ''))
+}
+
+/**
+ * Tickets visible under the current station filter. A mixed ticket stays on
+ * both the hot and the bar board — each station still has work on it — and
+ * Hot Pass Only narrows to what is sitting ready for pickup. A ticket with no
+ * readable lines (corrupt row, empty round) is never hidden: a blank board is
+ * a worse failure than an unfiltered one.
+ */
+function stationVisible(order) {
+  if (stationFilter.value === 'all') return true
+  if (stationFilter.value === 'pass') return order.status === 'ready'
+  const lines = trackedLines(order)
+  const known = lines.length ? lines : getOrderLines(order)
+  if (!known.length) return true
+  const wantDrink = stationFilter.value === 'bar'
+  return known.some((l) => (wantDrink ? lineIsDrink(l) : !lineIsDrink(l)))
+}
+
 function sortFn(a, b) {
   if (sortBy.value === 'table') {
     const ta = a.table_number || a.tableNum || 'zzz'
@@ -422,17 +452,17 @@ function sortFn(a, b) {
 }
 const newOrders = computed(() =>
   orders.value
-    .filter(o => o.status === 'new')
+    .filter(o => o.status === 'new' && stationVisible(o))
     .sort(sortFn)
 )
 const preparingOrders = computed(() =>
   orders.value
-    .filter(o => o.status === 'preparing')
+    .filter(o => o.status === 'preparing' && stationVisible(o))
     .sort(sortFn)
 )
 const readyOrders = computed(() =>
   orders.value
-    .filter(o => o.status === 'ready')
+    .filter(o => o.status === 'ready' && stationVisible(o))
     .sort((a, b) => {
       if (sortBy.value === 'time') return String(readySince(b) || b.created || '').localeCompare(String(readySince(a) || a.created || ''))
       return sortFn(a, b)

@@ -223,6 +223,63 @@ describe('KitchenView', () => {
     expect(wrapper.text()).toContain('1 of 2 ready')
   })
 
+  // ─── Station filter ───
+  // The dropdown shipped as a control that did nothing. A mixed ticket (one
+  // drink, one food) has work at both stations, so it stays on both boards;
+  // Hot Pass Only narrows to what is sitting ready for pickup.
+  it('keeps a mixed ticket on both the hot and the bar board', async () => {
+    // Fresh object: earlier tests mutate shared fixtures optimistically, and a
+    // ticket that has quietly become 'preparing' would pass these assertions
+    // from the wrong column.
+    mockFeeds([{ ...trackedOrder, status: 'new' }], makeTrackedItems())
+    const wrapper = mount(KitchenView, globalConfig)
+    await flushPromises()
+
+    await wrapper.find('select.ks-station-select').setValue('hot')
+    await flushPromises()
+    expect(wrapper.text()).toContain('O-1')
+
+    await wrapper.find('select.ks-station-select').setValue('bar')
+    await flushPromises()
+    expect(wrapper.text()).toContain('O-1')
+  })
+
+  it('hides a ticket with no lines for the selected station', async () => {
+    const foodOnly = [
+      { id: 'OI-1', order_id: 'O-1', line_no: 0, name: 'Firfir', category: 'ETHIOPIAN DISH', qty: 2, status: 'new', modifiers: null }
+    ]
+    mockFeeds([{ ...trackedOrder, status: 'new' }], foodOnly)
+    const wrapper = mount(KitchenView, globalConfig)
+    await flushPromises()
+
+    await wrapper.find('select.ks-station-select').setValue('bar')
+    await flushPromises()
+    expect(wrapper.text()).toContain('No new orders')
+
+    await wrapper.find('select.ks-station-select').setValue('hot')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Firfir')
+  })
+
+  it('narrows Hot Pass Only to tickets that are ready', async () => {
+    mockFeeds(
+      [
+        { ...trackedOrder, status: 'new' },
+        { id: 'O-2', items: 'Firfir', status: 'ready', type: 'dine-in', created: new Date().toISOString() }
+      ],
+      makeTrackedItems()
+    )
+    const wrapper = mount(KitchenView, globalConfig)
+    await flushPromises()
+
+    await wrapper.find('select.ks-station-select').setValue('pass')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('O-2')
+    expect(wrapper.text()).toContain('No new orders')
+    expect(wrapper.text()).toContain('Nothing in progress')
+  })
+
   // Orders taken before per-line tracking existed have no rows in order_items,
   // and must still show their contents rather than an empty ticket.
   it('falls back to the flat item list when a line has no tracking row', async () => {
