@@ -63,7 +63,7 @@
           <div class="form-group"><label>Category</label><select v-model="form.category" class="select"><option value="">Select...</option><option value="Food">Food</option><option value="Beverage">Beverage</option><option value="Packaging">Packaging</option><option value="Other">Other</option></select></div>
           <div class="form-group"><label>Qty {{ selectedUnit ? '(' + selectedUnit + ')' : '' }}</label><input v-model.number="form.quantity" type="number" step="any" @input="onQtyChanged" :class="{ 'input-error': vErrors.quantity }" /><span v-if="vErrors.quantity" class="field-error">{{ vErrors.quantity }}</span></div>
         </div>
-        <div class="form-group"><label>Reason</label><select v-model="form.reason" class="select" :class="{ 'input-error': vErrors.reason }"><option value="">Select...</option><option value="spoiled">Spoiled</option><option value="overproduction">Overproduction</option><option value="quality">Quality</option><option value="damaged">Damaged</option><option value="other">Other</option></select></div>
+        <div class="form-group"><label>Reason</label><select v-model="form.reason" class="select" :class="{ 'input-error': vErrors.reason }"><option value="">Select...</option><option value="spoiled">Spoiled</option><option value="overproduction">Overproduction</option><option value="quality">Quality</option><option value="damaged">Damaged</option><option value="other">Other</option></select><span v-if="vErrors.reason" class="field-error">{{ vErrors.reason }}</span></div>
         <div class="form-row">
           <div class="form-group"><label>Cost (ETB)</label><input v-model.number="form.cost" type="number" step="0.01" /></div>
           <div class="form-group"><label>Date</label><input v-model="form.date" type="date" /></div>
@@ -83,7 +83,9 @@ const confirmDelete = inject('confirm')
 const auth = useAuthStore()
 const schema = {
   name: { required: true, label: 'Item', max: 100 },
-  reason: { label: 'Reason', max: 200 },
+  // The API refuses a waste entry with no reason — tracked or free-text —
+  // because "why" is the only actionable fact in the log.
+  reason: { required: true, label: 'Reason', max: 200 },
   quantity: { label: 'Qty', min: 0.01 }
 }
 const { errors: vErrors, validate } = useFormValidation(schema)
@@ -143,9 +145,6 @@ function openAdd() { form.value = blankForm(); showModal.value=true }
 
 async function saveItem() {
   if (!validate(form.value)) { toast('Please fix the errors', 'error'); return }
-  // The server requires a reason on anything that moves stock, and refuses it
-  // otherwise — asking here avoids a round trip that only fails.
-  if (form.value.inventoryId && !form.value.reason) { toast('Choose a reason', 'error'); return }
   try {
     const res = await apiPost('waste', form.value)
     toast(res.stock !== undefined

@@ -92,7 +92,10 @@ describe('WasteView', () => {
     expect(w.find('.modal').exists()).toBe(true)
   })
 
-  it('logs an entry once the required item name is given', async () => {
+  // The API refuses a waste entry with no reason — tracked or free-text —
+  // because "why" is the only actionable fact in the log. The form's schema
+  // mirrors that, so a submit that skips the reason must not fire apiPost.
+  it('refuses to log an entry that has no reason', async () => {
     const w = mount(WasteView, globalConfig)
     await flushPromises()
     await openForm(w)
@@ -101,7 +104,21 @@ describe('WasteView', () => {
     await submitBtn(w).trigger('click')
     await flushPromises()
 
-    expect(mockApiPost).toHaveBeenCalledWith('waste', expect.objectContaining({ name: 'Burnt beans' }))
+    expect(mockApiPost).not.toHaveBeenCalled()
+  })
+
+  it('logs an entry once the required item name and reason are given', async () => {
+    const w = mount(WasteView, globalConfig)
+    await flushPromises()
+    await openForm(w)
+
+    await modal(w).findAll('input')[0].setValue('Burnt beans')
+    // Selects in the modal: [0] stock item, [1] category, [2] reason.
+    await modal(w).findAll('select')[2].setValue('quality')
+    await submitBtn(w).trigger('click')
+    await flushPromises()
+
+    expect(mockApiPost).toHaveBeenCalledWith('waste', expect.objectContaining({ name: 'Burnt beans', reason: 'quality' }))
   })
 
   it('starts a new entry dated today rather than blank', async () => {
