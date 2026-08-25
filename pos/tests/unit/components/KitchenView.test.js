@@ -413,6 +413,40 @@ describe('KitchenView', () => {
     expect(wrapper.text()).toContain('Waiting 10m')
   })
 
+  it('measures a re-opened ticket from its newest line, not the first round', async () => {
+    // The order went ready 14 minutes ago, was served, then a round was added
+    // and the new dish came up a minute ago. Stamps are write-once, so the
+    // order-level ready_at still says 14 minutes — but the pass shows the
+    // coffee that is actually sitting there.
+    mockFeeds(
+      [
+        {
+          id: 'O-4', items: 'Espresso, Macchiato', status: 'ready', type: 'dine-in',
+          created: new Date(Date.now() - 30 * 60000).toISOString(),
+          ready_at: new Date(Date.now() - 14 * 60000).toISOString(),
+          updated_at: new Date(Date.now() - 1 * 60000).toISOString()
+        }
+      ],
+      [
+        {
+          id: 'OI-1', order_id: 'O-4', line_no: 0, name: 'Espresso', qty: 1,
+          status: 'served', modifiers: null,
+          ready_at: new Date(Date.now() - 14 * 60000).toISOString()
+        },
+        {
+          id: 'OI-2', order_id: 'O-4', line_no: 1, name: 'Macchiato', qty: 1,
+          status: 'ready', modifiers: null,
+          ready_at: new Date(Date.now() - 1 * 60000).toISOString()
+        }
+      ]
+    )
+
+    const wrapper = mount(KitchenView, globalConfig)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Waiting 1m')
+  })
+
   it('should auto-refresh orders every 15 seconds', async () => {
     mockApiGet.mockResolvedValue([
       { id: 'O-1', items: 'Espresso', status: 'new', type: 'dine-in', created: new Date().toISOString() }

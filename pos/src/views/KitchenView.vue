@@ -616,13 +616,24 @@ function timerLabel(o) {
 
 /**
  * When this order last came up — what "Waiting Nm" on the pass measures.
- * The API stamps `ready_at` once, the first time an order becomes ready, so a
- * re-tap cannot rewind it; `updated_at` covers rows that never got one and
- * `updated` was the name this screen read before either column existed — a
- * field that has never been on a row, which is why waiting used to show "—".
+ *
+ * Stamps are write-once (a re-tap must not rewind recorded durations), which
+ * cuts both ways: on a ticket that was re-opened by a later round, the
+ * order-level ready_at still holds the FIRST round's time, and coffee that
+ * came up seconds ago reads as a 14-minute wait. The most recent dish to come
+ * up is what the pass actually cares about, so line-level stamps win when they
+ * exist; the order-level columns cover rows without line data, and `updated`
+ * was the name this screen read before any of those columns existed — a field
+ * that has never been on a row, which is why waiting used to show "—".
  */
 function readySince(o) {
-  return o.ready_at || o.updated_at || o.updated || null
+  const lines = itemsByOrder.value.get(o.id) || []
+  let latest = null
+  for (const l of lines) {
+    const stamp = l && (l.ready_at || l.updated_at)
+    if (stamp && (!latest || String(stamp) > String(latest))) latest = stamp
+  }
+  return latest || o.ready_at || o.updated_at || o.updated || null
 }
 
 function waitMinutes(o) {
