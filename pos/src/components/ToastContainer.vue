@@ -19,6 +19,14 @@
         <div v-if="t.title" class="toast-title">{{ t.title }}</div>
         <div class="toast-message">{{ t.message }}</div>
       </div>
+      <!-- Inline action (e.g. the kitchen Start-All undo). Clicking it runs the
+           handler and closes the toast — the action is the point of the toast,
+           so once it is taken there is nothing left to say. -->
+      <button
+        v-if="t.action"
+        class="toast-action"
+        @click="runAction(t)"
+      >{{ t.action.label }}</button>
       <button class="toast-dismiss" aria-label="Dismiss notification" @click="dismiss(t.id)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -30,6 +38,14 @@
 import { useToast } from '../composables/useToast'
 
 const { toasts, dismiss } = useToast()
+
+function runAction(t) {
+  try {
+    if (t.action && typeof t.action.onClick === 'function') t.action.onClick()
+  } finally {
+    dismiss(t.id)
+  }
+}
 
 const icons = {
   success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
@@ -99,6 +115,26 @@ const icons = {
 }
 .toast-notification .toast-dismiss:hover { color: #fff; background: rgba(255,255,255,.12); }
 .toast-notification .toast-dismiss:focus { outline: 2px solid rgba(255,255,255,.4); color: #fff; }
+
+/* Inline action — the button a timed toast like the kitchen's Start-All undo
+   is meaningless without. Full-contrast pill so it reads as clickable in the
+   ~3 seconds it is on screen. */
+.toast-notification .toast-action {
+  flex-shrink: 0;
+  align-self: center;
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.35);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 6px 12px;
+  margin-left: 6px;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.toast-notification .toast-action:hover { background: rgba(255,255,255,.28); }
+.toast-notification .toast-action:focus-visible { outline: 2px solid rgba(255,255,255,.6); outline-offset: 1px; }
 .toast-notification .toast-dismiss svg { width: 14px; height: 14px; display: block; }
 
 .toast-notification.toast-success { background: rgba(34,120,69,.96); }

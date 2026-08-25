@@ -62,6 +62,44 @@ describe('ToastContainer', () => {
     expect(el.textContent).toContain('Saved')
   })
 
+  // The kitchen's Start-All undo passes an action: a label and an onClick.
+  // The container used to drop it — the toast promised "3s to undo" with no
+  // button on it.
+  it('renders an action button when the toast carries one', async () => {
+    toastApi.toast('Order #1234 started — 3s to undo', 'info', {
+      duration: 3000,
+      action: { label: 'Undo', onClick: vi.fn() }
+    })
+    await nextTick()
+
+    const btn = document.querySelector('.toast-notification .toast-action')
+    expect(btn).not.toBeNull()
+    expect(btn.textContent).toContain('Undo')
+  })
+
+  it('runs the action and closes the toast when the button is clicked', async () => {
+    const onClick = vi.fn()
+    toastApi.toast('Order #1234 started — 3s to undo', 'info', {
+      duration: 3000,
+      action: { label: 'Undo', onClick }
+    })
+    await nextTick()
+
+    document.querySelector('.toast-notification .toast-action').click()
+    await nextTick()
+
+    expect(onClick).toHaveBeenCalledTimes(1)
+    expect(document.querySelectorAll('.toast-notification').length).toBe(0)
+  })
+
+  it('ignores a malformed action rather than rendering a dead button', async () => {
+    toastApi.toast('Just a message', 'info', { action: { label: 'No handler' } })
+    await nextTick()
+
+    expect(document.querySelector('.toast-notification .toast-action')).toBeNull()
+    expect(document.querySelector('.toast-notification').textContent).toContain('Just a message')
+  })
+
   it('removes the element from the DOM on dismiss', async () => {
     const id = toastApi.toast('Bye', 'info')
     await nextTick()

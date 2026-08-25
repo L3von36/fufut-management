@@ -28,9 +28,16 @@ function showToast(message, type, options = {}) {
   const toastType = VALID_TYPES.has(type) ? type : 'info'
   const title = options.title || ''
   const duration = options.duration !== undefined ? options.duration : 4000
+  // An optional inline action (label + onClick). The kitchen's Start-All undo
+  // passes one; before this was carried on the toast it was dropped here and
+  // the container rendered a message promising "3s to undo" with no button.
+  const action =
+    options.action && typeof options.action.label === 'string' && typeof options.action.onClick === 'function'
+      ? { label: options.action.label, onClick: options.action.onClick }
+      : null
   const id = ++idSeq
 
-  toasts.value.push({ id, type: toastType, message, title })
+  toasts.value.push({ id, type: toastType, message, title, action })
 
   if (duration > 0) {
     timers.set(id, setTimeout(() => dismissToast(id), duration))
