@@ -303,6 +303,59 @@ describe('KitchenView', () => {
     expect(wrapper.find('.ko-id').text()).toMatch(/^#/)
   })
 
+  // The API returns `updated_at` (and stamps `ready_at` the first time an
+  // order becomes ready). The board used to read `updated`, a field that has
+  // never existed on a row, so every ready ticket showed "Waiting —m" and the
+  // 5-minute pick-up warning could never fire.
+  it('shows how long a ready order has been waiting, from updated_at', async () => {
+    mockApiGet.mockResolvedValue([
+      {
+        id: 'O-1', items: 'Espresso', status: 'ready', type: 'dine-in',
+        created: new Date(Date.now() - 20 * 60000).toISOString(),
+        updated_at: new Date(Date.now() - 8 * 60000).toISOString()
+      }
+    ])
+
+    const wrapper = mount(KitchenView, globalConfig)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Waiting 8m')
+    expect(wrapper.text()).not.toContain('Waiting —m')
+  })
+
+  it('flags a ready order that passed the 5-minute pick-up window', async () => {
+    mockApiGet.mockResolvedValue([
+      {
+        id: 'O-2', items: 'Latte', status: 'ready', type: 'dine-in',
+        created: new Date(Date.now() - 15 * 60000).toISOString(),
+        ready_at: new Date(Date.now() - 6 * 60000).toISOString()
+      }
+    ])
+
+    const wrapper = mount(KitchenView, globalConfig)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Pick up!')
+  })
+
+  it('measures waiting from ready_at when the order carries one', async () => {
+    // updated_at was touched 2 minutes ago, but the order has been ready for
+    // 10 — the pass cares about when the food came up, not the last write.
+    mockApiGet.mockResolvedValue([
+      {
+        id: 'O-3', items: 'Macchiato', status: 'ready', type: 'dine-in',
+        created: new Date(Date.now() - 25 * 60000).toISOString(),
+        ready_at: new Date(Date.now() - 10 * 60000).toISOString(),
+        updated_at: new Date(Date.now() - 2 * 60000).toISOString()
+      }
+    ])
+
+    const wrapper = mount(KitchenView, globalConfig)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Waiting 10m')
+  })
+
   it('should auto-refresh orders every 15 seconds', async () => {
     mockApiGet.mockResolvedValue([
       { id: 'O-1', items: 'Espresso', status: 'new', type: 'dine-in', created: new Date().toISOString() }

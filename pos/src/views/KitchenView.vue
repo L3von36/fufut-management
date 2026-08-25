@@ -434,7 +434,7 @@ const readyOrders = computed(() =>
   orders.value
     .filter(o => o.status === 'ready')
     .sort((a, b) => {
-      if (sortBy.value === 'time') return (b.updated || b.created || '').localeCompare(a.updated || a.created || '')
+      if (sortBy.value === 'time') return String(readySince(b) || b.created || '').localeCompare(String(readySince(a) || a.created || ''))
       return sortFn(a, b)
     })
 )
@@ -584,10 +584,22 @@ function timerLabel(o) {
   return mStr
 }
 
+/**
+ * When this order last came up — what "Waiting Nm" on the pass measures.
+ * The API stamps `ready_at` once, the first time an order becomes ready, so a
+ * re-tap cannot rewind it; `updated_at` covers rows that never got one and
+ * `updated` was the name this screen read before either column existed — a
+ * field that has never been on a row, which is why waiting used to show "—".
+ */
+function readySince(o) {
+  return o.ready_at || o.updated_at || o.updated || null
+}
+
 function waitMinutes(o) {
-  if (!o.updated || !o.created) return '—'
+  const since = readySince(o) || o.created
+  if (!since) return '—'
   // For ready orders, show time since they were last updated (became ready)
-  const m = Math.round((now.value - new Date(o.updated).getTime()) / 60000)
+  const m = Math.round((now.value - new Date(since).getTime()) / 60000)
   return m <= 0 ? '<1' : m
 }
 
@@ -621,8 +633,9 @@ function handleKeydown(e) {
 
 // Fix #2: Check if a ready order has been waiting > 5 minutes
 function isStaleReady(o) {
-  if (!o.updated) return false
-  const waitMin = (now.value - new Date(o.updated).getTime()) / 60000
+  const since = readySince(o)
+  if (!since) return false
+  const waitMin = (now.value - new Date(since).getTime()) / 60000
   return waitMin >= 5
 }
 </script>
