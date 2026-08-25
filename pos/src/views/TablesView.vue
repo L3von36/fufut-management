@@ -393,6 +393,7 @@ import { useAuthStore } from '../stores/auth'
 import { useOrderStore } from '../stores/order'
 import { formatOrderItems } from '../lib/formatters'
 import { occupancyUrgency } from '../lib/tableUrgency'
+import { latestResumableCheck } from '../lib/openChecks'
 
 const router = useRouter()
 
@@ -845,17 +846,14 @@ async function newOrderForTable() {
   const t = detailTable.value
   closeDetail()
 
-  // Check if this table has an open (unpaid) order to resume
-  const openOrders = orders.value.filter(
-    o => o.table_number === String(tableNum) &&
-         o.tableNum === String(tableNum) &&
-         o.payment_status !== 'paid' &&
-         o.status !== 'cancelled' && o.status !== 'completed' && o.status !== 'fulfilled'
-  )
+  // Check if this table has an open (unpaid) order to resume. Served-but-
+  // unpaid counts: "Add Round" after the kitchen has finished is how dessert
+  // and after-dinner coffee are sold — see lib/openChecks.js for why the old
+  // 'fulfilled' exclusion leaked the first check at the till.
+  const latest = t.status === 'occupied' ? latestResumableCheck(orders.value, tableNum) : null
 
-  if (openOrders.length > 0 && t.status === 'occupied') {
+  if (latest) {
     // Resume the existing open tab
-    const latest = openOrders[openOrders.length - 1]
     orderStore.isAddRound = true
     orderStore.activeOpenOrderId = latest.id
     orderStore.tableNum = String(tableNum)
@@ -874,14 +872,11 @@ function goToCheckout() {
   closeDetail()
   // If this table has an open tab, wire it into the checkout so it
   // settles via PUT instead of creating a duplicate order via POST.
+  // Served-but-unpaid tabs count — that is the normal state of a table
+  // between the kitchen finishing and the guest leaving.
   if (t) {
-    const openOrders = orders.value.filter(
-      o => (o.table_number || o.tableNum) === String(t.number) &&
-           o.payment_status !== 'paid' &&
-           !['cancelled', 'completed', 'fulfilled'].includes(o.status)
-    )
-    if (openOrders.length > 0) {
-      const latest = openOrders[openOrders.length - 1]
+    const latest = latestResumableCheck(orders.value, t.number)
+    if (latest) {
       orderStore.activeOpenOrderId = latest.id
       orderStore.tableNum = String(t.number)
       orderStore.orderType = 'dine-in'
