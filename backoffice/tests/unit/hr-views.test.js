@@ -373,6 +373,10 @@ function tableByCaption(w, re) {
   /**
    * A malformed band table would be stored, silently parsed back to a default,
    * and payroll would quietly use the wrong rates.
+   *
+   * Since the human-readable-preview change, a JSON setting shows a summary
+   * span with an "edit raw" toggle rather than a raw input, so the test has to
+   * open the textarea before it can corrupt it.
    */
   it('refuses to save a band table that is not valid JSON', async () => {
     const w = await open()
@@ -380,9 +384,15 @@ function tableByCaption(w, re) {
     await flushPromises()
 
     const rates = tableByCaption(w, /rates/i)
-    const bandInput = rates.findAll('input').at(-1)
+    // The bands row is the JSON one: only it carries an "edit raw" toggle.
+    const editRaw = rates.findAll('button').find((b) => /edit raw/i.test(b.text()))
+    expect(editRaw).toBeTruthy()
+    await editRaw.trigger('click')
+    await flushPromises()
+
+    const bandInput = rates.find('textarea')
     await bandInput.setValue('[{broken')
-    await rates.findAll('button').at(-1).trigger('click')
+    await rates.findAll('button').filter((b) => /^save$/i.test(b.text().trim())).at(-1).trigger('click')
     await flushPromises()
 
     expect(mockApiPut).not.toHaveBeenCalled()
