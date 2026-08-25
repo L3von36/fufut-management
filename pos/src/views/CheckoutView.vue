@@ -7,6 +7,13 @@
         <span class="checkout-badge">{{ store.cartItemCount }} items</span>
       </div>
 
+      <!-- Open-tab settlement banner: payment goes to the existing check,
+           not a new order. Shown only when checkout was entered to settle. -->
+      <div v-if="settledFromTab && store.activeOpenOrderId" class="settle-banner" role="status">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        <span>Settling check <strong>#{{ String(store.activeOpenOrderId).slice(-4) }}</strong><template v-if="store.tableNum"> · Table {{ store.tableNum }}</template> — payment is recorded on this order.</span>
+      </div>
+
       <!-- Order details row -->
       <div class="checkout-details-row">
         <div class="form-group" style="margin:0;flex:1">
@@ -84,6 +91,13 @@
           <!-- Fix #2: Undo toast on remove, Fix #17: 44px touch target -->
           <button class="cl-remove" @click="removeWithUndo(entry)" title="Remove item">✕</button>
         </div>
+      </div>
+
+      <div v-else-if="hydratingOpenTab" class="empty-state" style="padding:48px 20px">
+        <div class="empty-state-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;color:var(--neutral-300)"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>
+        </div>
+        <div>Loading the check…</div>
       </div>
 
       <div v-else class="empty-state" style="padding:48px 20px">
@@ -557,7 +571,52 @@ const isSelectedTableOccupied = computed(() => {
 
 onMounted(async () => {
   loadTables()
+  hydrateOpenTab()
 })
+
+/**
+ * ── Open-tab settlement (the missing half of Task 8) ──
+ *
+ * Send to Kitchen clears the cart when the order is fired, so when the waiter
+ * comes back to settle — via "Go to Checkout" on a seated table or "Settle" in
+ * Open Checks — the cart is empty, the Pay button never enables, and the tab
+ * can never be paid. Both of those paths set activeOpenOrderId before routing
+ * here; when it is set and the cart is empty, fetch the order and rebuild the
+ * cart from its persisted lines.
+ *
+ * Cart already has lines means the waiter walked here straight from the menu
+ * (takeaway flow, or adding before firing) — leave it alone.
+ */
+const hydratingOpenTab = ref(false)
+const settledFromTab = ref(false)
+async function hydrateOpenTab() {
+  if (!store.activeOpenOrderId || !store.isEmpty) return
+  hydratingOpenTab.value = true
+  settledFromTab.value = true
+  try {
+    const order = await apiGet('orders/' + store.activeOpenOrderId)
+    if (!order || !order.id) throw new Error('Order not found')
+    const st = String(order.status || '').toLowerCase()
+    if (order.payment_status === 'paid' || ['cancelled', 'completed', 'fulfilled', 'voided'].includes(st)) {
+      store.activeOpenOrderId = null
+      settledFromTab.value = false
+      toast('That check is no longer open', 'info')
+      return
+    }
+    const count = store.hydrateFromOrder(order)
+    if (!count) {
+      store.activeOpenOrderId = null
+      settledFromTab.value = false
+      toast('That check has nothing left to settle', 'info')
+    }
+  } catch (e) {
+    store.activeOpenOrderId = null
+    settledFromTab.value = false
+    toast('Could not load the check: ' + (e.message || 'please try again'), 'error')
+  } finally {
+    hydratingOpenTab.value = false
+  }
+}
 
 async function loadTables() {
   try { tables.value = (await apiGet('tables')) || [] } catch (e) { console.error(e) }
@@ -926,6 +985,24 @@ onMounted(() => {
   color: var(--text-heading);
   font-weight: 700;
   flex: 1;
+}
+/* Open-tab settlement banner — tells the waiter this payment lands on the
+   existing check rather than creating a new order. */
+.settle-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  color: var(--primary);
+  font-size: .82rem;
+  font-weight: 500;
+}
+.settle-banner svg {
+  flex-shrink: 0;
 }
 .checkout-badge {
   background: var(--primary);

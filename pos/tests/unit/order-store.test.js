@@ -308,3 +308,125 @@ describe('Order Store', () => {
     })
   })
 })
+
+  /**
+   * Open-tab settlement (Task 8, settlement half).
+   *
+   * Send to Kitchen clears the cart when the order is fired, so the checkout
+   * has nothing to settle when the guests pay. hydrateFromOrder rebuilds the
+   * cart from the order the server returns, which is what lets "Go to
+   * Checkout" on a seated table and "Settle" in Open Checks take the money
+   * for food already cooked. These tests fail against the store before that
+   * function existed.
+   */
+  describe('open-tab settlement hydration', () => {
+    const openOrder = {
+      id: 'Oabc1234',
+      type: 'dine-in',
+      tableNum: '3',
+      customer: 'Sara',
+      notes: 'no onions on everything',
+      payment_status: 'unpaid',
+      status: 'new',
+      items: [
+        {
+          menu_item_id: 'M001', name: 'Flat White', qty: 2, unit_price: 150,
+          modifiers: '[{"name":"Oat milk","priceDelta":20}]',
+          notes: 'one extra hot', status: 'served', course: 'main', line_no: 1
+        },
+        {
+          menu_item_id: 'M002', name: 'Espresso', qty: 1, unit_price: 150,
+          modifiers: null, notes: '', status: 'new', course: 'main', line_no: 2
+        },
+        {
+          menu_item_id: 'M003', name: 'Cancelled soup', qty: 1, unit_price: 90,
+          modifiers: null, notes: '', status: 'cancelled', course: 'main', line_no: 3
+        }
+      ]
+    }
+
+    it('rebuilds the cart from the order lines', () => {
+      const store = useOrderStore()
+      const count = store.hydrateFromOrder(openOrder)
+
+      expect(count).toBe(2)                    // cancelled line is skipped
+      expect(store.items).toHaveLength(2)
+      expect(store.cartItemCount).toBe(3)      // 2 flat whites + 1 espresso
+      expect(store.cartTotal).toBe(490)        // 2×170 + 150
+    })
+
+    it('parses modifiers from their stored JSON string', () => {
+      const store = useOrderStore()
+      store.hydrateFromOrder(openOrder)
+
+      const fw = store.items.find(i => i.name === 'Flat White')
+      expect(fw.selectedModifiers).toEqual([
+        { name: 'Oat milk', priceDelta: 20, type: 'option' }
+      ])
+      // The modifier price rides in the line total, not just the base price.
+      expect(store.lineTotal(fw)).toBe(170)
+    })
+
+    it('restores table, type, customer and notes onto the order', () => {
+      const store = useOrderStore()
+      store.hydrateFromOrder(openOrder)
+
+      expect(store.tableNum).toBe('3')
+      expect(store.orderType).toBe('dine-in')
+      expect(store.customerName).toBe('Sara')
+      expect(store.notes).toBe('no onions on everything')
+    })
+
+    it('gives the settlement PUT the same total the order was opened with', () => {
+      const store = useOrderStore()
+      store.hydrateFromOrder(openOrder)
+      store.paymentMethod = 'cash'
+
+      const payload = store.buildOrderPayload()
+
+      // 2×(150+20) + 150 = 490 — matches what Send to Kitchen posted, so settling
+      // cannot silently rewrite the bill.
+      expect(payload.subtotal).toBe(490)
+      expect(payload.total).toBe(490)
+    })
+
+    it('keeps line notes so they are not lost in settlement', () => {
+      const store = useOrderStore()
+      store.hydrateFromOrder(openOrder)
+
+      const fw = store.items.find(i => i.name === 'Flat White')
+      expect(fw.notes).toBe('one extra hot')
+    })
+
+    it('falls back to one summary line for a legacy check with no tracked lines', () => {
+      // Orders created before order_items exist only as an items string and a
+      // total. They still owe money, so they must still be settleable.
+      const store = useOrderStore()
+      const legacy = {
+        id: 'Old9988', type: 'takeaway', items: 'Macchiato', subtotal: 80,
+        total: 80, payment_status: 'unpaid', status: 'new'
+      }
+      const count = store.hydrateFromOrder(legacy)
+
+      expect(count).toBe(1)
+      expect(store.items[0].name).toBe('Previous items')
+      expect(store.cartTotal).toBe(80)
+    })
+
+    it('returns zero for an order with nothing on it and nothing owed', () => {
+      const store = useOrderStore()
+      const empty = { id: 'O0000', items: [], subtotal: 0, total: 0 }
+
+      expect(store.hydrateFromOrder(empty)).toBe(0)
+      expect(store.items).toHaveLength(0)
+    })
+
+    it('replaces whatever was in the cart, not merges into it', () => {
+      const store = useOrderStore()
+      store.addItem({ menuItemId: 'M999', name: 'Stale cookie', basePrice: 25 })
+      store.hydrateFromOrder(openOrder)
+
+      expect(store.items.some(i => i.name === 'Stale cookie')).toBe(false)
+      expect(store.cartTotal).toBe(490)
+    })
+  })

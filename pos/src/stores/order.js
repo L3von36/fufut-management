@@ -423,6 +423,87 @@ export const useOrderStore = defineStore('order', () => {
     }))
   }
 
+  /**
+   * Rebuild the cart from an open tab fetched from the server (Task 8,
+   * settlement half).
+   *
+   * Send to Kitchen clears the cart the moment the order is fired — by design,
+   * so the next party starts from an empty ticket. But the checkout settles
+   * whatever is in the cart, so by the time the guests want to pay there is
+   * nothing there: "Go to Checkout" on a seated table and "Settle" in Open
+   * Checks both landed on an empty cart with no Pay button, and the tab could
+   * never be paid. This maps the order's persisted lines back into the cart
+   * shape addItem produces, plus the order-level context (table, type,
+   * customer, notes), so settlement PUTs the values the order was opened with.
+   *
+   * Orders created before line tracking have no order_items rows — only the
+   * `items` summary string and a total. For those, one synthetic line carrying
+   * the recorded subtotal keeps the bill settleable without inventing item
+   * detail the system never had.
+   */
+  function hydrateFromOrder(order) {
+    const rawLines = Array.isArray(order && order.items)
+      ? order.items
+      : (Array.isArray(order && order.order_items) ? order.order_items : [])
+    items.value = []
+    for (const line of rawLines) {
+      if (!line || typeof line.name !== 'string' || !line.name) continue
+      const st = String(line.status || '').toLowerCase()
+      if (st === 'cancelled' || st === 'voided') continue
+      let mods = line.modifiers
+      if (typeof mods === 'string') {
+        try { mods = JSON.parse(mods) } catch { mods = [] }
+      }
+      if (!Array.isArray(mods)) mods = []
+      const selectedModifiers = mods.map(m => ({
+        name: m && m.name,
+        priceDelta: parseFloat(m && m.priceDelta) || 0,
+        type: (m && m.type) || 'option'
+      }))
+      const basePrice = parseFloat(line.unit_price ?? line.unitPrice ?? line.basePrice) || 0
+      const notes = typeof line.notes === 'string' ? line.notes : ''
+      const course = line.course || 'main'
+      items.value.push({
+        uid: uid(),
+        _key: dedupKey(line.menu_item_id ?? line.menuItemId ?? null, selectedModifiers, notes, line.name, basePrice, course),
+        menuItemId: line.menu_item_id ?? line.menuItemId ?? null,
+        name: line.name,
+        basePrice,
+        qty: Math.max(1, parseInt(line.qty, 10) || 1),
+        selectedModifiers,
+        notes: notes.trim(),
+        course
+      })
+    }
+    // Legacy check: no tracked lines, but money owed. One line for the whole
+    // bill keeps the settlement PUT honest about what is being paid.
+    if (!items.value.length && order) {
+      const owed = parseFloat(order.subtotal ?? order.total) || 0
+      if (owed > 0) {
+        items.value.push({
+          uid: uid(),
+          _key: dedupKey(null, [], '', 'Previous items', owed, 'main'),
+          menuItemId: null,
+          name: 'Previous items',
+          basePrice: owed,
+          qty: 1,
+          selectedModifiers: [],
+          notes: typeof order.items === 'string' ? order.items : '',
+          course: 'main'
+        })
+      }
+    }
+    if (order) {
+      const tn = order.tableNum ?? order.table_number ?? order.table_id
+      tableNum.value = tn !== undefined && tn !== null ? String(tn) : ''
+      orderType.value = order.type || 'dine-in'
+      customerName.value = order.customer || order.name || ''
+      notes.value = typeof order.notes === 'string' ? order.notes : ''
+    }
+    persist()
+    return items.value.length
+  }
+
   /** Methods whose evidence is worth capturing — a transfer, not cash. */
   const EVIDENCE_METHODS = ['telebirr', 'cbe', 'bank']
 
@@ -623,6 +704,7 @@ export const useOrderStore = defineStore('order', () => {
     // Serialization
     flatItemsString,
     serializeOrderItems,
+    hydrateFromOrder,
     buildPaymentBreakdown,
     buildOrderPayload
   }
