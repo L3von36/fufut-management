@@ -40,6 +40,7 @@
 <script setup>
 import { ref, onMounted, nextTick, inject } from 'vue'
 import { apiGet, apiPost, TODAY } from '../api'
+import { isRealOrder } from '../lib/formatters'
 import BaseButton from '../components/BaseButton.vue'
 import { toCsv, download } from '../lib/csv'
 let _Chart = null
@@ -67,7 +68,9 @@ onMounted(loadData)
 async function loadData() {
   try {
     const [orders, expenses, staff] = await Promise.all([apiGet('orders'), apiGet('expenses'), apiGet('staff')])
-    totalRev.value = orders.reduce((s, o) => s + parseFloat(o.total||0), 0)
+    // Voided and cancelled orders are audit history, not revenue —
+    // isRealOrder mirrors the API's REAL_ORDERS rule in reports.js.
+    totalRev.value = orders.filter(isRealOrder).reduce((s, o) => s + parseFloat(o.total||0), 0)
     totalExp.value = expenses.reduce((s, e) => s + parseFloat(e.amount||0), 0)
     staffCount.value = staff.length
     await nextTick()
@@ -84,7 +87,7 @@ async function buildCharts(orders, expenses) {
   for (let i = 29; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i); const ds = d.toISOString().slice(0, 10)
     days.push(d.toLocaleDateString('en', { month: 'short', day: 'numeric' }))
-    rev.push(orders.filter(o => o.created?.slice(0,10) === ds).reduce((s, o) => s + parseFloat(o.total||0), 0))
+    rev.push(orders.filter(o => isRealOrder(o) && o.created?.slice(0,10) === ds).reduce((s, o) => s + parseFloat(o.total||0), 0))
     exp.push(expenses.filter(e => e.date === ds).reduce((s, e) => s + parseFloat(e.amount||0), 0))
   }
 

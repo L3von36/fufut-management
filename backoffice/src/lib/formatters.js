@@ -190,3 +190,23 @@ export function formatValue(val) {
 
   return String(parsed)
 }
+
+/**
+ * Is this order a real sale?
+ *
+ * Voided and cancelled orders stay in the database for the audit trail, but
+ * they are not revenue and must not be counted as such anywhere. The API's
+ * reports exclude them with `voided_at IS NULL AND status <> 'cancelled'`
+ * (REAL_ORDERS in fufut-api/src/handlers/reports.js); this is the backoffice's
+ * copy of that rule, for the screens that sum orders client-side.
+ *
+ * A void sets both markers (status = 'cancelled', voided_at = timestamp), so
+ * either one excludes — belt and braces, because rows written before one of
+ * the columns existed carry only the other.
+ */
+export function isRealOrder(o) {
+  if (!o) return false
+  if (o.voided_at) return false
+  const st = String(o.status || '').toLowerCase()
+  return st !== 'cancelled' && st !== 'voided'
+}

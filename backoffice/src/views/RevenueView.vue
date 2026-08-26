@@ -43,6 +43,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { apiGet, TODAY } from '../api'
+import { isRealOrder } from '../lib/formatters'
 import BaseTable from '../components/BaseTable.vue'
 import { localDate } from '../lib/datetime'
 import BaseButton from '../components/BaseButton.vue'
@@ -102,6 +103,9 @@ async function loadRevenue() {
 function buildDailyBreakdown() {
   const map = {}
   orders.value.forEach(o => {
+    // Voided and cancelled orders are audit history, not revenue —
+    // isRealOrder mirrors the API's REAL_ORDERS rule in reports.js.
+    if (!isRealOrder(o)) return
     // `created` is UTC; the date the manager picked is local. Slicing the UTC
     // string filed every sale between local midnight and 03:00 under the
     // previous business day.

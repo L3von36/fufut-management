@@ -82,7 +82,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiGet, TODAY } from '../api'
 import { useAnimatedNumber } from '../composables/useAnimatedNumber'
-import { formatOrderItems, shortId } from '../lib/formatters'
+import { formatOrderItems, shortId, isRealOrder } from '../lib/formatters'
 import { statusLabel } from '../composables/useStatusBadge'
 import { sameTable } from '../lib/tableRef'
 let _Chart = null
@@ -124,8 +124,10 @@ const router = useRouter()
 /* Same reference-spelling problem as the floor plan; see lib/tableRef.js. */
 function tableOrders(table) {
   if (!table) return []
+  // isRealOrder: a voided check is history even when a legacy row carries
+  // only one of the two void markers.
   return orders.value.filter(o =>
-    sameTable(o.tableId, table) && o.status !== 'fulfilled' && o.status !== 'cancelled')
+    sameTable(o.tableId, table) && isRealOrder(o) && o.status !== 'fulfilled')
 }
 
 function getDuration(created) {
@@ -174,7 +176,9 @@ async function loadDashboard() {
     ])
     orders.value = o
     tables.value = t
-    todayOrders.value = o.filter(o => isToday(o.created))
+    // Voided and cancelled orders are audit history, not today's revenue —
+    // isRealOrder mirrors the API's REAL_ORDERS rule in reports.js.
+    todayOrders.value = o.filter(o => isRealOrder(o) && isToday(o.created))
     todayExpenses.value = ex.filter(e => isToday(e.date))
     inventory.value = inv
     menu.value = m
@@ -182,7 +186,7 @@ async function loadDashboard() {
     const rev = todayOrders.value.reduce((s, o) => s + parseFloat(o.total||0), 0)
     const exp = todayExpenses.value.reduce((s, e) => s + parseFloat(e.amount||0), 0)
     const low = inv.filter(i => parseInt(i.quantity||0) <= parseInt(i.minLevel||0)).length
-    const active = o.filter(o => o.status !== 'fulfilled' && o.status !== 'cancelled').length
+    const active = o.filter(o => isRealOrder(o) && o.status !== 'fulfilled').length
 
     animateRev(rev)
     animateOrd(active)
@@ -190,10 +194,10 @@ async function loadDashboard() {
     animateLow(low)
 
     // Top selling items
-    buildTopItems(o)
+    buildTopItems(o.filter(isRealOrder))
     // Peak hours chart
     await nextTick()
-    await buildPeakChart(o)
+    await buildPeakChart(o.filter(isRealOrder))
   } catch (e) { console.error(e) }
 }
 

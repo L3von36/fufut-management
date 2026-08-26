@@ -69,6 +69,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { apiGet, TODAY } from '../api'
+import { isRealOrder } from '../lib/formatters'
 import { localDate } from '../lib/datetime'
 import BaseButton from '../components/BaseButton.vue'
 import BaseTable from '../components/BaseTable.vue'
@@ -155,7 +156,12 @@ async function loadPnL() {
     // slicing dropped every sale between local midnight and 03:00 into the
     // previous day — understating the start of each period and overstating the
     // one before it.
+    // Voided and cancelled orders are audit history, not revenue —
+    // isRealOrder mirrors the API's REAL_ORDERS rule in reports.js. Without
+    // it the headline Revenue/COG/Net cards counted orders the chart below
+    // them already excluded.
     const filteredOrders = orders.filter(o => {
+      if (!isRealOrder(o)) return false
       const d = localDate(o.created)
       return d && d >= dateFrom.value && d <= dateTo.value
     })
@@ -233,7 +239,7 @@ async function buildCharts(orders, breakdown, expenses = []) {
   // expense thirty times.
   const revByDate = {}
   for (const o of orders) {
-    if (o.status === 'cancelled' || o.voided_at) continue
+    if (!isRealOrder(o)) continue
     const d = localDate(o.created)
     if (d) revByDate[d] = (revByDate[d] || 0) + parseFloat(o.total || 0) - parseFloat(o.tip || 0)
   }
