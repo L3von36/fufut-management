@@ -225,9 +225,32 @@ jobs:
           if [ -d backoffice/functions ]; then
             cp -r backoffice/functions backoffice/dist/functions
           fi
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: backoffice
-          command: pages deploy dist --project-name=fufut-backoffice --branch=main --commit-dirty=true --skip-caching
+      # 2026-08-26: every backoffice deploy since ~Aug 22 has been landing in a
+      # PREVIEW deployment (main.fufut-backoffice.pages.dev) instead of
+      # production, because this project's configured production branch is not
+      # "main" (unlike fufut-pos and fufut-admin, where it is). Symptom:
+      # wrangler printed "Deployment alias URL: .../main.fufut-backoffice..."
+      # — the alias line only appears for non-production deployments — while
+      # backoffice.fufutcoffee.com kept serving an older build. Deploying to
+      # whatever branch the project actually treats as production fixes it
+      # without hardcoding a name nobody can remember changing.
+      - name: Read the Pages project's production branch
+        run: |
+          PROD_BRANCH=$(curl -sf -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/fufut-backoffice" \
+            | jq -r '.result.production_branch // empty')
+          if [ -z "$PROD_BRANCH" ]; then
+            echo "Could not read production_branch; falling back to 'production'"
+            PROD_BRANCH=production
+          fi
+          echo "fufut-backoffice production branch: $PROD_BRANCH"
+          echo "PROD_BRANCH=$PROD_BRANCH" >> "$GITHUB_ENV"
+      # Plain run step rather than wrangler-action so $PROD_BRANCH is expanded
+      # by a real shell; the action's command string is not guaranteed to go
+      # through one.
+      - name: Deploy Backoffice to the Pages production branch
+        working-directory: backoffice
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler pages deploy dist --project-name=fufut-backoffice --branch="$PROD_BRANCH" --commit-dirty=true --skip-caching
