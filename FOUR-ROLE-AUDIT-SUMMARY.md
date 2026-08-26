@@ -101,9 +101,14 @@ All 8 roles in the matrix have now been audited on production:
    Root-cause bonus found while shipping it: backoffice CI deploys had
    silently gone to a Pages *preview* since ~Aug 22 (production branch is
    `master`, not `main`); CI now reads the branch from the Cloudflare API.
-2. **One live delivery run** — the driver-side status transitions were
-   verified against the contract, not driven through a real job (queue holds
-   one cancelled historical job).
+2. ~~**One live delivery run**~~ **DONE 2026-08-27** — a real job walked end
+   to end on production: anonymous website order → kitchen sync (chef) →
+   driver took the job, collected cash + tip and delivered (all status moves
+   from the Delivery screen) → cashier settled the round (driver refused 403)
+   → manager voided the training order with auto-refund. Full trail in
+   DELIVERY-AUDIT.md. The run surfaced one new observation: posted order
+   totals/prices are client-trusted on the public ordering path (see
+   DELIVERY-AUDIT.md follow-up #3).
 3. **Decide where the accountant lives** — POS (today's answer) or
    backoffice (whose role map has no accountant entry).
 4. **Cleaner's Dashboard is thin** — renders, but most tiles are metrics the
@@ -111,4 +116,7 @@ All 8 roles in the matrix have now been audited on production:
 5. **Passwords rotated 2026-08-26** — the 8 audited accounts no longer share
    `selam@336`; unique server-generated credentials are on an owner-only
    sheet (`download/credentials/`, never committed). P0-1 on the soft-launch
-   checklist is closed.
+   checklist is closed. Handout slips added 2026-08-27: a printable cut sheet
+   (`staff-signin-slips-2026-08-27.pdf`) plus one private txt slip per person
+   (`download/credentials/slips/`), so each person receives only their own
+   line.

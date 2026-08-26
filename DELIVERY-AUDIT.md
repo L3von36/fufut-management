@@ -66,12 +66,41 @@ on `POST /api/reservations` and `POST /api/reviews`.
 
 ---
 
+## The live delivery run (follow-up #1 — closed 2026-08-27)
+
+The audit's one open follow-up was that no real delivery job had ever been
+walked live. That run has now been done on production, end to end, with every
+step landing in the audit log under the real actor's name:
+
+| Step | Actor | Result |
+|---|---|---|
+| Website-style delivery order (anonymous, the public ordering path) | anonymous guest | order O4da3388 (3× TEA + ETB 30 fee = 240) + delivery job DLdcf23b1 auto-created |
+| Kitchen progress | head-chef (Selam) | order new→preparing→ready; the job mirrored both states automatically — chef marking food ready is what put the job in front of the driver |
+| Impossible jump probe | delivery-staff | ready→delivered refused 409 with the allowed transitions named |
+| Take job → picked up → on the way → delivered | delivery-staff (Deborah) | all four moves made **from the Delivery screen buttons**; counters (TO COLLECT / ON THE WAY / DELIVERED) tracked live; address column showed the address (issue #2 below was data, not the screen) |
+| Cash on the doorstep | delivery-staff | ETB 240 payment + ETB 5 tip recorded by the driver |
+| Order closure | system | delivered + paid → order completed itself |
+| Round settlement | cashier (Bethel) | driver's own settle attempt → 403; cashier settled, collected 240 |
+| Cleanup | manager (Amanuel) | order voided as training, payment auto-refunded 240 |
+
+Evidence: `download/role-audits/shots/delivery-live-run-{1-ready,2-assigned,3-out-for-delivery,4-delivered}.png`
+and the full audit trail in `/api/audit`. Zero console errors across the walk.
+
+**One observation the live run surfaced:** `POST /api/orders` takes
+`total`/`subtotal` (and each item's `price`) from the request body and never
+re-derives them from the menu table at creation time — the header figures are
+written off the wire. The POS and the website form both send correct values,
+and any added round re-prices the bill server-side from the tracked lines, but
+a crafted anonymous order could under-price itself on a **public** endpoint.
+Not a delivery defect (the job collects what the order says); worth a
+server-side price validation pass on the public ordering path.
+
 ## Known issues, accepted for now
 
-1. **No delivery job exists to walk live** — the queue holds one cancelled
-   historical job only, so the driver-side status transitions (picked up →
-   out for delivery → delivered) were verified against the API contract and
-   the screen's action column, not driven through a real run. Worth one live
-   run when a real delivery order exists.
+1. ~~**No delivery job exists to walk live**~~ — closed by the live run above.
 2. **Address shows "—"** on the seeded queue row — the delivery job has no
-   address recorded. Data gap, not a screen defect.
+   address recorded. Data gap, not a screen defect. (The live-run job's
+   address displayed correctly.)
+3. **Client-trusted pricing on the public order path** — the observation
+   above; recommend validating posted items/prices against the menu table
+   server-side.
