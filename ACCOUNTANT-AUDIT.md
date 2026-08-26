@@ -74,12 +74,25 @@ order rows were voided with reason `training`.
    accountant entry — an accountant signing in there gets the login but a
    near-empty nav. Decide deliberately whether accountants live in the POS
    (current answer: yes) before granting anything on the other app.
-2. **Reports revenue still includes voided orders** on some metrics — the
-   cashier-audit fix (5d0ea1a) covered POS Dashboard/Reports; B+ Finding 7
-   (backoffice Dashboard Today Revenue summing verified payments of voided
-   orders) remains open and was deliberately left out of the 1–6 fix batch.
-   It lands squarely in this role's lap — worth fixing before the accountant
-   is asked to reconcile anything against it.
+2. ~~**Reports revenue still includes voided orders**~~ **FIXED 2026-08-26**
+   (commit `aa4f837`, deployed via CI `17ffe69`): `isRealOrder` now gates every
+   backoffice screen that sums orders client-side — Dashboard Today Revenue
+   (and its "orders today" count, active-orders KPI, top items, peak hours),
+   the P&L headline cards, Revenue's daily breakdown, and Reports' totals.
+   Verified live end to end: with 36 voided orders totalling ETB 6,055 in the
+   day, the Dashboard showed **ETB 0 / 0 orders**; planting a real ETB 60
+   order moved it to **ETB 60 / 1 order**, and the P&L matched an
+   independent 30-day computation to the birr (ETB 3,045). Evidence:
+   `download/role-audits/shots/finding7-*.png`. The fix batch also
+   uncovered that every backoffice deploy since ~Aug 22 had been landing in
+   a Cloudflare Pages *preview* (`main.fufut-backoffice.pages.dev`) instead
+   of production — the project's production branch is `master`, not `main`
+   (unlike fufut-pos/fufut-admin) — so CI now reads the branch from the
+   Cloudflare API before deploying.
 3. **Purchases/suppliers data is skeletal** (one supplier, one purchase) —
    the accountant's P&L reads low for reasons of data, not code. Same owner
    task list the chef audit recorded.
+4. **Password rotation done 2026-08-26**: all 8 audited accounts that had
+   shared `selam@336` now carry unique server-generated credentials
+   (owner-only sheet, never committed). The other 4 staff records
+   (S3/S4/S5/S9) were probed and do *not* share the old password.

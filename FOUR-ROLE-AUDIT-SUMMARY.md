@@ -94,8 +94,13 @@ All 8 roles in the matrix have now been audited on production:
 
 ## Follow-ups worth doing
 
-1. **B+ Finding 7** (backoffice Today Revenue sums verified payments of
-   voided orders) — still open, and it is the accountant's problem first.
+1. ~~**B+ Finding 7**~~ **FIXED 2026-08-26** (`aa4f837` + CI `17ffe69`):
+   `isRealOrder` now gates all four backoffice money screens (Dashboard,
+   P&L, Revenue, Reports). Live-verified: 36 voided orders (ETB 6,055)
+   excluded; real ETB 60 order counted; P&L matched independent math.
+   Root-cause bonus found while shipping it: backoffice CI deploys had
+   silently gone to a Pages *preview* since ~Aug 22 (production branch is
+   `master`, not `main`); CI now reads the branch from the Cloudflare API.
 2. **One live delivery run** — the driver-side status transitions were
    verified against the contract, not driven through a real job (queue holds
    one cancelled historical job).
@@ -103,3 +108,7 @@ All 8 roles in the matrix have now been audited on production:
    backoffice (whose role map has no accountant entry).
 4. **Cleaner's Dashboard is thin** — renders, but most tiles are metrics the
    role cannot read. Cosmetic.
+5. **Passwords rotated 2026-08-26** — the 8 audited accounts no longer share
+   `selam@336`; unique server-generated credentials are on an owner-only
+   sheet (`download/credentials/`, never committed). P0-1 on the soft-launch
+   checklist is closed.
