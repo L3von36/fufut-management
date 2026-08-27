@@ -29,6 +29,26 @@
       </button>
     </div>
 
+    <!-- ─── My recent shifts ───
+      Everyone can see their own hours: the roster above is a permission, this
+      is the caller's own record, and a role with no timeclock grant (a waiter)
+      would otherwise see the two buttons and nothing else. -->
+    <div class="tc-history">
+      <div class="tc-history-head">
+        <div class="tc-history-title">My Recent Shifts</div>
+        <div class="tc-history-sub">{{ myHistory.length ? myHistory.length + ' most recent, newest first' : 'Clock in to start your first shift' }}</div>
+      </div>
+      <ul v-if="myHistory.length" class="tc-history-list">
+        <li v-for="e in myHistory" :key="e.id" class="tc-history-row" :class="{ 'is-active': !e.clockOut }">
+          <span class="tc-history-date">{{ e.date }}</span>
+          <span class="tc-history-times">{{ e.clockIn || '—' }} → {{ e.clockOut || '…' }}</span>
+          <span class="tc-history-dur">{{ formatDuration(e) }}</span>
+          <span class="badge" :class="e.clockOut ? 'badge-fulfilled' : 'badge-new'">{{ e.clockOut ? 'Completed' : 'Active' }}</span>
+        </li>
+      </ul>
+      <div v-else class="tc-history-empty">No shifts recorded yet.</div>
+    </div>
+
     <!--
       Refused because money is still owed on their tables. Listing the checks
       rather than only the count is what makes it actionable — the waiter needs
@@ -93,6 +113,7 @@ const entries = ref([])
 const staffList = ref([])
 const staffFilter = ref('')
 const me = ref({ clockedIn: false, entry: null })
+const myHistory = ref([])
 const blocked = ref(null)
 const busy = ref(false)
 const canSeeRoster = ref(false)
@@ -134,12 +155,18 @@ function formatDuration(e) {
 }
 
 async function loadMine() {
-  try {
-    me.value = await apiGet('timeclock/me')
-  } catch {
-    // Not fatal: the roster below still renders without it.
-    me.value = { clockedIn: false, entry: null }
-  }
+  // Two self-service reads, failing independently: the shift history is this
+  // screen's own record and must not take the state card down with it (and
+  // vice versa) if one endpoint is slow or refused.
+  const [stateRes, historyRes] = await Promise.allSettled([
+    apiGet('timeclock/me'),
+    apiGet('timeclock/me/history'),
+  ])
+  me.value = stateRes.status === 'fulfilled'
+    ? stateRes.value
+    : { clockedIn: false, entry: null }
+  const h = historyRes.status === 'fulfilled' ? historyRes.value : null
+  myHistory.value = Array.isArray(h && h.entries) ? h.entries : []
 }
 
 async function loadData() {
@@ -215,6 +242,28 @@ onMounted(loadData)
   background: var(--surface); border: 1px solid var(--danger);
   border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px;
 }
+
+/* My recent shifts — the caller's own record, so it reads like a payslip stub
+   rather than the roster table: one row per shift, four facts per row, no
+   columns to scrub sideways on a phone. */
+.tc-history {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px;
+}
+.tc-history-head { margin-bottom: 10px; }
+.tc-history-title { font-weight: 600; color: var(--text-heading); }
+.tc-history-sub { font-size: .76rem; color: var(--text-muted); margin-top: 2px; }
+.tc-history-list { list-style: none; margin: 0; padding: 0; }
+.tc-history-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 0; border-top: 1px solid var(--border);
+  font-size: .84rem; color: var(--text-body);
+}
+.tc-history-row.is-active .tc-history-dur { color: var(--success); font-weight: 600; }
+.tc-history-date { font-weight: 600; color: var(--text-heading); min-width: 86px; }
+.tc-history-times { font-variant-numeric: tabular-nums; }
+.tc-history-dur { margin-left: auto; font-variant-numeric: tabular-nums; }
+.tc-history-empty { padding: 18px 0 6px; text-align: center; color: var(--text-muted); font-size: .84rem; }
 .tc-blocked-title { font-weight: 600; color: var(--danger); margin-bottom: 8px; }
 .tc-blocked-list { margin: 0 0 12px; padding-left: 18px; font-size: .84rem; color: var(--text-body); }
 .tc-blocked-actions { display: flex; gap: 8px; flex-wrap: wrap; }

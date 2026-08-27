@@ -867,8 +867,15 @@ async function loadData() {
     padding:22px 9px 7px;
     background:linear-gradient(to top,rgba(0,0,0,.9) 0%,rgba(0,0,0,.5) 60%,transparent 100%)}
   .menu-card .menu-name-row{flex-direction:column;gap:1px;margin-bottom:0}
+  /* Two lines, not one. At three-across on a phone the card is ~110px wide and
+     a single line with an ellipsis was cutting "Mineral Water 0.5L" down to
+     "Mineral Wat…". A dish the waiter cannot identify is a mis-tap; a second
+     line shows nearly every name on the menu whole, and the price still sits
+     under it rather than beside it. The overlay grows upward into the
+     gradient, so legibility does not change. */
   .menu-card .menu-info h3{color:#fff;font-size:.78rem;line-height:1.25;
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;
+    overflow:hidden;text-shadow:0 1px 2px rgba(0,0,0,.5)}
   .menu-card .menu-price{color:#fff;font-size:.8rem;text-shadow:0 1px 2px rgba(0,0,0,.5)}
 
   /* The button and the card fire the same handler — it is an affordance, not a

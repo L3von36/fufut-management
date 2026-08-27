@@ -554,6 +554,7 @@ import { useOrderStore } from '../stores/order'
 import { useAuthStore } from '../stores/auth'
 import { useAudioAlerts } from '../composables/useAudioAlerts'
 import { customerReceipt } from '../lib/print'
+import { quickTenderAmounts } from '../lib/quickTender'
 import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
 import { verifyReceipt } from '../lib/receiptVerifier'
 
@@ -825,24 +826,9 @@ const splitPaymentOptions = [
   { value: 'bank', label: 'Bank Transfer' }
 ]
 
-// Quick tender amounts based on grand total
-// Fix #6: Quick tender always includes amounts below and above total
-const quickAmounts = computed(() => {
-  const total = store.grandTotal
-  const notes = [10, 50, 100, 200, 500, 1000]
-  const below = notes.filter(n => n <= total).slice(-1) // largest note <= total
-  const above = notes.filter(n => n >= total).slice(0, 3) // smallest notes >= total
-  const amounts = [...below, ...above]
-  // Deduplicate and ensure at least 3 options
-  const unique = [...new Set(amounts)]
-  if (unique.length < 3) {
-    for (const n of notes) {
-      if (!unique.includes(n)) unique.push(n)
-      if (unique.length >= 4) break
-    }
-  }
-  return unique.slice(0, 4)
-})
+// Quick tender amounts based on grand total. See src/lib/quickTender.js for
+// why the buttons are round-ups that cover the bill rather than raw notes.
+const quickAmounts = computed(() => quickTenderAmounts(store.grandTotal))
 
 function goToPayment() {
   if (store.isEmpty) return
