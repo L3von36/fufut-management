@@ -778,7 +778,7 @@ function printReceipt(order) {
     flex-wrap: wrap;
   }
 }
-</style>
+
 
 /* ── UX-3: compact order cards on phones. The generic narrow-screen rules in
    styles.css stack all twelve cells as label:value lines (~12 lines a
@@ -830,3 +830,4 @@ function printReceipt(order) {
 @media (max-width: 768px) {
   .ov-compact td[colspan] { grid-column: 1 / -1; }
 }
+</style>

@@ -348,7 +348,7 @@ async function handleCancel(r) {
   .rv-toolbar-left { margin-bottom: 4px; }
   .rv-search { min-width: 0; }
 }
-</style>
+
 
 /* ── UX-4: the New Reservation sheet pins its title and actions; only the
    form body scrolls. Before, the whole sheet scrolled as one block, so on a
@@ -416,3 +416,4 @@ async function handleCancel(r) {
 @media (max-width: 768px) {
   .rv-compact td[colspan] { grid-column: 1 / -1; }
 }
+</style>
