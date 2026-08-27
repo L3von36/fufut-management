@@ -167,15 +167,64 @@ day.
 
 ---
 
-## Noted, not fixed
+## Noted, not fixed → closed the next day (2026-08-27, second pass)
 
-- **Quick-tender buttons are fixed denominations** (10/50/500/1000) rather
-  than amount-aware (e.g. round-ups of the bill). Exact tender exists and the
-  arithmetic is right; this is a speed nicety for cash-heavy service.
-- **Menu card names truncate at 3-per-row** on 390px ("Mineral Water 0.5L").
-  Readable, cosmetic.
-- **Time Clock shows no personal history** — current state and the clock
-  buttons only. A "my last shifts" list would be nice; not a defect.
+Three of the five items below were closed in a follow-up pass; the two
+data-integrity notes stand as written.
+
+- **Quick-tender is amount-aware now.** The old `quickAmounts` padded short
+  lists with 10 and 50 ETB notes the bill already exceeded — a 704 bill
+  rendered `500 · 1000 · 10 · 50`, unsorted, with an insufficient note first.
+  The buttons come from a new pure helper (`src/lib/quickTender.js`): round-ups
+  that cover the bill, ascending, max four — 704 → **710 · 750 · 800 · 1000**,
+  with Exact still its own button. A bill at or above the largest note falls
+  back to bill-plus-one-note. Verified live on a 130 bill: **150 · 200 · 500 ·
+  1000**, tapping 150 shows Change Due ETB 20. Six tests, including a sweep
+  asserting every offered amount strictly covers the bill for totals 1–1200.
+- **Menu card names wrap to two lines.** In the ≤175px container card (the
+  three-across phone card) the name switched from one ellipsised line to a
+  two-line clamp. Verified live at 390px: "Fut breakfast Gebeta" renders on
+  two lines (25px = 2 × 12.5), unclipped; "Mineral Water 0.5L" now fits whole.
+- **Time Clock has a "My Recent Shifts" card.** New self-service endpoint
+  `GET /api/timeclock/me/history` (any signed-in role; the query is scoped to
+  the caller's own rows — a `staffId` is honoured only for a manager). The
+  card shows the caller's own shifts newest-first with durations and an
+  Active badge; the history read fails independently of the state card, so a
+  refused or slow read leaves the empty state, not a blank screen. Verified
+  live as Yonas in both directions (clock in → ACTIVE row appears; clock out
+  → row completes with duration) and as Bethel (roster still renders, her own
+  history alongside it).
+- **One thing the live check caught:** an open shift's duration compared shop
+  wall-clock (UTC+3) against the device clock, so on any device set outside
+  the shop's timezone the row read `—` instead of a duration. The open end is
+  now anchored on the clock-in's `created` instant, which is timezone-proof.
+  Verified live on a UTC device: ACTIVE row reads `0h 0m`, not `—`.
+
+### The incident during cleanup, and the fix it forced
+
+The first cleanup script asked `GET /api/timeclock?staff_id=…&from=…&to=…`
+for Yonas's rows — and the **generic resource handler ignored the query
+string entirely**, answering with every row in the table. The script matched
+eight rows it meant to leave alone and deleted them: six genuine attendance
+records across four staff.
+
+Every row was recovered byte-exact the same morning via **D1 Time Travel**
+(restore to 06:25 UTC; a read-only sweep of every mutable table confirmed
+zero other writes in the window, and orders/payments/reservations/shifts/
+tables/staff counts matched before and after; a full pre-restore export is
+kept as a 7-day CI artifact on run 33047070928).
+
+Root cause fixed, not just the data: `GET /api/timeclock` now has a dedicated
+handler that honours `staff_id` (both spellings), `from` and `to`, returns the
+same bare-array shape the roster screens already read, and joins staff for a
+`staffName` — which the raw rows never carried, so the POS roster's STAFF
+column had rendered an em dash since the screen shipped. Verified live:
+`?staff_id=S6` → Yonas's 3 rows only; the cashier's roster table now names
+every row. Lesson recorded in the corrected cleanup script: identify rows by
+exact ID from a filtered read, print them, delete those IDs only.
+
+## Still noted, not fixed
+
 - **Probe-order names from the price-validation audit** ("ATTACKER-E") are
   visible in the Orders list to staff. They are voided history; renaming
   would falsify the audit trail, so they stay.
@@ -183,6 +232,9 @@ day.
   verification (Chromium throttles intervals in hidden pages). Not an app
   issue; noted so the next auditor isn't confused by a silent sync engine in
   an automated session.
+- **The POS roster's "Today's Entries" tile counts every entry, not today's**
+  (it reads `entries.length` from an unfiltered list). Pre-existing, cosmetic;
+  the label is wrong, the number is honest about what it counts.
 
 ---
 
@@ -199,7 +251,9 @@ poisoned sync-queue entries cleared from the test browser. Final state:
 ## Sources
 
 - Live walk: pos.fufutcoffee.com, yonas@fufut.coffee, 390×844 viewport,
-  2026-08-27 (screenshots: 30 files under `download/waiter-mobile-audit/`)
+  2026-08-27 (screenshots: 30 files under `download/waiter-mobile-audit/`, plus
+  shots 31–39 from the second pass: history card, active/completed rows,
+  two-line menu names, quick tender, timezone fix, cashier roster)
 - Code: `pos/src/api/index.js`, `pos/src/composables/useSync.js`,
   `pos/src/views/MenuView.vue`, `pos/src/views/CheckoutView.vue`,
   `pos/src/views/DashboardView.vue`; server contract:
@@ -210,3 +264,7 @@ poisoned sync-queue entries cleared from the test browser. Final state:
   (3), waiter block in `DashboardReporting.test.js` (3) — suite 365 passing
   across 34 files
 - Fix commit: `be65c6d` (deployed as `index-Dfasbv3m.js`, CI green)
+- Second pass: fufut-management `e642e6d` + `8a1cc75` (quick tender, menu
+  names, history card, timezone anchor; deployed as `index-yNKl3tyg.js`, suite
+  376), fufut-api `7a2172e`, `9554e39`, `f7d3466` (history endpoint, roster
+  filters, staff names; suite 692)
