@@ -32,7 +32,7 @@
 
     <div class="table-wrap">
       <div class="table-scroll">
-        <table>
+        <table class="ov-compact">
           <thead>
             <tr>
               <th>Order ID</th>
@@ -779,3 +779,54 @@ function printReceipt(order) {
   }
 }
 </style>
+
+/* ── UX-3: compact order cards on phones. The generic narrow-screen rules in
+   styles.css stack all twelve cells as label:value lines (~12 lines a
+   ticket); the floor's question is "which check, what's on it, what's owed,
+   where does it stand", so the same cells are re-laid-out on a 12-column
+   grid into four lines:
+
+     #O961bf4a ────────────────────  [served]
+     2× Macchiato, 1× Tea
+     ETB 840  +ETB 40 tip · cash · dine-in · T3
+     -ETB 20 · walk-in name · 28 Aug 14:02   [Receipt]
+
+   DOM untouched — placement only, so table behaviour tests and the desktop
+   table are unaffected. */
+@media (max-width: 768px) {
+  .ov-compact tr {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    column-gap: 6px;
+    row-gap: 4px;
+  }
+  .ov-compact td {
+    display: block;
+    border: none;
+    padding: 0;
+    font-size: .82rem;
+    text-align: left;
+    white-space: normal;
+  }
+  .ov-compact td::before { content: none; } /* no per-cell labels */
+  .ov-compact td:not(:last-child) { border-bottom: none; }
+
+  .ov-compact td[data-label="ID"]     { grid-area: 1 / 1 / 2 / 9;  font-weight: 700; }
+  .ov-compact td[data-label="Status"] { grid-area: 1 / 9 / 2 / 13; justify-self: end; }
+  .ov-compact td[data-label="Items"]  { grid-area: 2 / 1 / 3 / 13; color: var(--text-muted);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .ov-compact td[data-label="Total"]    { grid-area: 3 / 1 / 4 / 5; }
+  .ov-compact td[data-label="Tip"]     { grid-area: 3 / 5 / 4 / 8; }
+  .ov-compact td[data-label="Payment"] { grid-area: 3 / 8 / 4 / 11; color: var(--text-muted); }
+  .ov-compact td[data-label="Type"]    { grid-area: 3 / 11 / 4 / 13; color: var(--text-muted); }
+  .ov-compact td[data-label="Discount"]{ grid-area: 4 / 1 / 5 / 4;  color: var(--text-muted); }
+  .ov-compact td[data-label="Table"]   { grid-area: 4 / 4 / 5 / 6;  color: var(--text-muted); }
+  .ov-compact td[data-label="Customer"]{ grid-area: 4 / 6 / 5 / 10; color: var(--text-muted); }
+  .ov-compact td[data-label="Date"]    { grid-area: 4 / 10 / 5 / 13; color: var(--text-muted); text-align: right; font-size: .76rem; }
+  .ov-compact td[data-label="Actions"] { grid-area: 5 / 1 / 6 / 13; justify-content: flex-start; margin-top: 2px; padding-top: 0; }
+  .ov-compact td[data-label="Total"] span[style*="font-family"] { font-size: .9rem; }
+}
+/* The empty-state row (colspan) must still span the card. */
+@media (max-width: 768px) {
+  .ov-compact td[colspan] { grid-column: 1 / -1; }
+}

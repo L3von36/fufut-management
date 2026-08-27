@@ -139,8 +139,20 @@
     </div>
 
     <!-- Floating Cart. Only on narrow screens: where the check is docked
-         beside the grid there is nothing for it to reveal. -->
-    <div v-if="orderStore.cartTotal > 0 && !checkDocked" class="floating-cart" @click="showCart = !showCart">
+         beside the grid there is nothing for it to reveal. It is the waiter's
+         most-tapped control, so it behaves as a real button for keyboards
+         and screen readers, not just for a thumb. -->
+    <div
+      v-if="orderStore.cartTotal > 0 && !checkDocked"
+      class="floating-cart"
+      role="button"
+      tabindex="0"
+      :aria-label="`Open cart, ${orderStore.cartItemCount} item${orderStore.cartItemCount !== 1 ? 's' : ''}, ETB ${orderStore.cartTotal.toFixed(0)}`"
+      :aria-expanded="showCart"
+      @click="showCart = !showCart"
+      @keydown.enter.prevent="showCart = !showCart"
+      @keydown.space.prevent="showCart = !showCart"
+    >
       <div class="fc-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
         <span class="fc-badge">{{ orderStore.cartItemCount }}</span>
@@ -180,11 +192,11 @@
                 <div v-if="entry.course && entry.course !== 'main'" class="cart-item-course">{{ entry.course }}</div>
               </div>
               <div class="cart-qty">
-                <button class="qty-btn" @click="orderStore.decrementQty(entry.uid)">−</button>
-                <span class="qty-value">{{ entry.qty }}</span>
-                <button class="qty-btn" @click="orderStore.incrementQty(entry.uid)">+</button>
+                <button class="qty-btn" :aria-label="`Remove one ${entry.name} from the order`" @click="orderStore.decrementQty(entry.uid)">−</button>
+                <span class="qty-value" aria-live="polite">{{ entry.qty }}</span>
+                <button class="qty-btn" :aria-label="`Add one more ${entry.name}`" @click="orderStore.incrementQty(entry.uid)">+</button>
               </div>
-              <button class="cart-remove" @click="removeWithUndo(entry)">✕</button>
+              <button class="cart-remove" :aria-label="`Remove ${entry.name} from the order`" @click="removeWithUndo(entry)">✕</button>
             </div>
           </div>
           <div class="cart-footer">

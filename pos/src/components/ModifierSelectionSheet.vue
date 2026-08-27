@@ -40,11 +40,11 @@
 
           <!-- Quantity -->
           <div class="mod-section mod-qty-section">
-            <label class="mod-section-label">Quantity</label>
-            <div class="mod-qty-controls">
-              <button class="mod-qty-btn" @click="localQty > 1 && localQty--">−</button>
-              <span class="mod-qty-value">{{ localQty }}</span>
-              <button class="mod-qty-btn" @click="localQty++">+</button>
+            <label class="mod-section-label" :id="modQtyLabelId">Quantity</label>
+            <div class="mod-qty-controls" role="group" :aria-labelledby="modQtyLabelId">
+              <button class="mod-qty-btn" aria-label="Decrease quantity" @click="localQty > 1 && localQty--">−</button>
+              <span class="mod-qty-value" aria-live="polite">{{ localQty }}</span>
+              <button class="mod-qty-btn" aria-label="Increase quantity" @click="localQty++">+</button>
             </div>
           </div>
         </div>
@@ -71,6 +71,10 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['confirm', 'cancel'])
+
+// Only one modifier sheet is ever open, so a fixed id is safe to link the
+// Quantity group to its label.
+const modQtyLabelId = 'mod-qty-label'
 
 const selected = ref(new Set())
 const localNotes = ref('')

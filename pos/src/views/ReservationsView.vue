@@ -26,7 +26,7 @@
     </div>
     <div class="table-wrap">
       <div class="table-scroll">
-        <table>
+        <table class="rv-compact">
           <thead><tr><th>Guest</th><th>Date</th><th>Time</th><th>Guests</th><th>Table</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
             <tr v-for="r in filteredReservations" :key="r.id">
@@ -58,24 +58,28 @@
       <div class="pagination"><span>{{ filteredReservations.length }} reservation(s)</span></div>
     </div>
     <div class="modal-overlay" v-if="showModal" @click.self="showModal=false">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="New reservation">
+      <!-- The form body scrolls; the title and the Create row do not. On a
+           short phone the old sheet scrolled as one block, so Create started
+           below the fold and the waiter had to discover the scroll. -->
+      <div class="modal rv-modal" role="dialog" aria-modal="true" aria-label="New reservation">
         <h3>New Reservation</h3>
         <p class="modal-sub">Add a guest reservation</p>
+        <div class="rv-modal-body">
         <div class="form-row">
-          <div class="form-group"><label>Guest Name</label><input v-model="form.name" :class="{ 'input-error': vErrors.name }" /><span v-if="vErrors.name" class="field-error">{{ vErrors.name }}</span></div>
-          <div class="form-group"><label>Guests</label><input v-model.number="form.guests" type="number" :class="{ 'input-error': vErrors.guests }" /><span v-if="vErrors.guests" class="field-error">{{ vErrors.guests }}</span></div>
+          <div class="form-group"><label for="rv-name">Guest Name</label><input id="rv-name" v-model="form.name" :class="{ 'input-error': vErrors.name }" /><span v-if="vErrors.name" class="field-error">{{ vErrors.name }}</span></div>
+          <div class="form-group"><label for="rv-guests">Guests</label><input id="rv-guests" v-model.number="form.guests" type="number" :class="{ 'input-error': vErrors.guests }" /><span v-if="vErrors.guests" class="field-error">{{ vErrors.guests }}</span></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Date</label><input v-model="form.date" type="date" :class="{ 'input-error': vErrors.date }" @change="refreshAvailability" /><span v-if="vErrors.date" class="field-error">{{ vErrors.date }}</span></div>
-          <div class="form-group"><label>Time</label><input v-model="form.time" type="time" @change="refreshAvailability" /></div>
+          <div class="form-group"><label for="rv-date">Date</label><input id="rv-date" v-model="form.date" type="date" :class="{ 'input-error': vErrors.date }" @change="refreshAvailability" /><span v-if="vErrors.date" class="field-error">{{ vErrors.date }}</span></div>
+          <div class="form-group"><label for="rv-time">Time</label><input id="rv-time" v-model="form.time" type="time" @change="refreshAvailability" /></div>
         </div>
         <div class="form-row">
           <!-- A table is chosen from the tables that exist, not typed. The old
                free-text box was posted as tableNum while the API only read
                tableId, so every booking silently lost its table. -->
           <div class="form-group">
-            <label>Table</label>
-            <select v-model="form.tableNum" class="select" :class="{ 'input-error': vErrors.tableNum }">
+            <label for="rv-table">Table</label>
+            <select id="rv-table" v-model="form.tableNum" class="select" :class="{ 'input-error': vErrors.tableNum }">
               <option value="">No table yet</option>
               <option
                 v-for="t in tables"
@@ -90,8 +94,8 @@
             <span v-else-if="tooSmall" class="field-error">This table seats {{ tooSmall.capacity }}; you have {{ form.guests }} guests.</span>
           </div>
           <div class="form-group">
-            <label>Holds for</label>
-            <select v-model.number="form.durationMin" class="select" @change="refreshAvailability">
+            <label for="rv-duration">Holds for</label>
+            <select id="rv-duration" v-model.number="form.durationMin" class="select" @change="refreshAvailability">
               <option :value="60">1 hour</option>
               <option :value="90">1½ hours</option>
               <option :value="120">2 hours</option>
@@ -102,7 +106,8 @@
         <!-- The server rejects an overlapping booking outright; this says so
              before the guest is told their table is confirmed. -->
         <div v-if="clashMessage" class="rv-clash">{{ clashMessage }}</div>
-        <div class="form-group"><label>Phone</label><input v-model="form.phone" :class="{ 'input-error': vErrors.phone }" /><span v-if="vErrors.phone" class="field-error">{{ vErrors.phone }}</span></div>
+        <div class="form-group"><label for="rv-phone">Phone</label><input id="rv-phone" v-model="form.phone" :class="{ 'input-error': vErrors.phone }" /><span v-if="vErrors.phone" class="field-error">{{ vErrors.phone }}</span></div>
+        </div>
         <div class="modal-actions">
           <button class="btn btn-secondary" @click="showModal=false">Cancel</button>
           <button class="btn btn-primary" @click="saveItem">Create</button>
@@ -344,3 +349,70 @@ async function handleCancel(r) {
   .rv-search { min-width: 0; }
 }
 </style>
+
+/* ── UX-4: the New Reservation sheet pins its title and actions; only the
+   form body scrolls. Before, the whole sheet scrolled as one block, so on a
+   short phone (SE class, ~667px) the Create button started below the fold. */
+.rv-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* the body scrolls, not the sheet */
+}
+.rv-modal-body {
+  min-height: 0;           /* lets it shrink inside the flex column */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.rv-modal .modal-actions {
+  flex-shrink: 0;          /* never scrolled away */
+  margin-bottom: 0;
+}
+
+/* ── UX-3: compact booking cards on phones. The generic narrow-screen rules
+   in styles.css stack every cell as a label:value line (8 lines a booking);
+   the waiter's actual question is "who's coming at 2?", so the same cells
+   are re-laid-out on a 12-column grid into three lines:
+
+     Guest Name ──────────────────  [status]
+     date · time · guests · table · phone
+     [Confirm] [Cancel]
+
+   The DOM is untouched — only placement changes, so table behaviour tests
+   and the desktop layout are unaffected. */
+@media (max-width: 768px) {
+  .rv-compact tr {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    column-gap: 6px;
+    row-gap: 4px;
+  }
+  .rv-compact td {
+    display: block;
+    border: none;
+    padding: 0;
+    font-size: .82rem;
+    text-align: left;
+    white-space: normal;
+  }
+  .rv-compact td::before { content: none; } /* no per-cell labels */
+  .rv-compact td:not(:last-child) { border-bottom: none; }
+
+  .rv-compact td[data-label="Guest"]   { grid-area: 1 / 1 / 2 / 9;  font-weight: 700; font-family: inherit; }
+  .rv-compact td[data-label="Status"]  { grid-area: 1 / 9 / 2 / 13; justify-self: end; }
+  .rv-compact td[data-label="Date"]    { grid-area: 2 / 1 / 3 / 4;  color: var(--text-muted); }
+  .rv-compact td[data-label="Time"]    { grid-area: 2 / 4 / 3 / 6;  color: var(--text-muted); }
+  .rv-compact td[data-label="Guests"]  { grid-area: 2 / 6 / 3 / 8;  color: var(--text-muted); }
+  .rv-compact td[data-label="Table"]   { grid-area: 2 / 8 / 3 / 10; color: var(--text-muted); }
+  .rv-compact td[data-label="Contact"] { grid-area: 2 / 10 / 3 / 13; color: var(--text-muted); text-align: right; }
+  .rv-compact td[data-label="Actions"] { grid-area: 3 / 1 / 4 / 13; justify-content: flex-start; margin-top: 2px; padding-top: 0; }
+
+  /* mid-line separators: date · time · guests · table */
+  .rv-compact td[data-label="Date"]::after,
+  .rv-compact td[data-label="Time"]::after,
+  .rv-compact td[data-label="Guests"]::after,
+  .rv-compact td[data-label="Table"]::after { content: "·"; margin-left: 6px; color: var(--text-muted); opacity: .6; }
+}
+/* The empty-state row (colspan) must still span the card. */
+@media (max-width: 768px) {
+  .rv-compact td[colspan] { grid-column: 1 / -1; }
+}
