@@ -163,3 +163,42 @@ review, paid-check bail also drops the stale screen, fresh entry untouched),
 `MenuViewTakeawayToast.test.js` (4 — unavailable toast, label rename,
 confirm-when-ticketed, instant-when-empty), AppLayout bottom-nav pinning (2),
 OrdersView filter contents updated (1).
+
+---
+
+## 8. The polish backlog (item 6) — closed in source; deploy pending CI restoration
+
+BUG-4, UX-3 and UX-4 are implemented and pinned by
+`tests/unit/components/WaiterPolish.test.js` (9 new; suite 404 → 413),
+commits `762147f` + `ae9f1be` on master. A production build was made and
+inspected locally: the compact-card CSS and the a11y attributes are all in
+the built chunks. **Not yet live**: every GitHub Actions run on the account
+now fails within ~3 seconds with zero steps executed (push, re-run and
+manual dispatch alike, three runs in a row) — the account's included Actions
+minutes are exhausted, so no job can start and nothing can deploy through
+CI. The account owner needs to raise the Actions spending limit (GitHub →
+Settings → Billing) and then re-run the failed run for `ae9f1be`; the
+commit is deploy-ready the moment a runner can pick it up. Live mobile
+re-verification on pos.fufutcoffee.com follows after that.
+
+- **BUG-4 (a11y).** The floating cart bar — the waiter's most-tapped
+  control — is now a real button: `role="button"`, `tabindex="0"`, a spoken
+  label naming the item count and total ("Open cart, 3 items, ETB 240"),
+  `aria-expanded`, and Enter/Space activation. The cart sheet's − / + / ✕
+  speak the dish they act on, with the quantity announced via
+  `aria-live`. The modifier sheet's Quantity stepper is named, grouped
+  under its label, and announces its value. The New Reservation form's
+  seven labels are programmatically linked to their inputs (`for`/`id`) —
+  the a11y tree showed bare `textbox` / `spinbutton "0"` before.
+- **UX-3 (compact cards).** Orders and Reservations no longer stack every
+  cell as a label:value line on phones (~12 lines a ticket, 8 a booking).
+  Both tables carry compact-card hooks (`ov-compact` / `rv-compact`) that
+  re-lay the same DOM on a 12-column grid into 4–5 scannable lines: id or
+  guest + status badge; an items or date·time·guests·table·phone line; a
+  money line; muted extras; actions. DOM untouched — desktop unchanged,
+  and the table-behaviour tests still pass as-is.
+- **UX-4 (modal fit).** The New Reservation sheet pinned nothing: it
+  scrolled as one block, so on an SE-class phone the Create button started
+  below the fold. The sheet now keeps its title and its actions fixed and
+  scrolls only the form body (`.rv-modal-body`), so Create is always on
+  screen no matter the phone's height.
