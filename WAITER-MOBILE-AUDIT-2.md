@@ -107,3 +107,59 @@ Table 3 released. The "Mobile Walkthrough" reservation remains as a **cancelled*
 4. **BUG-3** — toast on unavailable-dish tap
 5. **UX-2** — Open Checks into the bottom-nav priority list for roles that hold it
 6. **BUG-4 / UX-3 / UX-4** — a11y labels, compact cards, modal fit — polish backlog
+
+---
+
+## 7. Fixes closed — same day (commit 736a663, deployed as index-CQGokeB9.js)
+
+Items 1–5 of the priority order above are fixed, deployed and re-verified live
+through the same screens that found them. 9 new tests; suite 385 passing across
+38 files. The polish backlog (item 6) remains open.
+
+- **BUG-1 (P1) — the stale success screen.** The fix went one step wider than
+  the audit's suggestion and drops a `success` step on **every** Checkout
+  mount, not just when hydrating: the receipt payload (`lastPayload`) lives in
+  the component instance, so a remounted success screen is *always* stale —
+  its Print Receipt would print an empty payload even when the order id looked
+  right. One guard in `onMounted` (`if (store.checkoutStep === 'success')
+  store.checkoutStep = 'cart'`) covers all three entry paths — Open Checks →
+  Settle, a table's Go to Checkout, and walking in from the cart.
+  **Re-verified live, the exact repro:** settled check A (ETB 70, Table 3) →
+  navigated away via the bottom nav (no New Order tap) → fired a second round
+  (Espresso, ETB 150) → Open Checks → Settle → landed on the **Review step**
+  with the new check's money, zero trace of order A's confirmation → paid it
+  in the same session. Success screen then showed the *second* order's id.
+- **UX-1 — "Change" renamed and confirm-guarded.** The button now says
+  **Make Takeaway**, and when the ticket has lines a confirm dialog spells
+  out the consequence ("Table 3 comes off this order… the kitchen ticket will
+  show no table"); an empty ticket still unbinds instantly, so the harmless
+  case keeps no friction. **Verified live:** tapped it with an Espresso on
+  the ticket → dialog appeared, table stayed bound → "Keep Table 3" dismissed
+  it without changes.
+- **BUG-2 — Served is filterable.** The Orders select now offers
+  `Served` (between Ready and Fulfilled; filtering is client-side against
+  `o.status`, so the option was all that was missing). **Verified live:**
+  filtering Served returned exactly this walk's two settled checks.
+- **BUG-3 — unavailable taps speak.** Tapping an unavailable card now toasts
+  "<Dish> is unavailable right now" (info level) instead of silently doing
+  nothing. **Verified live:** tapped Pizza → toast appeared, cart untouched.
+- **UX-2 — Open Checks pinned in the bottom bar.** `BOTTOM_PRIORITY` is now
+  `tables, orders, open-checks, menu-view, checkout, dashboard`; the bar caps
+  at five, so **Dashboard** — the one information-only view of the six —
+  moves behind the hamburger drawer, still one tap away, while the waiter's
+  money screen is one thumb-tap from anywhere. Roles that don't hold
+  open-checks see no change. **Verified live:** the bar reads
+  Tables · Orders · Open Checks · Menu View · Checkout · More.
+- **Zero console or page errors** across the entire verification walk.
+
+Test data reverted as before: `O0257f9a` (70) and `Ob274cee` (150) voided as
+manager with auto-refund (refund rows PMbd4039b8, PM72c8c7ca), Table 3 freed,
+floor back to 10/10 available, 0 open checks. Screenshots of every
+verification step: `download/role-audits/shots/mobile-waiter-fixes/` (11
+shots). Cleanup script: `scripts/mobile-waiter-fixes-cleanup.sh`.
+
+Regression tests added: `CheckoutStaleSuccess.test.js` (3 — hydrate lands on
+review, paid-check bail also drops the stale screen, fresh entry untouched),
+`MenuViewTakeawayToast.test.js` (4 — unavailable toast, label rename,
+confirm-when-ticketed, instant-when-empty), AppLayout bottom-nav pinning (2),
+OrdersView filter contents updated (1).
