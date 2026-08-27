@@ -143,11 +143,19 @@ function parseTime(t) {
 function formatDuration(e) {
   const inAt = e.clockIn || e.clock_in
   if (!inAt) return '—'
-  const a = parseTime(inAt)
-  if (!a) return '—'
   const outAt = e.clockOut || e.clock_out
-  const b = outAt ? parseTime(outAt) : new Date()
-  if (!b) return '—'
+  let a = parseTime(inAt)
+  let b = outAt ? parseTime(outAt) : new Date()
+  // An open shift's live duration must not depend on the device's timezone.
+  // clock_in is shop wall-clock (UTC+3) and new Date() is the device clock, so
+  // on a device set anywhere else the subtraction goes negative and the row
+  // reads '—'. `created` is a real instant recorded at clock-in; anchor the
+  // open end on it when it is there.
+  if (!outAt && a && e.created) {
+    const created = new Date(e.created)
+    if (!isNaN(created.getTime())) { a = created; b = new Date() }
+  }
+  if (!a || !b) return '—'
   const diffMs = b - a
   if (diffMs < 0) return '—'
   const totalMin = Math.floor(diffMs / 60000)

@@ -32,9 +32,12 @@ vi.mock('../../../src/stores/auth', () => ({
 
 import TimeClockView from '../../../src/views/TimeClockView.vue'
 
+const NOW = Date.now()
+const iso = (minutesAgo) => new Date(NOW - minutesAgo * 60000).toISOString()
+
 const HISTORY = [
-  { id: 'TC1', staffId: 'S1', date: '2026-08-27', clockIn: '08:20', clockOut: '12:04', hours: 3.7, status: 'completed' },
-  { id: 'TC2', staffId: 'S1', date: '2026-08-26', clockIn: '09:00', clockOut: null, hours: 0, status: 'active' },
+  { id: 'TC1', staffId: 'S1', date: '2026-08-27', clockIn: '08:20', clockOut: '12:04', hours: 3.7, status: 'completed', created: iso(600) },
+  { id: 'TC2', staffId: 'S1', date: '2026-08-26', clockIn: '09:00', clockOut: null, hours: 0, status: 'active', created: iso(90) },
 ]
 
 const refused = (status = 403) => {
@@ -89,6 +92,26 @@ describe('TimeClockView — my recent shifts', () => {
     // The roster is a permission the waiter does not hold.
     expect(wrapper.find('.table-wrap').exists()).toBe(false)
     expect(mockApiGet).toHaveBeenCalledWith('timeclock/me/history')
+  })
+
+  it('times an open shift from its recorded instant, not the device clock', async () => {
+    // clock_in is shop wall-clock; on a device set outside UTC+3 comparing it
+    // to Date.now() goes negative and the row read '—'. The `created` instant
+    // is timezone-proof: 30 minutes ago must read 0h 30m whatever the runner's
+    // clock says — and however far '00:01' is from local midnight.
+    const open = {
+      id: 'TC9', staffId: 'S1', date: '2026-08-27', clockIn: '00:01', clockOut: null,
+      hours: 0, status: 'active', created: iso(30),
+    }
+    mockApiGet.mockImplementation((endpoint) => {
+      if (endpoint === 'timeclock/me') return Promise.resolve({ clockedIn: true, entry: open })
+      if (endpoint === 'timeclock/me/history') return Promise.resolve({ ok: true, entries: [open] })
+      return refused()
+    })
+
+    const wrapper = await mountView()
+
+    expect(wrapper.find('.tc-history').text()).toContain('0h 30m')
   })
 
   it('keeps the state card working when the history read fails', async () => {
