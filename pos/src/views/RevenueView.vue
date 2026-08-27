@@ -47,6 +47,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { apiGet, TODAY } from '../api'
+import { isRealOrder } from '../lib/formatters'
 let _Chart = null
 async function _loadChart() {
   if (!_Chart) {
@@ -65,12 +66,25 @@ const dateTo = ref(TODAY())
 const dailyBreakdown = ref([])
 let charts = {}
 
-const totalRev = computed(() => orders.value.reduce((s, o) => s + parseFloat(o.total||0), 0))
-const avgOrder = computed(() => orders.value.length ? totalRev.value / orders.value.length : 0)
+/**
+ * The orders the selected date range actually covers, voided and cancelled
+ * tickets excluded — the same isRealOrder rule as Dashboard and Reports.
+ * Every figure on this screen reads from here; before it existed the KPI row
+ * summed ALL history (ETB 51,567 / 145 orders) no matter which dates were
+ * picked, while the daily table quietly filtered by date underneath it.
+ */
+const filteredOrders = computed(() => orders.value.filter(o => {
+  if (!isRealOrder(o)) return false
+  const d = (o.created || '').slice(0, 10)
+  return d >= dateFrom.value && d <= dateTo.value
+}))
+
+const totalRev = computed(() => filteredOrders.value.reduce((s, o) => s + parseFloat(o.total||0), 0))
+const avgOrder = computed(() => filteredOrders.value.length ? totalRev.value / filteredOrders.value.length : 0)
 // Fix #14: Break down by individual payment method
 const paymentBreakdown = computed(() => {
   const m = {}
-  for (const o of orders.value) {
+  for (const o of filteredOrders.value) {
     const methods = (o.payment || 'unknown').split('+')
     for (const method of methods) {
       const key = method.trim()
@@ -101,7 +115,7 @@ async function loadRevenue() {
 
 function buildDailyBreakdown() {
   const map = {}
-  orders.value.forEach(o => {
+  filteredOrders.value.forEach(o => {
     const d = o.created?.slice(0,10)
     if (d && d >= dateFrom.value && d <= dateTo.value) {
       if (!map[d]) map[d] = { date: d, count: 0, revenue: 0, cash: 0, card: 0 }

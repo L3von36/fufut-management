@@ -43,7 +43,7 @@
 
     <div v-if="activeTab === 'today'">
       <div class="summary-grid">
-        <div class="summary-card"><div class="num">{{ drawers.length }}</div><div class="lbl">Today's Drawers</div></div>
+        <div class="summary-card"><div class="num">{{ todaysDrawers.length }}</div><div class="lbl">Today's Drawers</div></div>
         <div class="summary-card"><div class="num" style="color:var(--success)">ETB {{ todayCashSales }}</div><div class="lbl">Cash Sales</div></div>
         <div class="summary-card"><div class="num" :style="{color: totalVariance >= 0 ? 'var(--success)' : 'var(--danger)'}">{{ totalVariance >= 0 ? '+' : '' }}{{ totalVariance }}</div><div class="lbl">Total Variance</div></div>
       </div>
@@ -55,7 +55,7 @@
               <tr><th>Shift</th><th>Opened</th><th>Opening Bal</th><th>Cash Sales</th><th>Closing Bal</th><th>Expected</th><th>Variance</th><th>Actions</th></tr>
             </thead>
             <tbody>
-              <tr v-for="d in drawers" :key="d.id">
+              <tr v-for="d in todaysDrawers" :key="d.id">
                 <td data-label="Shift"><strong>{{ d.shift || d.id }}</strong></td>
                 <td data-label="Opened">{{ d.opened || d.opened_at ? new Date(d.opened || d.opened_at).toLocaleString() : '—' }}</td>
                 <td data-label="Opening">ETB {{ parseFloat(d.openingBal || d.opening_balance || 0).toFixed(0) }}</td>
@@ -67,11 +67,11 @@
                   <button class="btn btn-sm btn-ghost" @click="printZReport(d)" title="Print Thermal Z-Report">🖨️ Z-Report</button>
                 </td>
               </tr>
-              <tr v-if="!drawers.length"><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">No drawer records</td></tr>
+              <tr v-if="!todaysDrawers.length"><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">No drawer records</td></tr>
             </tbody>
           </table>
         </div>
-        <div class="pagination"><span>{{ drawers.length }} drawer(s)</span></div>
+        <div class="pagination"><span>{{ todaysDrawers.length }} drawer(s) today</span></div>
       </div>
     </div>
 
@@ -128,8 +128,8 @@
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
           <div v-for="note in [200, 100, 50, 20, 10, 5]" :key="note" class="form-group" style="margin:0">
-            <label style="font-size:.78rem;font-weight:600">{{ note }} ETB Notes</label>
-            <input type="number" min="0" v-model.number="denominations[note]" placeholder="0" class="input input-sm" @input="recalcClosingBal" />
+            <label style="font-size:.78rem;font-weight:600" :for="'zcount-' + note">{{ note }} ETB Notes</label>
+            <input :id="'zcount-' + note" :aria-label="note + ' ETB note count'" type="number" min="0" v-model.number="denominations[note]" placeholder="0" class="input input-sm" @input="recalcClosingBal" />
           </div>
         </div>
 
@@ -140,6 +140,8 @@
         <div v-if="closingBal && activeDrawer" style="font-size:.85rem;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Opening Float:</span> <strong>ETB {{ parseFloat(activeDrawer.openingBal||0).toFixed(0) }}</strong></div>
           <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Cash Sales:</span> <strong>ETB {{ cashSales }}</strong></div>
+          <div v-if="paidIn" style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Paid-In:</span> <strong>ETB {{ paidIn.toFixed(0) }}</strong></div>
+          <div v-if="paidOut" style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Paid-Out:</span> <strong>ETB {{ paidOut.toFixed(0) }}</strong></div>
           <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Expected Cash:</span> <strong>ETB {{ expectedClose }}</strong></div>
           <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px">
             <span>Net Variance:</span>
@@ -241,24 +243,65 @@ function recalcClosingBal() {
   if (sum > 0) closingBal.value = sum
 }
 
+const drawerNum = (d, ...keys) => {
+  if (!d) return 0
+  for (const k of keys) { const v = parseFloat(d[k]); if (Number.isFinite(v)) return v }
+  return 0
+}
+
 const cashSales = computed(() => {
   if (!activeDrawer.value) return '0'
-  return parseFloat(activeDrawer.value.cashSales || activeDrawer.value.cash_sales || 0).toFixed(0)
+  return drawerNum(activeDrawer.value, 'cashSales', 'cash_sales').toFixed(0)
 })
 
+const paidIn = computed(() => drawerNum(activeDrawer.value, 'paid_in'))
+const paidOut = computed(() => drawerNum(activeDrawer.value, 'paid_out'))
+
+/**
+ * What the till should hold right now. Mirrors the server's close-time formula
+ * (opening + cash sales + paid-in - paid-out, migration 020) so the figure the
+ * cashier counts against is the same one the Z-count will judge them by.
+ * Showing only opening + cash sales made every paid-in/out read as a variance
+ * the moment the drawer was closed.
+ */
 const expectedClose = computed(() => {
   if (!activeDrawer.value) return '0'
-  const ob = parseFloat(activeDrawer.value.openingBal || activeDrawer.value.opening_balance || 0)
-  const cs = parseFloat(activeDrawer.value.cashSales || activeDrawer.value.cash_sales || 0)
-  return (ob + cs).toFixed(0)
+  const expected = drawerNum(activeDrawer.value, 'openingBal', 'opening_balance')
+    + drawerNum(activeDrawer.value, 'cashSales', 'cash_sales')
+    + paidIn.value
+    - paidOut.value
+  return expected.toFixed(0)
+})
+
+/** Local calendar day of a drawer's opening, "" when unknown. */
+function drawerLocalDay(d) {
+  const raw = d && (d.opened || d.opened_at || d.created)
+  if (!raw) return ''
+  const dt = new Date(raw)
+  if (Number.isNaN(dt.getTime())) return String(raw).slice(0, 10)
+  const m = String(dt.getMonth() + 1).padStart(2, '0')
+  const day = String(dt.getDate()).padStart(2, '0')
+  return `${dt.getFullYear()}-${m}-${day}`
+}
+
+/**
+ * Drawers opened today, on this device's clock. The tab is called "Today's
+ * Drawers", and until now it listed every drawer the account had ever closed,
+ * so a fresh morning shift opened onto days-old counts and cash sales. Full
+ * history stays on the Z-Report tab.
+ */
+const todaysDrawers = computed(() => {
+  const t = new Date()
+  const key = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+  return drawers.value.filter(d => drawerLocalDay(d) === key)
 })
 
 const todayCashSales = computed(() => {
-  return drawers.value.filter(d => d.status === 'closed').reduce((s, d) => s + parseFloat(d.cashSales || d.cash_sales || 0), 0).toFixed(0)
+  return todaysDrawers.value.filter(d => d.status === 'closed').reduce((s, d) => s + drawerNum(d, 'cashSales', 'cash_sales'), 0).toFixed(0)
 })
 
 const totalVariance = computed(() => {
-  return drawers.value.reduce((s, d) => s + parseFloat(d.variance || 0), 0).toFixed(0)
+  return todaysDrawers.value.reduce((s, d) => s + drawerNum(d, 'variance'), 0).toFixed(0)
 })
 
 onMounted(loadData)

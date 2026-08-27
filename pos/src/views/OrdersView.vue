@@ -55,7 +55,11 @@
               <td data-label="Items">{{ formatOrderItems(o.items) }}</td>
               <td data-label="Total">
                 <span style="font-family:var(--font-mono);font-weight:600">ETB {{ parseFloat(o.total||0).toFixed(0) }}</span>
-                <div v-if="o.subtotal && parseFloat(o.subtotal) !== parseFloat(o.total)" style="font-size:.72rem;color:var(--text-muted);text-decoration:line-through">
+                <!-- Strike-through reads as "was discounted from". A total that
+                     only differs from the subtotal because of a TIP is not a
+                     discount — showing the food price crossed out there made
+                     settled tickets look repriced. -->
+                <div v-if="o.discount > 0 && o.subtotal && parseFloat(o.subtotal) !== parseFloat(o.total)" style="font-size:.72rem;color:var(--text-muted);text-decoration:line-through">
                   ETB {{ parseFloat(o.subtotal).toFixed(0) }}
                 </div>
               </td>
@@ -398,6 +402,12 @@ async function processPayment() {
     })
     const res = await apiPost('orders', payload)
     if (res.ok || res.id) {
+      // The sale is finished, so the cart must be too. Leaving paid lines in
+      // the store meant the next order — a quick sale, a table tab, anything
+      // built afterwards — silently inherited them and could bill a guest for
+      // food somebody else already paid for. resetFull also drops the
+      // persisted copy, so the ghost items do not survive a reload either.
+      orderStore.resetFull()
       // Auto-mark table occupied in database & state
       if (newOrder.value.type === 'dine-in' && newOrder.value.tableNum) {
         const match = tables.value.find(t => String(t.number) === String(newOrder.value.tableNum))

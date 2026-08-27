@@ -144,8 +144,12 @@ export const useOrderStore = defineStore('order', () => {
   const calculatedTip = computed(() => {
     if (tipType.value === 'none') return 0
     if (tipType.value === 'fixed') return Math.max(0, tipAmount.value || 0)
-    // percentage
-    return Math.round(subtotal.value * (tipPercent.value || 0) / 100 * 100) / 100
+    // Percentage tips are rounded to whole birr. A 10% tip on ETB 205 used to
+    // book 20.5 while every screen showed "21" and the quick-tender Exact
+    // button offered ceil(225.5) = 226 — three numbers for one bill, and half
+    // a birr of change nobody can count. Fractional birr is not money that
+    // changes hands here, so the tip becomes what it always displayed as.
+    return Math.round(subtotal.value * (tipPercent.value || 0) / 100)
   })
 
   // ─── Phase 2: Discount Computed ───

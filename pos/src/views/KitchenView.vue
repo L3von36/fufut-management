@@ -17,9 +17,9 @@
         </div>
         <!-- Fix #1: Sort toggle -->
         <div class="ks-sort">
-          <button class="ks-sort-btn" :class="{ active: sortBy === 'time' }" @click="sortBy = 'time'" title="Sort by time">🕐</button>
-          <button class="ks-sort-btn" :class="{ active: sortBy === 'table' }" @click="sortBy = 'table'" title="Sort by table">🪑</button>
-          <button class="ks-sort-btn" :class="{ active: sortBy === 'size' }" @click="sortBy = 'size'" title="Sort by order size">📏</button>
+          <button class="ks-sort-btn" :class="{ active: sortBy === 'time' }" @click="sortBy = 'time'" title="Sort by time" aria-label="Sort tickets by time waiting">🕐</button>
+          <button class="ks-sort-btn" :class="{ active: sortBy === 'table' }" @click="sortBy = 'table'" title="Sort by table" aria-label="Sort tickets by table">🪑</button>
+          <button class="ks-sort-btn" :class="{ active: sortBy === 'size' }" @click="sortBy = 'size'" title="Sort by order size" aria-label="Sort tickets by order size">📏</button>
         </div>
         <button class="btn btn-sm" :class="muted ? 'btn-danger' : 'btn-outline'" @click="toggleMute" :title="muted ? 'Unmute' : 'Mute'">
           <svg v-if="!muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46A4.5 4.5 0 0 1 18 12c0 1.21-.47 2.31-1.24 3.13l1.44 1.44A6.95 6.95 0 0 0 20 12c0-1.87-.73-3.58-1.93-4.84l-.03.03z"/></svg>

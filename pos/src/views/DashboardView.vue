@@ -225,7 +225,7 @@
           <div v-for="p in digitalPending.slice(0, 5)" :key="p.id" class="queue-item" style="display:flex;justify-content:space-between;align-items:center">
             <div>
               <strong>ETB {{ Math.round(p.amount || 0) }}</strong> · <span style="text-transform:uppercase;font-size:.8rem;font-weight:600">{{ p.method }}</span>
-              <div style="font-size:.75rem;color:var(--text-muted)">Ref: {{ p.reference || 'N/A' }} · Order #{{ shortId(p.orderId || '') }}</div>
+              <div style="font-size:.75rem;color:var(--text-muted)">Ref: {{ p.reference || 'N/A' }} · Order #{{ shortId(p.order_id || p.orderId || '') }}</div>
             </div>
             <button class="btn btn-sm btn-primary" @click="verifyDigitalPayment(p)">Verify</button>
           </div>
@@ -394,7 +394,16 @@ async function fetchShiftAudit() {
 async function fetchDigitalPending() {
   try {
     const res = await apiGet('payments?verified=false')
-    digitalPending.value = res.payments || (Array.isArray(res) ? res : [])
+    const rows = res.payments || (Array.isArray(res) ? res : [])
+    // The queue is for DIGITAL transfers that still need the till's say-so.
+    // Cash is verified on record the moment it is taken, and a refunded or
+    // rejected row is settled history — none of those belong here. The API
+    // filter is honoured too, but the screen defends itself so a stray row
+    // can never render a Verify button for money already settled.
+    digitalPending.value = rows.filter(p =>
+      String(p.status || '').toLowerCase() === 'recorded' &&
+      ['telebirr', 'cbe', 'bank', 'card', 'mobile'].includes(String(p.method || '').toLowerCase())
+    )
   } catch { digitalPending.value = [] }
 }
 

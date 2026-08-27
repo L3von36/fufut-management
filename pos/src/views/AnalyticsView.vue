@@ -232,6 +232,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch , inject} from 'vue'
 import { apiGet, TODAY } from '../api'
+import { isRealOrder } from '../lib/formatters'
 const toast = inject('toast')
 
 // ─── Chart.js lazy loader ───
@@ -282,14 +283,23 @@ function applyPreset() {
 }
 
 // ─── Date range filter ───
+// Real orders only (not voided, not cancelled) — the same rule the Dashboard
+// and Reports already apply. Counting voided tickets made the revenue tiles
+// read ~47x the truth during audit weeks full of training voids.
 const periodOrders = computed(() => {
   return orders.value.filter(o => {
+    if (!isRealOrder(o)) return false
     const d = (o.created || '').slice(0, 10)
     return d >= dateFrom.value && d <= dateTo.value
   })
 })
 
 const priorPeriodOrders = computed(() => {
+  // Render order: the KPI cards read aovTrend on the very first paint, before
+  // applyPreset has set the dates — new Date('') is Invalid and its
+  // toISOString() throws, killing the whole first render. No prior period
+  // exists until a range is picked.
+  if (!dateFrom.value || !dateTo.value) return []
   const days = dayDiff(dateFrom.value, dateTo.value) + 1
   const priorEnd = new Date(dateFrom.value)
   priorEnd.setDate(priorEnd.getDate() - 1)
@@ -298,6 +308,7 @@ const priorPeriodOrders = computed(() => {
   const ps = priorStart.toISOString().slice(0, 10)
   const pe = priorEnd.toISOString().slice(0, 10)
   return orders.value.filter(o => {
+    if (!isRealOrder(o)) return false
     const d = (o.created || '').slice(0, 10)
     return d >= ps && d <= pe
   })
@@ -360,11 +371,26 @@ const grossMarginPct = computed(() =>
 )
 
 // Fulfillment
+// A ticket is complete when the kitchen finished it AND the money settled.
+// 'fulfilled' is the whole-ticket button's word; a dine-in order settled at
+// the till after its food was served ends at 'served' + payment paid, which
+// is the same commercial fact — both count. (Cancelled orders are already
+// excluded from periodOrders; the rate below keeps its own raw denominator
+// for the cancellation card.)
+const isOrderComplete = (o) => {
+  const s = String(o.status || '').toLowerCase()
+  const paid = String(o.payment_status || o.payment || '').toLowerCase() === 'paid'
+  return s === 'fulfilled' || s === 'completed' || (s === 'served' && paid)
+}
+const inPeriod = (o) => {
+  const d = (o.created || '').slice(0, 10)
+  return d >= dateFrom.value && d <= dateTo.value
+}
 const fulfilledCount = computed(() =>
-  periodOrders.value.filter(o => o.status === 'fulfilled' || o.status === 'completed').length
+  periodOrders.value.filter(isOrderComplete).length
 )
 const cancelledCount = computed(() =>
-  periodOrders.value.filter(o => o.status === 'cancelled').length
+  orders.value.filter(o => String(o.status || '').toLowerCase() === 'cancelled' && inPeriod(o)).length
 )
 const fulfillmentRate = computed(() =>
   periodOrders.value.length ? Math.round((fulfilledCount.value / periodOrders.value.length) * 100) : 0
