@@ -233,6 +233,38 @@ describe('N4: dine-in orders cannot be paid without a table', () => {
     expect(store.checkoutStep).toBe('payment')
   })
 
+  it('settling an existing tableless check is not blocked by the guard', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const { useOrderStore } = await import('../../../src/stores/order')
+    const store = useOrderStore()
+    store.addItem({ menuItemId: 'M1', name: 'Split 1/2', basePrice: 130 })
+    store.orderType = 'dine-in'
+    store.tableNum = ''
+    // Open Checks → Settle sets this before hydrating the tab.
+    store.activeOpenOrderId = 'ORD-SPLIT-mtby2w6l-1'
+
+    mockApiGet.mockImplementation((ep) => {
+      if (ep === 'tables') return Promise.resolve([])
+      return Promise.resolve([])
+    })
+
+    const wrapper = mount(CheckoutView, {
+      global: {
+        plugins: [pinia],
+        provide: { toast: vi.fn(), confirm: vi.fn(() => Promise.resolve(true)) },
+        stubs: { ModifierSelectionSheet: true },
+      },
+    })
+    await flushPromises()
+
+    const btn = wrapper.findAll('button').find(b => b.text().includes('Continue to Payment'))
+    await btn.trigger('click')
+    await flushPromises()
+
+    expect(store.checkoutStep).toBe('payment')
+  })
+
   it('OrdersView quick-sale refuses Process Payment for a tableless dine-in', async () => {
     const wrapper = mount(OrdersView, globalConfig)
     await flushPromises()

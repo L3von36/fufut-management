@@ -845,10 +845,14 @@ const quickAmounts = computed(() => quickTenderAmounts(store.grandTotal))
 
 function goToPayment() {
   if (store.isEmpty) return
-  // A dine-in ticket without a table is an orphan: it shows on no floor plan,
-  // nobody knows where the food goes, and settling it was only possible from
-  // Open Checks. This is exactly how table-less checks piled up on Aug 24.
-  if (store.orderType === 'dine-in' && !store.tableNum) {
+  // A NEW dine-in ticket without a table is an orphan: it shows on no floor
+  // plan, nobody knows where the food goes, and settling it was only possible
+  // from Open Checks. This is exactly how table-less checks piled up on
+  // Aug 24. Settling an EXISTING check is exempt: the ticket was already
+  // fired that way (or is a split child, which inherits no table) and the
+  // cashier must not be forced to seat it retroactively to take the money.
+  const settlingExisting = !!store.activeOpenOrderId
+  if (!settlingExisting && store.orderType === 'dine-in' && !store.tableNum) {
     toast('Pick a table for a dine-in order, or switch to Takeaway', 'error')
     return
   }
