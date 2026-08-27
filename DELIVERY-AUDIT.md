@@ -95,12 +95,26 @@ a crafted anonymous order could under-price itself on a **public** endpoint.
 Not a delivery defect (the job collects what the order says); worth a
 server-side price validation pass on the public ordering path.
 
+> **FIXED 2026-08-27** (fufut-api `e874f97`, deployed): anonymous orders are
+> now priced from `menu_items` at creation — lines are repriced to the menu
+> price and spelling, unknown/unavailable dishes are refused, guest discounts
+> are dropped, optional additions clamped at ≥ 0, totals recomputed, status
+> forced to `new`, and payment/tip recording gated on a signed-in actor (a
+> guest can no longer settle their own order). Repricing is flagged in the
+> audit trail (`guest_repriced`). Verified live by replaying three attack
+> probes (under-priced espresso, self-marked completed+paid, invented dish) —
+> all neutralised; the honest website payload is accepted unchanged. Signed-in
+> staff (the POS path) keep the till's own totals, discounts and all.
+
 ## Known issues, accepted for now
 
 1. ~~**No delivery job exists to walk live**~~ — closed by the live run above.
 2. **Address shows "—"** on the seeded queue row — the delivery job has no
    address recorded. Data gap, not a screen defect. (The live-run job's
    address displayed correctly.)
-3. **Client-trusted pricing on the public order path** — the observation
-   above; recommend validating posted items/prices against the menu table
-   server-side.
+3. ~~**Client-trusted pricing on the public order path**~~ **FIXED 2026-08-27**
+   (fufut-api `e874f97`, deployed) — anonymous orders are repriced from
+   `menu_items` server-side; unknown dishes refused, discounts dropped for
+   guests, status forced to `new`, self-settlement (paymentBreakdown/tip rows)
+   blocked. Attack probes replayed live and neutralised; 17 regression tests
+   in `test/guest-pricing.test.js`, full suite 682 passing.

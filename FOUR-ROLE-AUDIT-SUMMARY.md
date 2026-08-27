@@ -107,8 +107,9 @@ All 8 roles in the matrix have now been audited on production:
    from the Delivery screen) → cashier settled the round (driver refused 403)
    → manager voided the training order with auto-refund. Full trail in
    DELIVERY-AUDIT.md. The run surfaced one new observation: posted order
-   totals/prices are client-trusted on the public ordering path (see
-   DELIVERY-AUDIT.md follow-up #3).
+   totals/prices are client-trusted on the public ordering path — **FIXED
+   2026-08-27** (fufut-api `e874f97`, deployed): anonymous orders are now
+   priced from `menu_items` server-side (see DELIVERY-AUDIT.md follow-up #3).
 3. **Decide where the accountant lives** — POS (today's answer) or
    backoffice (whose role map has no accountant entry).
 4. **Cleaner's Dashboard is thin** — renders, but most tiles are metrics the
