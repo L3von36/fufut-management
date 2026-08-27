@@ -12,7 +12,13 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
       </span>
       <span class="tcb-label">Ordering for <strong>Table {{ activeTable }}</strong></span>
-      <button class="tcb-clear" @click="clearTable" title="Not for a table (takeaway)">Change</button>
+      <!-- UX-1 (waiter mobile audit pass 2): the label said "Change", which
+           promises a table picker. What the button does is unbind the table
+           and silently turn the order into a takeaway — destructive once
+           items are on the ticket, and irreversible except by rebuilding the
+           context from Tables. Say what it does, and confirm when the order
+           already has lines. -->
+      <button class="tcb-clear" @click="makeTakeaway" title="Not for a table (takeaway)">Make Takeaway</button>
     </div>
 
     <!-- Sticky Category Tabs -->
@@ -237,6 +243,24 @@
           <div style="display:flex;gap:10px;justify-content:center">
             <button class="btn btn-danger" @click="clearOrder()">Yes, Clear All</button>
             <button class="btn btn-secondary" @click="showClearConfirm = false">Keep Items</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- UX-1: unbinding the table mid-order turns a dine-in ticket into a
+         takeaway with no table on the kitchen ticket — confirm it. -->
+    <transition name="cart-slide">
+      <div v-if="showTakeawayConfirm" class="qty-overlay" @click.self="showTakeawayConfirm = false">
+        <div class="qty-sheet" style="max-width:340px;text-align:center">
+          <div style="font-size:2.5rem;margin-bottom:12px">🥡</div>
+          <div style="font-size:1.1rem;font-weight:700;color:var(--text-heading);margin-bottom:8px">Make this a takeaway?</div>
+          <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:20px;line-height:1.5">
+            Table {{ activeTable }} comes off this order and it becomes a takeaway. The {{ orderStore.cartItemCount }} item{{ orderStore.cartItemCount !== 1 ? 's' : '' }} on the ticket stay, but the kitchen ticket will show no table.
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center">
+            <button class="btn btn-primary" @click="showTakeawayConfirm = false; clearTable()">Yes, Make Takeaway</button>
+            <button class="btn btn-secondary" @click="showTakeawayConfirm = false">Keep Table {{ activeTable }}</button>
           </div>
         </div>
       </div>
@@ -471,7 +495,13 @@ function storeCartCount(menuItemId) {
 
 // ─── Item click → modifier sheet or direct add ───
 function handleItemClick(item, qty = 1) {
-  if (item.available === false) return
+  // BUG-3 (waiter mobile audit pass 2): a tap on an unavailable dish used to
+  // return silently — on a phone the ribbon is small, so three dead taps read
+  // as a frozen app. Say why nothing happened.
+  if (item.available === false) {
+    toast(`${item.name} is unavailable right now`, 'info')
+    return
+  }
   if (hasModifiers(item)) {
     modifierTarget.value = item
     showModifierSheet.value = true
@@ -669,6 +699,18 @@ function clearTable() {
   orderStore.orderType = 'takeaway'
 }
 
+// UX-1: confirm before unbinding a table that already has a ticket — an empty
+// context is harmless to drop, but a fired-round's worth of lines with no
+// table means the kitchen prints a ticket the food runner can't deliver.
+const showTakeawayConfirm = ref(false)
+function makeTakeaway() {
+  if (orderStore.items.length) {
+    showTakeawayConfirm.value = true
+    return
+  }
+  clearTable()
+}
+
 // ─── Init ───
 // ─── Keyboard shortcuts ───
 // Escape closes cart / qty sheet; Enter opens checkout when cart has items.
@@ -676,6 +718,7 @@ function handleKeydown(e) {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return
   if (e.key === 'Escape') {
     if (qtyTarget.value) { qtyTarget.value = null; return }
+    if (showTakeawayConfirm.value) { showTakeawayConfirm.value = false; return }
     if (showClearConfirm.value) { showClearConfirm.value = false; return }
     if (showCart.value) { showCart.value = false; return }
   }

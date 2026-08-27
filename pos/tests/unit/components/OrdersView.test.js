@@ -51,9 +51,15 @@ describe('OrdersView', () => {
     const select = wrapper.find('select')
     expect(select.exists()).toBe(true)
     const options = select.findAll('option')
-    expect(options.length).toBe(6) // All + 5 statuses
+    // All + 6 statuses — 'served' added by the waiter mobile audit pass 2
+    // (BUG-2): settling a check sets that status, which the filter never
+    // offered, so a waiter filtering for "the table I just closed" found
+    // nothing.
+    expect(options.length).toBe(7)
     expect(options[0].text()).toBe('All Statuses')
     expect(options[1].text()).toBe('New')
+    expect(options.map(o => o.attributes('value')).join(','))
+      .toBe(',new,preparing,ready,served,fulfilled,cancelled')
   })
 
   it('should display orders in the table', async () => {

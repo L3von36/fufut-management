@@ -12,7 +12,10 @@ const PERMS = {
   cleaner: ['waste', 'dashboard'],
   'delivery-staff': ['delivery', 'dashboard'],
   'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory'],
-  manager: ['dashboard', 'orders', 'tables', 'menu-view', 'checkout', 'kitchen', 'waste', 'staff']
+  manager: ['dashboard', 'orders', 'tables', 'menu-view', 'checkout', 'kitchen', 'waste', 'staff'],
+  // UX-2 (waiter mobile audit pass 2): Open Checks is the waiter's money
+  // screen and belongs in the bottom bar, not three taps deep behind More.
+  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'checkout', 'timeclock']
 }
 
 let currentRole = 'cleaner'
@@ -91,5 +94,22 @@ describe('AppLayout bottom nav', () => {
   it('caps the bottom nav at 5 items for a broad role', () => {
     const wrapper = mountAs('manager')
     expect(wrapper.findAll('.bn-item:not(.bn-more)').length).toBeLessThanOrEqual(5)
+  })
+
+  it('pins Open Checks in the bottom bar for a role that holds it (head-waiter)', () => {
+    const wrapper = mountAs('head-waiter')
+    const labels = wrapper.findAll('.bn-item:not(.bn-more)').map(b => b.text())
+    expect(labels.length).toBe(5)
+    expect(labels.some(t => t.includes('Open Checks'))).toBe(true)
+    // Dashboard is the view that yields its slot — still reachable in the
+    // sidebar drawer.
+    expect(labels.some(t => t.includes('Dashboard'))).toBe(false)
+  })
+
+  it('keeps the bar unchanged for a role without open-checks', () => {
+    const wrapper = mountAs('cleaner')
+    const labels = wrapper.findAll('.bn-item:not(.bn-more)').map(b => b.text())
+    expect(labels.length).toBe(2)
+    expect(labels.some(t => t.includes('Open Checks'))).toBe(false)
   })
 })

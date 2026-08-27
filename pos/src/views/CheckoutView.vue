@@ -586,6 +586,16 @@ const isSelectedTableOccupied = computed(() => {
 })
 
 onMounted(async () => {
+  // Waiter mobile audit pass 2, BUG-1: a payment earlier in this SPA session
+  // leaves checkoutStep='success' on the shared order store, and nothing
+  // resets it on route-leave. Re-entering Checkout — via Open Checks →
+  // Settle, a table's Go to Checkout, or the cart — then rendered the
+  // PREVIOUS order's "Order Confirmed!" screen over the newly hydrated
+  // check, and the new check's money was unpayable until a full reload.
+  // The receipt payload (lastPayload) lives in the component instance, so a
+  // remounted 'success' step is always stale: drop it back to the review
+  // step so the screen being opened gets a fresh checkout.
+  if (store.checkoutStep === 'success') store.checkoutStep = 'cart'
   loadTables()
   hydrateOpenTab()
 })

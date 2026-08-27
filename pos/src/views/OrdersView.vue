@@ -16,6 +16,10 @@
           <option value="new">New</option>
           <option value="preparing">Preparing</option>
           <option value="ready">Ready</option>
+          <!-- BUG-2 (waiter mobile audit pass 2): settling a check sets the
+               order to 'served', which the filter never offered — a waiter
+               looking for "the table I just closed" by status found nothing. -->
+          <option value="served">Served</option>
           <option value="fulfilled">Fulfilled</option>
           <option value="cancelled">Cancelled</option>
         </select>

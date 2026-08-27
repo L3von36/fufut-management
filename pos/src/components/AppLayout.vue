@@ -190,8 +190,14 @@ const navSections = computed(() => {
   return sections
 })
 
-// Priority views for bottom nav (most-used by any role)
-const BOTTOM_PRIORITY = ['tables', 'orders', 'menu-view', 'checkout', 'dashboard']
+// Priority views for bottom nav (most-used by any role).
+// UX-2 (waiter mobile audit pass 2): 'open-checks' pinned ahead of
+// 'dashboard' — Open Checks is the waiter's money screen (what's owed;
+// settle, split, move, merge) and lived three taps away behind More.
+// Dashboard is the one information-only view of the six, and stays one tap
+// away in the sidebar drawer; the bar still adapts per role, so roles that
+// don't hold a view never see it.
+const BOTTOM_PRIORITY = ['tables', 'orders', 'open-checks', 'menu-view', 'checkout', 'dashboard']
 
 const bottomItems = computed(() => {
   const priorityViews = BOTTOM_PRIORITY.filter(v => allowedItems.value.some(i => i.view === v))
