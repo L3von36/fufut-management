@@ -61,8 +61,11 @@ naming role and resource. The parallel holes on `POST /api/reservations` and
 
 ## Known issues, accepted for now
 
-1. ~~**The cleaner's Dashboard is thin**~~ **FIXED 2026-08-27** (commit pending,
-   deployed via `build-pos` CI): the Dashboard now carries the role's whole
+1. ~~**The cleaner's Dashboard is thin**~~ **FIXED 2026-08-27** (`7cf5ea6`,
+   deployed via `build-pos` CI, assets `a2aa932`; verified live end to end —
+   entry logged through the Waste screen's own form as Asnegash, tiles and
+   card picked it up (Waste Logged Today 1 / ETB 5, Last Entry "just now"),
+   zero console errors, entry then deleted as manager): the Dashboard now carries the role's whole
    day, all from reads the matrix grants. Re-verified live first: production
    already rendered the two floor tiles (Tables to Clean, Occupied Tables) and
    nothing the role cannot read — the "kitchen/sales metrics" wording in the
