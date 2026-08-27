@@ -73,16 +73,23 @@ async function tryFetch(url, options, retries = MAX_RETRIES) {
         return tryFetch(url, options, retries - 1)
       }
 
+      // A refusal from the server is an answer, not an outage. Marking it so
+      // the offline-retry paths can tell the difference: without the flag the
+      // catch below re-caught this thrown HTTP error and retried it as though
+      // the network had hiccupped — three identical failing writes and 1.5s of
+      // dead air before the caller ever heard the refusal.
       const err = new Error(errMsg)
       err.status = r.status
       err.data = errData
+      err.httpError = true
       throw err
     }
     return r.json()
   } catch (e) {
-    // Retry on network errors (not timeouts/aborts) for non-auth endpoints
+    // Retry on network errors (not timeouts/aborts, and not refusals the
+    // !r.ok branch above threw with httpError set) for non-auth endpoints
     const isAuthEndpoint = url.includes('/auth/')
-    const isNetworkError = e.name !== 'AbortError' && !isAuthEndpoint
+    const isNetworkError = !e.httpError && e.name !== 'AbortError' && !isAuthEndpoint
     if (isNetworkError && retries > 0) {
       const retryDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, MAX_RETRIES - retries)
       console.warn(`Retrying ${options?.method || 'GET'} ${url} (network error), attempt ${MAX_RETRIES - retries + 2}/${MAX_RETRIES + 1} in ${retryDelay}ms`)
@@ -143,6 +150,11 @@ export async function apiPost(endpoint, data) {
   } catch (e) {
     // Don't queue auth mutations — login/logout/password changes must surface errors
     if (endpoint.startsWith('auth/')) throw e
+    // The server answered and said no. Queueing that answer would replay the
+    // same refused write every 30s forever while telling the caller it
+    // succeeded — a waiter's blocked table claim used to become a fake
+    // "offline" success exactly this way. Refusals go back to the caller.
+    if (e && e.status) throw e
     // Queue for later sync
     await queueMutation('POST', endpoint, data)
     // Return optimistic response
@@ -160,6 +172,9 @@ export async function apiPut(endpoint, data) {
       body: JSON.stringify(data)
     })
   } catch (e) {
+    // See apiPost: a status-carrying error is the server refusing, not the
+    // network failing. Never queue a refusal as a pending write.
+    if (e && e.status) throw e
     await queueMutation('PUT', endpoint, data)
     return { ok: true, _offline: true }
   }
@@ -177,9 +192,17 @@ export async function apiDelete(endpoint, id) {
       signal: controller.signal,
       body: JSON.stringify(id ? { id } : undefined)
     })
-    if (!r.ok) throw new Error(`DELETE ${endpoint} ${r.status}`)
+    if (!r.ok) {
+      // Same refusal/not-outage rule as the other verbs: carry the status so
+      // the catch below can refuse cleanly instead of queueing the delete.
+      const err = new Error(`DELETE ${endpoint} ${r.status}`)
+      err.status = r.status
+      err.httpError = true
+      throw err
+    }
     return r.json()
   } catch (e) {
+    if (e && e.status) throw e
     const body = id ? { id } : undefined
     await queueMutation('DELETE', endpoint, body)
     return { ok: true, _offline: true }
@@ -198,6 +221,8 @@ export async function apiPatch(endpoint, data) {
       body: JSON.stringify(data)
     })
   } catch (e) {
+    // See apiPost: refusals (e.status set) must reach the caller, not the queue.
+    if (e && e.status) throw e
     await queueMutation('PATCH', endpoint, data)
     return { ok: true, _offline: true }
   }

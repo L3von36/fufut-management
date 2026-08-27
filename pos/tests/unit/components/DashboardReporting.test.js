@@ -266,3 +266,69 @@ describe('cleaner dashboard', () => {
     expect(text).toContain('No waste logged yet today')
   })
 })
+
+describe('waiter dashboard', () => {
+  const WTABLES = [
+    { id: 'T1', number: 1, status: 'available' },
+    { id: 'T3', number: 3, status: 'occupied', guests: 2 },
+  ]
+  // The day's orders as the waiter's dashboard sees them: one settled and
+  // paid bill (finished — nothing left to do), one served-but-unpaid tab
+  // (money to collect — very much open), one still new.
+  const WORDERS = [
+    { id: 'O1', status: 'served', payment_status: 'paid', payment: 'paid', total: 704, created: '2026-08-10 12:00:00' },
+    { id: 'O2', status: 'served', payment_status: 'unpaid', payment: 'unpaid', total: 320, created: '2026-08-10 12:30:00' },
+    { id: 'O3', status: 'new', payment_status: 'unpaid', payment: 'unpaid', total: 150, created: '2026-08-10 12:45:00' },
+  ]
+
+  const waiterRoutes = (endpoint) => {
+    if (endpoint === 'tables') return Promise.resolve(WTABLES)
+    if (endpoint === 'reservations') return Promise.resolve([])
+    if (endpoint === 'orders') return Promise.resolve(WORDERS)
+    return Promise.resolve([])
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setActivePinia(createPinia())
+    currentRole = 'head-waiter'
+    currentPermissions = ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'checkout', 'timeclock']
+    mockApiGet.mockImplementation(waiterRoutes)
+  })
+
+  afterEach(() => { currentPermissions = null })
+
+  const open = async () => {
+    const w = mount(DashboardView, globalConfig)
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    return w
+  }
+
+  const tileValue = (w, label) => {
+    const cards = w.findAll('.kpi-card')
+    const card = cards.find((c) => c.text().includes(label))
+    return card?.find('.kpi-value')?.text()
+  }
+
+  it('counts unpaid tabs as open orders but not settled, paid bills', async () => {
+    const w = await open()
+    // O2 (served, unpaid) and O3 (new) are open — O1 is paid and finished.
+    expect(tileValue(w, 'Open Orders')).toBe('2')
+  })
+
+  it('shows the seated guests on the Active Tables tile', async () => {
+    const w = await open()
+    expect(tileValue(w, 'Active Tables')).toBe('1')
+    expect(w.text()).toContain('2 guests seated')
+  })
+
+  it('falls back to the same paid-excluding count when a tile fetch fails', async () => {
+    mockApiGet.mockImplementation((e) =>
+      e === 'tables' || e === 'reservations' ? Promise.reject(new Error('503')) : waiterRoutes(e)
+    )
+    const w = await open()
+    expect(tileValue(w, 'Open Orders')).toBe('2')
+  })
+})

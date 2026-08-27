@@ -568,6 +568,15 @@ async function claimTable(tableNum) {
     // blocking the order over it would be worse than letting it through.
     if (!match) return true
 
+    // Already seated: this order belongs to the party already at the table.
+    // The normal flow hits this constantly — a waiter seats the party from
+    // the table sheet first, then comes here to fire their order — and the
+    // old code answered that flow with a 409 ("already has a party seated")
+    // which the api layer then swallowed as a fake offline success, leaving
+    // a poisoned write in the sync queue. CheckoutView already skips the
+    // claim for occupied tables; this is the same rule.
+    if (String(match.status || '').toLowerCase() === 'occupied') return true
+
     await apiPut('tables/' + match.id, {
       ...match,
       status: 'occupied',

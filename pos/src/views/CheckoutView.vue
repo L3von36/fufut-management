@@ -489,6 +489,18 @@
             Print Receipt
           </button>
           <button class="btn btn-secondary" @click="newOrder">New Order</button>
+          <!-- Freeing the table is the waiter's next physical act after the
+               guest pays, but the only Free Up button used to sit on the
+               review step — reachable only BEFORE payment. Once the success
+               screen appeared there was no way back to it, and the floor plan
+               accumulated occupied tables nobody remembered to clear. -->
+          <button
+            v-if="store.orderType === 'dine-in' && store.tableNum && !successTableFreed"
+            class="btn btn-outline"
+            @click="promptFreeTable(store.tableNum)"
+          >
+            Free Up Table {{ store.tableNum }}
+          </button>
           <button class="btn btn-outline" @click="$router.push('/app/dashboard')">Back to Dashboard</button>
         </div>
       </div>
@@ -557,6 +569,9 @@ const showAllTables = ref(false)
 const showClearConfirm = ref(false)
 // Fix #16: Free up table confirmation
 const showFreeConfirm = ref(null)
+// Set once the success screen's Free Up button has done its job, so the button
+// retires instead of offering to free an already-free table.
+const successTableFreed = ref(false)
 
 const availableTables = computed(() => {
   if (showAllTables.value) return tables.value
@@ -639,6 +654,7 @@ async function confirmFreeTable() {
     match.server = ''
     match.seated_at = ''
     toast(`Table ${match.number} is now Available`, 'success')
+    successTableFreed.value = true
   } catch (e) {
     toast('Failed to free up table', 'error')
   }

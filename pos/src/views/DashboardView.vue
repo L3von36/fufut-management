@@ -676,17 +676,25 @@ function buildKpis() {
       const openTables = tables.filter(t => t.status !== 'available').length
       const seatedGuests = tables.filter(t => t.status === 'occupied').reduce((s, t) => s + (t.guests || 0), 0)
       const todayRes = res.filter(r => r.date === TODAY() && r.status !== 'cancelled').length
+      // A served bill that has been paid is finished — counting it as "open"
+      // sent the waiter hunting for work that did not exist. Unpaid tabs stay
+      // on the tile whatever their kitchen status: that is money to collect.
+      const openOrders = todayOrders.value.filter(o =>
+        o.status !== 'fulfilled' && o.status !== 'cancelled' &&
+        String(o.payment_status || '').toLowerCase() !== 'paid' &&
+        String(o.payment || '').toLowerCase() !== 'paid'
+      ).length
       kpis.value = [
         { label: 'Ready to Serve',     value: `${readyOrd}`,                 sub: readyOrd ? 'Run these to tables' : 'Nothing waiting',                        bar: readyOrd ? 'gold' : 'teal', color: readyOrd ? 'var(--warning)' : '', icon: ICONS.ready },
         { label: 'Active Tables',      value: `${openTables}`,               sub: `${seatedGuests} guest${seatedGuests === 1 ? '' : 's'} seated`,               bar: 'teal',  icon: ICONS.tables },
-        { label: 'Open Orders',        value: `${todayOrders.value.filter(o => o.status !== 'fulfilled' && o.status !== 'cancelled').length}`, sub: `${newOrd} new today`, bar: 'blue', icon: ICONS.orders },
+        { label: 'Open Orders',        value: `${openOrders}`,               sub: `${newOrd} new today`, bar: 'blue', icon: ICONS.orders },
         { label: 'Today Reservations', value: `${todayRes}`,                 sub: `${res.filter(r => r.date === TODAY() && r.status === 'new').length} new`,   bar: 'gold',  icon: ICONS.reservations }
       ]
     }).catch(() => {
       // Never leave the waiter staring at an empty skeleton if either call fails.
       kpis.value = [
         { label: 'Ready to Serve', value: `${readyOrd}`, sub: 'Run these to tables', bar: 'gold', icon: ICONS.ready },
-        { label: 'Open Orders',    value: `${todayOrders.value.filter(o => o.status !== 'fulfilled' && o.status !== 'cancelled').length}`, sub: `${newOrd} new today`, bar: 'blue', icon: ICONS.orders }
+        { label: 'Open Orders',    value: `${todayOrders.value.filter(o => o.status !== 'fulfilled' && o.status !== 'cancelled' && String(o.payment_status || '').toLowerCase() !== 'paid' && String(o.payment || '').toLowerCase() !== 'paid').length}`, sub: `${newOrd} new today`, bar: 'blue', icon: ICONS.orders }
       ]
     })
   } else if (role === 'delivery-staff') {

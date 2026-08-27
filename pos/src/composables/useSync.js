@@ -35,6 +35,16 @@ async function processQueue() {
         const r = await fetch(fetchUrl, opts)
         if (r.ok || r.status === 404) {
           await removeMutation(item.id)
+        } else if (r.status >= 400 && r.status < 500) {
+          // The server considered the queued write and refused it (409 the
+          // table is taken, 400 the payload is wrong, 403 the session lost
+          // the right). Replaying a refusal every 30s only ever produces the
+          // same refusal — the retry counter below never even sees it,
+          // because fetch does not throw on an HTTP status — so the item sat
+          // in the queue forever. Drop it: an operator looking at the
+          // pending count should see writes waiting for the network, not
+          // writes the server has already rejected.
+          await removeMutation(item.id)
         }
       } catch (e) {
         item.retries = (item.retries || 0) + 1
