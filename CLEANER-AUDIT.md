@@ -61,10 +61,21 @@ naming role and resource. The parallel holes on `POST /api/reservations` and
 
 ## Known issues, accepted for now
 
-1. **The cleaner's Dashboard is thin** — it renders, but most of its tiles
-   are kitchen/sales metrics this role cannot read (and correctly gets 403s
-   for). It shows the tables count and little else. Cosmetic, not blocking;
-   if it matters, give the Dashboard a cleaner-specific layout.
+1. ~~**The cleaner's Dashboard is thin**~~ **FIXED 2026-08-27** (commit pending,
+   deployed via `build-pos` CI): the Dashboard now carries the role's whole
+   day, all from reads the matrix grants. Re-verified live first: production
+   already rendered the two floor tiles (Tables to Clean, Occupied Tables) and
+   nothing the role cannot read — the "kitchen/sales metrics" wording in the
+   original finding was stale against the deployed build. What was genuinely
+   missing was the role's own work record, so the dashboard gained two waste
+   tiles (Waste Logged Today with the day's cost, Last Entry with item, reason
+   and age) and a full-width Waste Logged Today card listing the day's entries
+   with an Open Waste Log shortcut. Each fetch fails to an empty list on its
+   own, so one endpoint being down never blanks the other's tiles. Covered by
+   five new tests in `DashboardReporting.test.js` (7 → 12 in that file,
+   333 total), including an assertion that the dashboard never requests a
+   resource the role cannot read — the page of 403s the audit worried about
+   cannot come back silently.
 2. **Waste cost reads 0** wherever it is computed from `avg_cost` — the
    known data-setup gap (ingredient costs largely unset) follows the cleaner
    exactly as it follows the chef.

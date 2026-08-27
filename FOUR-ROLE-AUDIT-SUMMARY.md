@@ -110,10 +110,25 @@ All 8 roles in the matrix have now been audited on production:
    totals/prices are client-trusted on the public ordering path — **FIXED
    2026-08-27** (fufut-api `e874f97`, deployed): anonymous orders are now
    priced from `menu_items` server-side (see DELIVERY-AUDIT.md follow-up #3).
-3. **Decide where the accountant lives** — POS (today's answer) or
-   backoffice (whose role map has no accountant entry).
-4. **Cleaner's Dashboard is thin** — renders, but most tiles are metrics the
-   role cannot read. Cosmetic.
+3. ~~**Decide where the accountant lives**~~ **RESOLVED 2026-08-27** — the
+   backoffice is the accountant's home. The original "no accountant entry"
+   observation was made while backoffice deploys were landing in a Pages
+   preview (pre-`17ffe69`); production carries a deliberate accountant role
+   map entry. Verified live: login lands on Reports (the designed default)
+   with the full nine-item nav — Dashboard, P&L, Expenses, Revenue, Orders,
+   Reports, Attendance, Payroll, Audit Log — and the P&L renders real
+   figures with zero console errors. View-only finance + HR reads, write on
+   expenses alone, no Settings (tax-band changes stay with a manager). The
+   POS remains a working fallback. Evidence:
+   `download/role-audits/shots/accountant-backoffice-{reports,pnl}.png`.
+4. ~~**Cleaner's Dashboard is thin**~~ **FIXED 2026-08-27**: re-verified live
+   that production already showed only the two floor tiles (no unreadable
+   metrics); what was missing was the role's own work record. The dashboard
+   now adds Waste Logged Today (count + day's cost), Last Entry (item,
+   reason, age) and a Waste Logged Today card with an Open Waste Log
+   shortcut — all from reads the matrix grants (tables, waste), each fetch
+   failing independently. Five new tests guard it, including one asserting
+   the dashboard never requests a resource the role cannot read.
 5. **Passwords rotated 2026-08-26** — the 8 audited accounts no longer share
    `selam@336`; unique server-generated credentials are on an owner-only
    sheet (`download/credentials/`, never committed). P0-1 on the soft-launch

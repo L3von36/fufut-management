@@ -1,14 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 
 let currentRole = 'manager'
+// null = grant everything (the manager/cashier suites). A role suite sets the
+// real permission list so hasPermission reflects the matrix the server enforces.
+let currentPermissions = null
 vi.mock('../../../src/stores/auth', () => ({
   useAuthStore: vi.fn(() => ({
     get roleKey() { return currentRole },
     isAuthenticated: true,
     user: { firstName: 'Amanuel' },
-    hasPermission: () => true,
+    hasPermission: (p) => (currentPermissions ? currentPermissions.includes(p) : true),
   })),
 }))
 
@@ -159,5 +162,107 @@ describe('cashier dashboard', () => {
     // telebirr 4,000 + cbe 1,200 = 5,200
     expect(w.text()).toContain('5200')
     expect(w.text()).toContain('6000')  // cash
+  })
+})
+
+/**
+ * The cleaner audit's follow-up: the dashboard showed the floor (two tables
+ * tiles) and nothing about the role's own job. It now carries the waste log —
+ * entries today, cost today, the last entry's age — sourced only from reads
+ * the matrix grants this role.
+ */
+describe('cleaner dashboard', () => {
+  const TABLES = [
+    { id: 'T1', status: 'cleaning' },
+    { id: 'T2', status: 'occupied', guests: 4 },
+    { id: 'T3', status: 'occupied', guests: 2 },
+    { id: 'T4', status: 'available' },
+  ]
+  // Newest first, as ORDER BY created DESC delivers it. Two entries belong to
+  // TODAY (2026-08-10); the stale one from yesterday must not count.
+  const WASTE = [
+    { id: 'W1', item: 'Milk', quantity: 1, unit: 'L', reason: 'spoiled', cost: 60, date: '2026-08-10', created: '2026-08-10T09:30:00Z' },
+    { id: 'W2', item: 'Bread', quantity: 2, unit: 'pcs', reason: 'damaged', cost: 40, date: '2026-08-10', created: '2026-08-10T08:10:00Z' },
+    { id: 'W3', item: 'Tea leaves', quantity: 1, unit: 'kg', reason: 'quality', cost: 300, date: '2026-08-09', created: '2026-08-09T16:45:00Z' },
+  ]
+
+  const cleanerRoutes = (endpoint) => {
+    if (endpoint === 'tables') return Promise.resolve(TABLES)
+    if (endpoint === 'waste') return Promise.resolve(WASTE)
+    return Promise.resolve([])
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setActivePinia(createPinia())
+    currentRole = 'cleaner'
+    // The server matrix for this role: waste + dashboard + timeclock reads.
+    currentPermissions = ['waste', 'dashboard', 'timeclock']
+    mockApiGet.mockImplementation(cleanerRoutes)
+  })
+
+  afterEach(() => { currentPermissions = null })
+
+  const open = async () => {
+    const w = mount(DashboardView, globalConfig)
+    await flushPromises()
+    await flushPromises()
+    await flushPromises()
+    return w
+  }
+
+  it('shows the floor tiles and the waste tiles', async () => {
+    const w = await open()
+    const text = w.text()
+    expect(text).toContain('Tables to Clean')
+    expect(text).toContain('Occupied Tables')
+    expect(text).toContain('Waste Logged Today')
+    expect(text).toContain('Last Entry')
+    // 1 table cleaning, 2 occupied.
+    expect(text).toContain('Marked for cleaning')
+  })
+
+  it('counts only entries dated today, with their cost', async () => {
+    const w = await open()
+    const text = w.text()
+    // W1 + W2 are today; W3 (ETB 300) is yesterday's and must not appear.
+    expect(text).toContain('ETB 100')
+    expect(text).not.toContain('ETB 300')
+  })
+
+  it('lists today’s entries in the Waste Logged Today card', async () => {
+    const w = await open()
+    const text = w.text()
+    expect(text).toContain('Milk')
+    expect(text).toContain('Bread')
+    expect(text).toContain('Open Waste Log')
+    // Yesterday's entry stays out of the card.
+    expect(text).not.toContain('Tea leaves')
+  })
+
+  /**
+   * The cleaner holds no permission on orders, expenses, inventory or the
+   * reports aggregate. A dashboard that asks for them anyway produces a page
+   * of 403 noise — the exact symptom the audit flagged.
+   */
+  it('never requests a resource the role cannot read', async () => {
+    await open()
+    const asked = mockApiGet.mock.calls.map(([e]) => e)
+    expect(asked).not.toContain('orders')
+    expect(asked).not.toContain('expenses')
+    expect(asked).not.toContain('inventory')
+    expect(asked.every((e) => !String(e).startsWith('reports/'))).toBe(true)
+  })
+
+  it('keeps the floor tiles when the waste endpoint fails', async () => {
+    mockApiGet.mockImplementation((e) =>
+      e === 'waste' ? Promise.reject(new Error('503')) : cleanerRoutes(e)
+    )
+    const w = await open()
+    const text = w.text()
+    expect(text).toContain('Tables to Clean')
+    expect(text).toContain('Occupied Tables')
+    expect(text).toContain('Waste Logged Today')
+    expect(text).toContain('No waste logged yet today')
   })
 })

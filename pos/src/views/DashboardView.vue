@@ -189,6 +189,27 @@
           <div>All items stocked</div>
         </div>
       </div>
+      <!-- Cleaner: the role's own work record. The Waste Log screen is where
+           entries are made; this card answers "did I log the bin run?" without
+           leaving the dashboard. Full width: it is the only card the role gets. -->
+      <div class="card" v-if="auth.roleKey === 'cleaner'" style="grid-column:1/-1">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+          <h3>Waste Logged Today</h3>
+          <button class="btn btn-sm btn-outline" @click="router.push('/app/waste')">Open Waste Log</button>
+        </div>
+        <div v-if="recentWaste.length">
+          <div v-for="w in recentWaste" :key="w.id" class="queue-item">
+            <span><strong>{{ w.item || w.name || 'Item' }}</strong> · {{ w.quantity ?? w.qty ?? '-' }} {{ w.unit || '' }} · <span style="text-transform:capitalize">{{ w.reason || '—' }}</span></span>
+            <span>ETB {{ parseFloat(w.cost ?? w.est_cost ?? 0).toFixed(0) }}</span>
+          </div>
+        </div>
+        <div v-else class="empty-state">
+          <div class="empty-state-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </div>
+          <div>No waste logged yet today</div>
+        </div>
+      </div>
     </div>
 
     <!-- Cashier-Specific Real-Time Feeds & Audit Trail -->
@@ -284,6 +305,8 @@ const cashierPayBreakdown = ref([])
 const payBreakdownChart = ref(null)
 const recentOrders = ref([])
 const lowStockItems = ref([])
+// The cleaner's own work record — the dashboard's Waste Logged Today card.
+const recentWaste = ref([])
 const loading = ref(false)
 
 let charts = {}
@@ -323,6 +346,22 @@ const roleLabel = computed(() => {
 })
 
 function shortId(id) { return id ? id.slice(-5).toUpperCase() : '?' }
+
+/**
+ * "2h ago" for the Last Entry tile. Both storage formats parse: ISO with a
+ * Z, and the older "YYYY-MM-DD HH:MM:SS" space-separated rows.
+ */
+function timeAgo(v) {
+  if (!v) return '—'
+  const t = new Date(String(v).replace(' ', 'T')).getTime()
+  if (!t || Number.isNaN(t)) return '—'
+  const mins = Math.floor((Date.now() - t) / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
 function orderSummary(o) {
   const lines = o.order_items || o.orderItems
   if (Array.isArray(lines) && lines.length) {
@@ -670,12 +709,27 @@ function buildKpis() {
   } else if (role === 'cleaner') {
     showRecentOrders.value = false
     showLowStock.value = false
-    apiGet('tables').then(tables => {
+    // The role's whole day is the floor and the waste log, and both are reads
+    // the matrix grants (tables, waste). Each fetch fails to an empty list on
+    // its own, so one endpoint being down never blanks the other's tiles.
+    Promise.all([
+      apiGet('tables').catch(() => []),
+      apiGet('waste').catch(() => []),
+    ]).then(([tables, waste]) => {
       const cleaning = tables.filter(t => t.status === 'cleaning').length
       const occupied = tables.filter(t => t.status === 'occupied').length
+      // `date` is what the entry was logged for; `created` is when it was
+      // written, and either can carry the day on rows older than the alias.
+      const todays = waste.filter(w => (w.date || String(w.created || '').slice(0, 10)) === TODAY())
+      const wasteCost = todays.reduce((s, w) => s + parseFloat(w.cost ?? w.est_cost ?? 0), 0)
+      recentWaste.value = todays.slice(0, 5)
+      // The list arrives newest first (ORDER BY created DESC on the server).
+      const last = waste[0]
       kpis.value = [
         { label: 'Tables to Clean', value: `${cleaning}`, sub: 'Marked for cleaning', bar: 'teal', color: cleaning ? 'var(--warning)' : 'var(--success)', icon: ICONS.clean },
-        { label: 'Occupied Tables', value: `${occupied}`, sub: 'Will need cleaning',   bar: 'blue', icon: ICONS.clean }
+        { label: 'Occupied Tables', value: `${occupied}`, sub: 'Will need cleaning', bar: 'blue', icon: ICONS.clean },
+        { label: 'Waste Logged Today', value: `${todays.length}`, sub: todays.length ? `ETB ${wasteCost.toFixed(0)} recorded` : 'Nothing logged yet', bar: 'gold', icon: ICONS.clean },
+        { label: 'Last Entry', value: last ? timeAgo(last.created) : '—', sub: last ? `${last.item || last.name || 'Item'} · ${last.reason || '—'}` : 'No entries yet', bar: 'teal', icon: ICONS.clean }
       ]
     })
   } else {

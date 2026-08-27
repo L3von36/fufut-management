@@ -69,11 +69,21 @@ order rows were voided with reason `training`.
 
 ## Known issues, accepted for now
 
-1. **Backoffice vs POS:** the accountant's reach was audited on the POS. The
-   backoffice has its own role map (`backoffice/src/api/index.js`) with no
-   accountant entry — an accountant signing in there gets the login but a
-   near-empty nav. Decide deliberately whether accountants live in the POS
-   (current answer: yes) before granting anything on the other app.
+1. ~~**Backoffice vs POS**~~ **RESOLVED 2026-08-27 — the accountant lives in
+   the backoffice.** Re-verified live: signing in to
+   `backoffice.fufutcoffee.com` as novel@fufut.coffee lands on the Reports
+   screen (the role's designed default view) with the full nine-item nav —
+   Dashboard, P&L, Expenses, Revenue, Orders, Reports, Attendance, Payroll,
+   Audit Log — exactly matching `ROLE_PERMISSIONS.accountant`, and the P&L
+   renders real figures (REVENUE ETB 2,985 on the day's dates) with zero
+   console errors. Evidence:
+   `download/role-audits/shots/accountant-backoffice-{reports,pnl}.png`. The
+   original "near-empty nav" observation was made during the window when
+   backoffice deploys had been silently landing in a Pages preview
+   (pre-`17ffe69`); production carries the deliberate accountant entry —
+   view-only finance + HR reads, write on expenses alone, and no Settings by
+   design (tax-band changes stay with a manager). The POS remains a working
+   fallback for the same role; nothing about it needs changing.
 2. ~~**Reports revenue still includes voided orders**~~ **FIXED 2026-08-26**
    (commit `aa4f837`, deployed via CI `17ffe69`): `isRealOrder` now gates every
    backoffice screen that sums orders client-side — Dashboard Today Revenue
