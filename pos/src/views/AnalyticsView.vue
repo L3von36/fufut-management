@@ -395,9 +395,13 @@ const cancelledCount = computed(() =>
 const fulfillmentRate = computed(() =>
   periodOrders.value.length ? Math.round((fulfilledCount.value / periodOrders.value.length) * 100) : 0
 )
-const cancellationRate = computed(() =>
-  periodOrders.value.length ? ((cancelledCount.value / periodOrders.value.length) * 100).toFixed(1) : '0.0'
-)
+// Cancelled over everything that was actually ticketed (cancelled + real):
+// dividing by the real orders alone turned a training-heavy week into a
+// "1583% cancellation rate", a figure that cannot be true by definition.
+const cancellationRate = computed(() => {
+  const denom = cancelledCount.value + periodOrders.value.length
+  return denom ? ((cancelledCount.value / denom) * 100).toFixed(1) : '0.0'
+})
 
 // ─── Hourly analysis ───
 const hourlyData = computed(() => {

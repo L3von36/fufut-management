@@ -208,9 +208,15 @@
         <div class="form-group" style="margin-top:16px">
           <label>Payment Method</label>
           <select v-model="newOrder.payment" class="select">
+            <!-- The same six methods the checkout offers: a counter sale paid
+                 by Telebirr is an everyday thing, and the quick-sale form used
+                 to offer no way to record it. -->
             <option value="cash">Cash</option>
             <option value="card">Card</option>
             <option value="mobile">Mobile Money</option>
+            <option value="telebirr">Telebirr</option>
+            <option value="cbe">CBE Birr</option>
+            <option value="bank">Bank Transfer</option>
           </select>
         </div>
 
@@ -391,6 +397,13 @@ function openNewOrder() {
 
 async function processPayment() {
   if (orderStore.isEmpty || payBtnState.isBusy()) return
+  // Same orphan-check guard as the checkout review step: a dine-in ticket
+  // bound to no table belongs to nobody and cannot be found again without
+  // trawling Open Checks.
+  if (newOrder.value.type === 'dine-in' && !newOrder.value.tableNum) {
+    toast('Pick a table for a dine-in order, or switch to Takeaway', 'error')
+    return
+  }
   payBtnState.setLoading()
   try {
     const payload = orderStore.buildOrderPayload({

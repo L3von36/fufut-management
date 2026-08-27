@@ -139,9 +139,15 @@ const monthData = computed(() => orders.value.filter(o => isRealOrder(o) && (o.c
 const todayExp = computed(() => expenses.value.filter(e => e.date === TODAY()))
 const monthExp = computed(() => expenses.value.filter(e => (e.date||'').slice(0,7) === TODAY().slice(0,7)))
 
+// Revenue is food money, not tips: the same day's figures must match the
+// dashboard's "Today Sales (excludes tips)" and the server's NET_SALES
+// (total - tip). Summing raw totals here made a 20.5-birr tip day read
+// ETB 1066 on Reports against ETB 1045 everywhere else.
+const netOf = (list) => list.reduce((s,o) => s + parseFloat(o.total||0) - parseFloat(o.tip||0), 0)
+
 const todaySummary = computed(() => {
   if (!todayData.value.length) return []
-  const rev = todayData.value.reduce((s,o) => s + parseFloat(o.total||0), 0)
+  const rev = netOf(todayData.value)
   const exp = todayExp.value.reduce((s,e) => s + parseFloat(e.amount||0), 0)
   return [
     { label:'Orders', value:todayData.value.length },
@@ -153,7 +159,7 @@ const todaySummary = computed(() => {
 
 const monthSummary = computed(() => {
   if (!monthData.value.length) return []
-  const rev = monthData.value.reduce((s,o) => s + parseFloat(o.total||0), 0)
+  const rev = netOf(monthData.value)
   const exp = monthExp.value.reduce((s,e) => s + parseFloat(e.amount||0), 0)
   return [
     { label:'Orders', value:monthData.value.length },

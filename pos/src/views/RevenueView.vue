@@ -17,7 +17,9 @@
 
     <div class="kpi-grid">
       <div class="kpi-card"><div class="kpi-bar teal"></div><div class="kpi-label">Total Revenue</div><div class="kpi-value">ETB {{ totalRev.toFixed(0) }}</div></div>
-      <div class="kpi-card"><div class="kpi-bar blue"></div><div class="kpi-label">Orders</div><div class="kpi-value">{{ orders.length }}</div></div>
+      <!-- filteredOrders, not orders.length: the count must describe the same
+           date range as the revenue beside it, not every order ever taken. -->
+      <div class="kpi-card"><div class="kpi-bar blue"></div><div class="kpi-label">Orders</div><div class="kpi-value">{{ filteredOrders.length }}</div></div>
       <div class="kpi-card"><div class="kpi-bar gold"></div><div class="kpi-label">Avg Order Value</div><div class="kpi-value">ETB {{ avgOrder.toFixed(0) }}</div></div>
       <div class="kpi-card"><div class="kpi-bar" :class="cashPct > 50 ? 'teal' : 'yellow'"></div><div class="kpi-label">Cash / Card</div><div class="kpi-value">{{ cashPct }}% / {{ cardPct }}%</div></div>
     </div>

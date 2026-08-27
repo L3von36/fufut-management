@@ -556,7 +556,9 @@ import { useAudioAlerts } from '../composables/useAudioAlerts'
 import { customerReceipt } from '../lib/print'
 import { quickTenderAmounts } from '../lib/quickTender'
 import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
-import { verifyReceipt } from '../lib/receiptVerifier'
+// receiptVerifier pulls pdfjs-dist (~450 KB) into whatever chunk imports it
+// statically. It is needed only when a digital receipt is actually verified,
+// so it loads on demand — the checkout chunk drops from ~451 KB to app-size.
 
 const router = useRouter()
 const toast = inject('toast')
@@ -692,8 +694,9 @@ async function verifyDigitalReceipt() {
   if (!store.paymentReference) return
   isVerifying.value = true
   verificationResult.value = null
-  
+
   try {
+    const { verifyReceipt } = await import('../lib/receiptVerifier')
     const data = await verifyReceipt(store.paymentMethod, store.paymentReference)
     
     if (data.amount < store.grandTotal) {
@@ -842,6 +845,13 @@ const quickAmounts = computed(() => quickTenderAmounts(store.grandTotal))
 
 function goToPayment() {
   if (store.isEmpty) return
+  // A dine-in ticket without a table is an orphan: it shows on no floor plan,
+  // nobody knows where the food goes, and settling it was only possible from
+  // Open Checks. This is exactly how table-less checks piled up on Aug 24.
+  if (store.orderType === 'dine-in' && !store.tableNum) {
+    toast('Pick a table for a dine-in order, or switch to Takeaway', 'error')
+    return
+  }
   store.checkoutStep = 'payment'
 }
 

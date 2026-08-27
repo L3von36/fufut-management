@@ -217,7 +217,11 @@ describe('C4: OrdersView quick-sale clears the cart after payment', () => {
       if (ep === 'menu') return Promise.resolve([
         { id: 'M-1', name: 'Espresso', category: 'Coffee', price: 150 },
       ])
-      if (ep === 'tables') return Promise.resolve([])
+      // Since the N4 guard (audit pass 2), a dine-in quick sale must carry a
+      // table, so the modal needs one to pick.
+      if (ep === 'tables') return Promise.resolve([
+        { id: 'T5', number: 5, name: 'Table 5', status: 'available', capacity: 8 },
+      ])
       return Promise.resolve([])
     })
     mockApiPost.mockImplementation((ep) => {
@@ -240,6 +244,12 @@ describe('C4: OrdersView quick-sale clears the cart after payment', () => {
     const itemBtn = wrapper.findAll('button').find(b => b.text().includes('Espresso'))
     expect(itemBtn).toBeDefined()
     await itemBtn.trigger('click')
+    await flushPromises()
+
+    // Seat the quick sale at a table: dine-in without one is refused (N4).
+    const tableSelect = wrapper.findAll('select').find(s => s.text().includes('Table 5'))
+    expect(tableSelect).toBeDefined()
+    await tableSelect.setValue('5')
     await flushPromises()
 
     const store = useOrderStore()

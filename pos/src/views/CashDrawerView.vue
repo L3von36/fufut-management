@@ -86,7 +86,10 @@
             <tbody>
               <tr v-for="h in historyDrawers" :key="h.id">
                 <td data-label="Shift"><strong>{{ h.id }}</strong></td>
-                <td data-label="Closed">{{ h.created ? new Date(h.created).toLocaleString() : '—' }}</td>
+                <!-- closed_at arrives with migration 021; rows closed before it
+                     only record when they were opened, so say so honestly
+                     instead of labelling an open time as the close. -->
+                <td data-label="Closed">{{ (h.closed || h.closed_at) ? new Date(h.closed || h.closed_at).toLocaleString() : 'before close-tracking' }}</td>
                 <td data-label="Opening">ETB {{ parseFloat(h.openingBal || h.opening_balance || 0).toFixed(0) }}</td>
                 <td data-label="Cash Sales">ETB {{ parseFloat(h.cashSales || h.cash_sales || 0).toFixed(0) }}</td>
                 <td data-label="Counted">ETB {{ parseFloat(h.closingBal || h.closing_balance || 0).toFixed(0) }}</td>
