@@ -87,6 +87,21 @@ describe('N2: RevenueView Orders KPI counts the filtered range', () => {
     expect(ordersKpi).toContain('1')
     expect(ordersKpi).not.toContain('3')
   })
+
+  it('nets tips out of revenue, matching Dashboard and Reports', async () => {
+    mockApiGet.mockResolvedValue([
+      { id: 'A1', total: 260, tip: 0, payment: 'cash', created: '2026-08-27 19:15:03' },
+      { id: 'A2', total: 225.5, tip: 20.5, payment: 'cash', created: '2026-08-27 18:00:00' },
+    ])
+
+    const wrapper = mount(RevenueView, globalConfig)
+    await flushPromises()
+
+    const kpis = wrapper.findAll('.kpi-card').map(k => k.text())
+    const revKpi = kpis.find(k => k.includes('Total Revenue'))
+    // 260 + 225.5 - 20.5 = 465 — the same figure Reports shows for the day.
+    expect(revKpi).toContain('ETB 465')
+  })
 })
 
 // ─── N3: Z-Report History closed time ────────────────────────────────────────

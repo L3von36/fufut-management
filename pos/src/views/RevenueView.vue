@@ -81,7 +81,11 @@ const filteredOrders = computed(() => orders.value.filter(o => {
   return d >= dateFrom.value && d <= dateTo.value
 }))
 
-const totalRev = computed(() => filteredOrders.value.reduce((s, o) => s + parseFloat(o.total||0), 0))
+// Revenue is food money, tips excluded — the same NET_SALES convention as
+// the server reports, the Dashboard and Reports, so the same day reads the
+// same on every screen (live: ETB 1066 here vs 1045 there for one 20.5 tip).
+const netOf = (o) => parseFloat(o.total || 0) - parseFloat(o.tip || 0)
+const totalRev = computed(() => filteredOrders.value.reduce((s, o) => s + netOf(o), 0))
 const avgOrder = computed(() => filteredOrders.value.length ? totalRev.value / filteredOrders.value.length : 0)
 // Fix #14: Break down by individual payment method
 const paymentBreakdown = computed(() => {
@@ -90,7 +94,7 @@ const paymentBreakdown = computed(() => {
     const methods = (o.payment || 'unknown').split('+')
     for (const method of methods) {
       const key = method.trim()
-      m[key] = (m[key] || 0) + parseFloat(o.total || 0) / methods.length
+      m[key] = (m[key] || 0) + netOf(o) / methods.length
     }
   }
   return m
@@ -122,9 +126,9 @@ function buildDailyBreakdown() {
     if (d && d >= dateFrom.value && d <= dateTo.value) {
       if (!map[d]) map[d] = { date: d, count: 0, revenue: 0, cash: 0, card: 0 }
       map[d].count++
-      map[d].revenue += parseFloat(o.total||0)
-      if (o.payment === 'cash') map[d].cash += parseFloat(o.total||0)
-      else map[d].card += parseFloat(o.total||0)
+      map[d].revenue += netOf(o)
+      if (o.payment === 'cash') map[d].cash += netOf(o)
+      else map[d].card += netOf(o)
     }
   })
   dailyBreakdown.value = Object.values(map).sort((a,b) => a.date.localeCompare(b.date))
