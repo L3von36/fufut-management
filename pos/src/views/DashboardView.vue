@@ -744,9 +744,18 @@ function buildKpis() {
       recentWaste.value = todays.slice(0, 5)
       // The list arrives newest first (ORDER BY created DESC on the server).
       const last = waste[0]
+      // Cleaner role no longer has 'tables' permission (matrix tightened at
+      // some point). The apiGet('tables') call above will 403/503, the catch
+      // returns [], and cleaning/occupied both fall to 0 — which would
+      // mislead the cleaner into thinking no tables need attention. Only
+      // render those two KPIs when we actually received a non-empty array
+      // (i.e. when the role still holds the tables permission).
+      const canSeeTables = Array.isArray(tables) && tables.length > 0
       kpis.value = [
-        { label: 'Tables to Clean', value: `${cleaning}`, sub: 'Marked for cleaning', bar: 'teal', color: cleaning ? 'var(--warning)' : 'var(--success)', icon: ICONS.clean },
-        { label: 'Occupied Tables', value: `${occupied}`, sub: 'Will need cleaning', bar: 'blue', icon: ICONS.clean },
+        ...(canSeeTables ? [
+          { label: 'Tables to Clean', value: `${cleaning}`, sub: 'Marked for cleaning', bar: 'teal', color: cleaning ? 'var(--warning)' : 'var(--success)', icon: ICONS.clean },
+          { label: 'Occupied Tables', value: `${occupied}`, sub: 'Will need cleaning', bar: 'blue', icon: ICONS.clean },
+        ] : []),
         { label: 'Waste Logged Today', value: `${todays.length}`, sub: todays.length ? `ETB ${wasteCost.toFixed(0)} recorded` : 'Nothing logged yet', bar: 'gold', icon: ICONS.clean },
         { label: 'Last Entry', value: last ? timeAgo(last.created) : '—', sub: last ? `${last.item || last.name || 'Item'} · ${last.reason || '—'}` : 'No entries yet', bar: 'teal', icon: ICONS.clean }
       ]
