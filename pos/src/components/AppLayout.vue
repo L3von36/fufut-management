@@ -79,6 +79,8 @@
       </div>
       <div v-else-if="syncing" class="offline-banner syncing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:4px"><line x1="12" y1="2" x2="12" y2="6"/><path d="M12 2a10 10 0 0 1 10 10h-4a6 6 0 0 0-6-6V2z"/></svg> Syncing data...</div>
 
+      <AlertsBanner />
+
       <div class="content-wrap">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
@@ -115,6 +117,7 @@ import { useAuthStore } from '../stores/auth'
 import { NAV_ITEMS, isOnline, onOnlineChange } from '../api'
 import { useSync } from '../composables/useSync'
 import { useOrderStore } from '../stores/order'
+import AlertsBanner from './AlertsBanner.vue'
 
 const router = useRouter()
 const route = useRoute()

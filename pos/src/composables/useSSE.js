@@ -73,6 +73,16 @@ export function useSSE() {
         console.warn('SSE: failed to parse table_update event', err)
       }
     })
+
+    eventSource.addEventListener('alerts_update', (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        lastEvent.value = { type: 'alerts_update', data }
+        if (listeners['alerts_update']) listeners['alerts_update'].forEach(fn => fn(data))
+      } catch (err) {
+        console.warn('SSE: failed to parse alerts_update event', err)
+      }
+    })
   }
 
   function scheduleReconnect() {
