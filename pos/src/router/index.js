@@ -84,7 +84,13 @@ const routes = [
       { path: 'purchases', name: 'purchases', component: PurchasesView },
       { path: 'stock-control', name: 'stock-control', component: StockControlView },
       { path: 'customers', name: 'customers', component: () => import('../views/CustomersView.vue') },
-      { path: 'audit', name: 'audit', component: () => import('../views/AuditLogView.vue') }
+      { path: 'audit', name: 'audit', component: () => import('../views/AuditLogView.vue') },
+      // Per-role "My Activity" — every signed-in role sees this in their
+      // sidebar. Reads /api/audit?actor_id=<me> and rolls the slice up into
+      // role-specific KPIs (dishes sent, deliveries completed, payments verified,
+      // expenses booked, etc.) plus a filterable activity log. The audit trail
+      // is the source of truth: an actor_id-tagged slice of it is "what I did".
+      { path: 'my-activity', name: 'my-activity', component: () => import('../views/MyPerformanceView.vue') }
     ]
   }
 ]

@@ -233,7 +233,7 @@ export const ROLE_PERMISSIONS = {
   // 'staff' is absent deliberately: editing colleague accounts lives in the
   // backoffice, alongside Shifts, Time Clock and the audit log. Time Clock here
   // still reads the staff list to show who is on shift.
-  manager: ['dashboard', 'orders', 'open-checks', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control', 'pipeline', 'audit'],
+  manager: ['dashboard', 'orders', 'open-checks', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control', 'pipeline', 'audit', 'my-activity'],
   // menu-mgmt is granted for one action: taking a dish off when the kitchen has
   // run out. The screen itself hides adding, editing, deleting, cost and margin
   // from anyone but a manager, and the API only lets this role write the
@@ -244,10 +244,10 @@ export const ROLE_PERMISSIONS = {
   // part of the job, committing the business to a vendor is not. This mirrors
   // the server matrix in fufut-api/src/auth.js; if the two disagree, the screen
   // renders and every request on it fails.
-  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases', 'timeclock'],
+  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases', 'timeclock', 'my-activity'],
   // Cooks from the recipes, does not set them. Two people adjusting the same
   // counts is how a stock take stops reconciling.
-  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes', 'timeclock'],
+  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes', 'timeclock', 'my-activity'],
   // open-checks is the waiter's own outstanding work and the cashier's queue of
   // bills to take, so both get it. It reads orders and tables, which both roles
   // already read.
@@ -256,15 +256,15 @@ export const ROLE_PERMISSIONS = {
   // falling back to empty; the clock-in/out half is self-service and works for
   // any signed-in account. Granting the underlying resources instead would give
   // the floor the power to rewrite anybody's hours.
-  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'checkout', 'timeclock'],
-  cashier: ['cashdrawer', 'orders', 'open-checks', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout'],
-  'delivery-staff': ['delivery', 'dashboard', 'timeclock'],
-  cleaner: ['waste', 'dashboard', 'timeclock'],
+  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'checkout', 'timeclock', 'my-activity'],
+  cashier: ['cashdrawer', 'orders', 'open-checks', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout', 'my-activity'],
+  'delivery-staff': ['delivery', 'dashboard', 'timeclock', 'my-activity'],
+  cleaner: ['waste', 'dashboard', 'timeclock', 'my-activity'],
   // §47's seventh role. Reads the financial picture and changes almost none of
   // it — the server matrix grants write on expenses alone, so every other
   // screen here is deliberately view-only. No operational screens: an
   // accountant has no business seating a table or sending a ticket.
-  accountant: ['dashboard', 'reports', 'revenue', 'pnl', 'expenses', 'analytics', 'orders', 'purchases', 'suppliers', 'timeclock']
+  accountant: ['dashboard', 'reports', 'revenue', 'pnl', 'expenses', 'analytics', 'orders', 'purchases', 'suppliers', 'timeclock', 'my-activity']
 }
 
 export const ROLE_DEFAULT_VIEW = {
@@ -304,7 +304,13 @@ export const NAV_ITEMS = [
   { view: 'checkout', label: 'Checkout', icon: 'credit-card', section: 'Sales' },
   { view: 'pipeline', label: 'Pipeline', icon: 'git-branch', section: 'Operations' },
   { view: 'revenue', label: 'Revenue', icon: 'trending-up', section: 'Finance' },
-  { view: 'audit', label: 'Audit Log', icon: 'file-text', section: 'System' }
+  { view: 'audit', label: 'Audit Log', icon: 'file-text', section: 'System' },
+  // Per-role self-performance. Sits in the System section so it groups with
+  // the audit log; the data is a slice of the same audit trail, scoped to the
+  // signed-in user's actor_id. Every role sees this entry — the manager's own
+  // activity is just as auditable as a cleaner's, and the chef's dishes-served
+  // count lives or dies on the same `after.status === 'ready'` predicate.
+  { view: 'my-activity', label: 'My Activity', icon: 'bar-chart-2', section: 'System' }
 ]
 
 /**
