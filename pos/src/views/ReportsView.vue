@@ -114,6 +114,7 @@
             <div style="font-size:.85rem;font-weight:700">{{ h.orders }}</div>
           </div>
         </div>
+        <div v-else-if="hourlyLoaded" class="empty-state" style="padding:24px"><div>No hourly activity in this period.</div></div>
         <div v-else class="empty-state" style="padding:24px"><div>Loading hourly data…</div></div>
       </div>
     </div>
@@ -209,6 +210,7 @@ const timingSampled = ref(0)
 const timingLoading = ref(true)
 const staffPerf = ref([])
 const hourlyData = ref([])
+const hourlyLoaded = ref(false)
 
 function rangeStartIso(days) {
   const d = new Date()
@@ -258,6 +260,7 @@ async function fetchHourly() {
     const res = await apiGet('reports/hourly-heatmap')
     hourlyData.value = (res.hours || []).filter(h => h.orders > 0)
   } catch { hourlyData.value = [] }
+  hourlyLoaded.value = true
 }
 
 function exportPDF(type) {

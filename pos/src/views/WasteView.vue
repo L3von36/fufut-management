@@ -29,7 +29,7 @@
               <td data-label="Reason">{{ w.reason||'—' }}</td>
               <td data-label="Cost">ETB {{ parseFloat(w.cost||0).toFixed(0) }}</td>
               <td data-label="Date">{{ w.date||'—' }}</td>
-              <td data-label="Actions"><button v-if="auth.roleKey === 'manager'" class="btn btn-sm btn-ghost danger" @click="handleDelete(w)">Delete</button></td>
+              <td data-label="Actions"><button v-if="auth.roleKey === 'manager'" class="btn btn-sm btn-ghost danger" @click="handleDelete(w)">Delete</button><span v-else style="color:var(--text-muted);font-size:.78rem">View only</span></td>
             </tr>
             <tr v-if="!filteredWaste.length"><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No waste logged</td></tr>
           </tbody>
