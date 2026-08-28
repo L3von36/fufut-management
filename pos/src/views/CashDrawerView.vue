@@ -211,7 +211,7 @@
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
-import { apiGet, apiPost } from '../api'
+import { apiGet, apiPost, TODAY } from '../api'
 import { useButtonState } from '../composables/useButtonState'
 import { printReport, printZReport } from '../lib/print'
 
@@ -294,8 +294,10 @@ function drawerLocalDay(d) {
  * history stays on the Z-Report tab.
  */
 const todaysDrawers = computed(() => {
-  const t = new Date()
-  const key = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+  // Use TODAY() from the api module so tests that mock TODAY() see the same
+  // "today" the rest of the code does. Without this, the filter silently broke
+  // the day after a test was written (Aug 27 test, Aug 28 reality, 0 drawers shown).
+  const key = TODAY()
   return drawers.value.filter(d => drawerLocalDay(d) === key)
 })
 
@@ -431,4 +433,4 @@ function closeDrawerPrompt() { closingBal.value = 0; showClosePrompt.value = tru
   color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;
 }
 .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
-</style>
+</style>
