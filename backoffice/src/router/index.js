@@ -18,6 +18,11 @@ const ReservationsView = () => import('../views/ReservationsView.vue')
 const DeliveryView = () => import('../views/DeliveryView.vue')
 const OrdersView = () => import('../views/OrdersView.vue')
 const AuditLogView = () => import('../views/AuditLogView.vue')
+// My Performance / My Activity: every signed-in role's own audit slice as
+// role-aware KPIs (dishes sent, deliveries completed, payments verified…)
+// with today/week/month/year/custom range tabs and inline filters. The view
+// reads /api/audit?actor_id=<me> which the API now allows self-scoped.
+const MyPerformanceView = () => import('../views/MyPerformanceView.vue')
 const SettingsView = () => import('../views/SettingsView.vue')
 const PipelineView = () => import('../views/PipelineView.vue')
 const TablesView = () => import('../views/TablesView.vue')
@@ -55,6 +60,7 @@ const routes = [
       { path: 'staff-requests', name: 'staff-requests', component: StaffRequestsView },
       { path: 'payroll', name: 'payroll', component: PayrollView },
       { path: 'audit', name: 'audit', component: AuditLogView },
+      { path: 'my-activity', name: 'my-activity', component: MyPerformanceView },
       { path: 'settings', name: 'settings', component: SettingsView },
       { path: 'pipeline', name: 'pipeline', component: PipelineView },
       { path: 'tables', name: 'tables', component: TablesView }

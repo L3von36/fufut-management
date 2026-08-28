@@ -91,13 +91,17 @@ export async function apiDelete(endpoint, id) {
 }
 
 export const ROLE_PERMISSIONS = {
-  manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'pipeline', 'tables', 'attendance', 'staff-requests', 'payroll'],
-  'head-chef': ['dashboard', 'orders', 'inventory', 'waste', 'reports', 'pipeline'],
-  'assistant-chef': ['dashboard', 'orders', 'inventory'],
-  'head-waiter': ['dashboard', 'orders', 'tables', 'reservations', 'reports', 'pipeline'],
-  cashier: ['dashboard', 'orders', 'tables', 'reports', 'timeclock', 'reservations', 'revenue'],
-  'delivery-staff': ['dashboard', 'delivery'],
-  cleaner: ['dashboard', 'waste'],
+  // `my-activity` is in every role: it is the personal audit log + per-role
+  // KPIs ("how much did I do today"), backed by /api/audit?actor_id=<me>
+  // which the API authorises self-scoped for any signed-in user. The global
+  // `audit` stays manager+accountant only.
+  manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'pipeline', 'tables', 'attendance', 'staff-requests', 'payroll', 'my-activity'],
+  'head-chef': ['dashboard', 'orders', 'inventory', 'waste', 'reports', 'pipeline', 'my-activity'],
+  'assistant-chef': ['dashboard', 'orders', 'inventory', 'my-activity'],
+  'head-waiter': ['dashboard', 'orders', 'tables', 'reservations', 'reports', 'pipeline', 'my-activity'],
+  cashier: ['dashboard', 'orders', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'my-activity'],
+  'delivery-staff': ['dashboard', 'delivery', 'my-activity'],
+  cleaner: ['dashboard', 'waste', 'my-activity'],
   /**
    * §47's accountant. Reads the financial picture including the HR records they
    * need at month end; the server matrix grants write on expenses alone, so
@@ -107,7 +111,7 @@ export const ROLE_PERMISSIONS = {
    * manager applies them, which keeps the change and its audit entry with the
    * person answerable for it.
    */
-  accountant: ['dashboard', 'reports', 'pnl', 'revenue', 'expenses', 'orders', 'attendance', 'payroll', 'audit']
+  accountant: ['dashboard', 'reports', 'pnl', 'revenue', 'expenses', 'orders', 'attendance', 'payroll', 'audit', 'my-activity']
 }
 
 export const ROLE_DEFAULT_VIEW = {
@@ -142,6 +146,11 @@ export const NAV_ITEMS = [
   { view: 'staff-requests', label: 'Leave & Overtime', icon: 'file-text', section: 'HR' },
   { view: 'payroll', label: 'Payroll', icon: 'wallet', section: 'HR' },
   { view: 'audit', label: 'Audit Log', icon: 'shield', section: 'System' },
+  // My Activity is every signed-in user's own audit slice + role-aware KPIs
+  // (dishes sent, deliveries completed, payments verified…). Lives next to
+  // the global Audit Log; the global trail is manager+accountant only,
+  // this one is everyone's own recap.
+  { view: 'my-activity', label: 'My Activity', icon: 'file-text', section: 'System' },
   { view: 'settings', label: 'Settings', icon: 'settings', section: 'System' }
 ]
 
