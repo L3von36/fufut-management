@@ -39,6 +39,9 @@ const RecipesView = () => import('../views/RecipesView.vue')
 const SuppliersView = () => import('../views/SuppliersView.vue')
 const PurchasesView = () => import('../views/PurchasesView.vue')
 const StockControlView = () => import('../views/StockControlView.vue')
+// The manager's view of the SLA rules engine — what it watches, what it found,
+// and who acknowledged what. The banner announces; this screen explains.
+const AlertsDashboardView = () => import('../views/AlertsDashboardView.vue')
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -90,7 +93,8 @@ const routes = [
       // role-specific KPIs (dishes sent, deliveries completed, payments verified,
       // expenses booked, etc.) plus a filterable activity log. The audit trail
       // is the source of truth: an actor_id-tagged slice of it is "what I did".
-      { path: 'my-activity', name: 'my-activity', component: () => import('../views/MyPerformanceView.vue') }
+      { path: 'my-activity', name: 'my-activity', component: () => import('../views/MyPerformanceView.vue') },
+      { path: 'alerts', name: 'alerts', component: AlertsDashboardView }
     ]
   }
 ]

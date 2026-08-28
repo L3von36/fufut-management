@@ -243,8 +243,11 @@ describe('API Client', () => {
       expect(ROLE_PERMISSIONS.cleaner).toEqual(['waste', 'dashboard', 'timeclock', 'my-activity'])
     })
 
-    it('delivery-staff should only have delivery, dashboard, their own time clock and their own activity', () => {
-      expect(ROLE_PERMISSIONS['delivery-staff']).toEqual(['delivery', 'dashboard', 'timeclock', 'my-activity'])
+    it('delivery-staff should only have delivery, dashboard, their own time clock, their own activity and the alerts read view', () => {
+      // alerts rides along because the server grants delivery-staff alerts
+      // read — a driver waiting on a packed order is exactly who the
+      // delivery-unassigned rule is for. They can read the board, not sign it.
+      expect(ROLE_PERMISSIONS['delivery-staff']).toEqual(['delivery', 'dashboard', 'timeclock', 'my-activity', 'alerts'])
     })
 
     it('ROLE_DEFAULT_VIEW should map each role to a valid view', () => {
@@ -258,11 +261,13 @@ describe('API Client', () => {
     // Shifts and Time Clock, and the System section hosts the Audit Log.
     // 26 with Open Checks, which is where money owed is looked at.
     // 27 with My Activity, which is the per-role self-performance view.
+    // 28 with SLA Alerts, the manager's view of the rules engine.
     it('NAV_ITEMS covers the defined sections', () => {
-      expect(NAV_ITEMS.length).toBe(27)
+      expect(NAV_ITEMS.length).toBe(28)
       expect(NAV_ITEMS.map(n => n.view)).toContain('open-checks')
       expect(NAV_ITEMS.map(n => n.view)).not.toContain('staff')
       expect(NAV_ITEMS.map(n => n.view)).toContain('my-activity')
+      expect(NAV_ITEMS.map(n => n.view)).toContain('alerts')
       const sections = [...new Set(NAV_ITEMS.map(n => n.section))]
       expect(sections).toContain('Overview')
       expect(sections).toContain('Sales')

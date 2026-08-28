@@ -1,11 +1,26 @@
 <template>
   <div v-if="alerts.length" class="alerts-banner" :class="{ critical: hasCritical, expanded }">
-    <button class="alerts-summary" @click="expanded = !expanded" :aria-expanded="expanded">
-      <span class="alerts-pulse" aria-hidden="true"></span>
-      <strong>{{ alerts.length }} operation{{ alerts.length === 1 ? '' : 's' }} need{{ alerts.length === 1 ? 's' : '' }} attention</strong>
-      <span class="alerts-critical-count" v-if="criticalCount">{{ criticalCount }} critical</span>
-      <span class="alerts-hint">{{ expanded ? 'Hide' : 'Show' }}</span>
-    </button>
+    <div class="alerts-top">
+      <button class="alerts-summary" @click="expanded = !expanded" :aria-expanded="expanded">
+        <span class="alerts-pulse" aria-hidden="true"></span>
+        <strong>{{ alerts.length }} operation{{ alerts.length === 1 ? '' : 's' }} need{{ alerts.length === 1 ? 's' : '' }} attention</strong>
+        <span class="alerts-critical-count" v-if="criticalCount">{{ criticalCount }} critical</span>
+        <span class="alerts-hint">{{ expanded ? 'Hide' : 'Show' }}</span>
+      </button>
+      <button
+        class="alerts-sound"
+        :aria-pressed="!opsMuted"
+        :title="opsMuted ? 'Alert sound is off' : 'Alert sound is on'"
+        @click="toggleOpsMute"
+      >
+        <span v-if="opsMuted" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        </span>
+        <span v-else aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+        </span>
+      </button>
+    </div>
     <div v-if="expanded" class="alerts-list">
       <div v-for="a in sorted" :key="a.id" class="alert-row" :class="a.severity">
         <span class="alert-dot" aria-hidden="true"></span>
@@ -44,6 +59,7 @@
 import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
 import { apiGet, apiPost } from '../api'
 import { useSSE } from '../composables/useSSE'
+import { useAudioAlerts } from '../composables/useAudioAlerts'
 import { useAuthStore } from '../stores/auth'
 
 const alerts = ref([])
@@ -51,6 +67,23 @@ const expanded = ref(false)
 const acking = ref(null)
 const auth = useAuthStore()
 const toast = inject('toast', () => {})
+
+// Sound is for the critical tier only: a warning is the banner's job, a
+// critical is the room's. One chime per batch of new criticals — the sweep
+// can raise five at once on a cold start, and five sirens is noise, not
+// signal.
+const { playCriticalAlert, opsMuted, toggleOpsMute } = useAudioAlerts()
+const soundedCritical = new Set()
+
+function syncSound(list) {
+  const fresh = (list || []).filter(
+    (a) => a && a.severity === 'critical' && !soundedCritical.has(a.id)
+  )
+  for (const a of list || []) {
+    if (a && a.severity === 'critical') soundedCritical.add(a.id)
+  }
+  if (fresh.length) playCriticalAlert()
+}
 
 // Roles the server grants alerts write (ack) to. Read is wider; a role that
 // can read but not ack simply sees the list without the buttons.
@@ -76,6 +109,7 @@ async function load() {
   try {
     const res = await apiGet('alerts')
     alerts.value = Array.isArray(res) ? res : (res && res.alerts) || []
+    syncSound(alerts.value)
   } catch {
     // Refused or offline: silence, not an error banner on an error banner.
     alerts.value = []
@@ -83,7 +117,10 @@ async function load() {
 }
 
 function onAlertsPush(data) {
-  if (data && Array.isArray(data.alerts)) alerts.value = data.alerts
+  if (data && Array.isArray(data.alerts)) {
+    alerts.value = data.alerts
+    syncSound(alerts.value)
+  }
 }
 
 async function ack(a) {
@@ -141,6 +178,10 @@ onUnmounted(() => {
 .alerts-banner.critical {
   background: #b91c1c;
 }
+.alerts-top {
+  display: flex;
+  align-items: stretch;
+}
 .alerts-summary {
   display: flex;
   align-items: center;
@@ -165,6 +206,30 @@ onUnmounted(() => {
 @keyframes alerts-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.45; transform: scale(0.8); }
+}
+.alerts-sound {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.85;
+}
+.alerts-sound:hover {
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 1;
+}
+.alerts-sound span {
+  display: flex;
+}
+.alerts-sound svg {
+  width: 15px;
+  height: 15px;
 }
 .alerts-critical-count {
   background: rgba(255, 255, 255, 0.22);

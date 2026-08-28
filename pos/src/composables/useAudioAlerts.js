@@ -136,6 +136,56 @@ function playPop() {
   }
 }
 
+// ── Operations (SLA) alert sounds ──
+//
+// Deliberately NOT gated on the kitchen's `muted` switch: a ticket chime and a
+// breach siren are different conversations, and a cook who muted the order
+// dings during a rush did not thereby silence the thing telling them a ticket
+// has been lost for an hour. They still respect `enabled`, because
+// prefers-reduced-motion is a device-level "no sudden noises" and that is the
+// user's call, not ours.
+//
+// The critical sound is three ascending square beeps — impossible to confuse
+// with the warm order chime, and short enough not to startle the room.
+const opsMuted = ref(false)
+const savedOpsMuted = localStorage.getItem('ops-alerts-muted')
+if (savedOpsMuted !== null) opsMuted.value = savedOpsMuted === 'true'
+
+function playBeep(ctx, at, freq, duration) {
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+
+  osc.type = 'square'
+  osc.frequency.setValueAtTime(freq, at)
+
+  gain.gain.setValueAtTime(0, at)
+  gain.gain.linearRampToValueAtTime(0.14, at + 0.01)
+  gain.gain.exponentialRampToValueAtTime(0.001, at + duration)
+
+  osc.connect(gain)
+  gain.connect(ctx.destination)
+  osc.start(at)
+  osc.stop(at + duration)
+}
+
+// Three ascending beeps. Fired when a critical breach appears — including a
+// warning that just crossed into critical, which is the moment the floor
+// actually needs to hear about.
+function playCriticalAlert() {
+  if (!enabled.value || opsMuted.value) return
+  const ctx = getAudioContext()
+  if (!ctx) return
+
+  try {
+    const t = ctx.currentTime
+    playBeep(ctx, t, 660, 0.12)
+    playBeep(ctx, t + 0.18, 880, 0.12)
+    playBeep(ctx, t + 0.36, 1100, 0.16)
+  } catch (e) {
+    // A suspended context stays silent; the banner is still on screen.
+  }
+}
+
 export function useAudioAlerts() {
   function playNewOrder() {
     playDing()
@@ -159,13 +209,21 @@ export function useAudioAlerts() {
     localStorage.setItem('kitchen-audio-enabled', String(enabled.value))
   }
 
+  function toggleOpsMute() {
+    opsMuted.value = !opsMuted.value
+    localStorage.setItem('ops-alerts-muted', String(opsMuted.value))
+  }
+
   return {
     muted,
     enabled,
+    opsMuted,
     playNewOrder,
     playOrderReady,
     playOrderUpdate,
+    playCriticalAlert,
     toggleMute,
-    toggleEnabled
+    toggleEnabled,
+    toggleOpsMute
   }
 }
