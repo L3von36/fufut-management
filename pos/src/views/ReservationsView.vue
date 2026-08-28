@@ -18,7 +18,7 @@
              managers left a waiter able to advance a booking but not raise or drop
              one. The API agrees: MANAGER_ONLY covers /api/staff and /api/migrate
              only, so reservation writes were never restricted server-side. -->
-        <button v-if="auth.hasPermission('reservations')" class="btn btn-primary" @click="openAdd">+ New</button>
+        <button v-if="auth.hasPermission('reservations')" class="btn btn-primary" @click="openAdd">New Reservation</button>
         <button class="btn btn-ghost btn-sm" @click="loadData" title="Refresh">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>

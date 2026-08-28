@@ -6,10 +6,10 @@
         <base-button v-if="!activeDrawer" text="Open Drawer" variant="btn-primary" :on-click="openDrawerPrompt" />
         <base-button v-if="activeDrawer" text="Close Drawer (Z-Count)" variant="btn-warning" :on-click="closeDrawerPrompt" />
         <button v-if="activeDrawer" class="btn btn-outline" @click="showPaidModal = true" title="Paid-In or Paid-Out (Petty Cash)">
-          💵 Paid-In / Out
+          Paid-In / Out
         </button>
         <button v-if="activeDrawer" class="btn btn-outline" @click="showPopModal = true" title="Manual Drawer Open">
-          🔓 Pop Drawer
+          Pop Drawer
         </button>
         <base-button text="Refresh" variant="btn-outline" :on-click="loadData" />
         <button class="btn btn-outline" @click="printDrawer" title="Print drawer report">
@@ -21,7 +21,7 @@
     <!-- Active Drawer -->
     <div class="card" v-if="activeDrawer" style="margin-bottom:16px;border-color:var(--teal-200);background:var(--teal-50)">
       <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-        <h3>🟢 Active Drawer</h3>
+        <h3>Active Drawer</h3>
         <span class="badge badge-fulfilled">Shift Open</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px">
@@ -64,7 +64,7 @@
                 <td data-label="Expected">ETB {{ parseFloat(d.expectedClose || d.expected || 0).toFixed(0) }}</td>
                 <td data-label="Variance" :style="{color: parseFloat(d.variance||0) >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight:600}">{{ parseFloat(d.variance||0) >= 0 ? '+' : '' }}{{ parseFloat(d.variance||0).toFixed(0) }}</td>
                 <td data-label="Actions">
-                  <button class="btn btn-sm btn-ghost" @click="printZReport(d)" title="Print Thermal Z-Report">🖨️ Z-Report</button>
+                  <button class="btn btn-sm btn-ghost" @click="printZReport(d)" title="Print Thermal Z-Report">Z-Report</button>
                 </td>
               </tr>
               <tr v-if="!todaysDrawers.length"><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">No drawer records</td></tr>
@@ -97,7 +97,7 @@
                   {{ parseFloat(h.variance||0) >= 0 ? '+' : '' }}{{ parseFloat(h.variance||0).toFixed(0) }}
                 </td>
                 <td data-label="Z-Report">
-                  <button class="btn btn-sm btn-outline" @click="printZReport(h)">🖨️ Print Z-Report</button>
+                  <button class="btn btn-sm btn-outline" @click="printZReport(h)">Print Z-Report</button>
                 </td>
               </tr>
               <tr v-if="!historyDrawers.length"><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No past closed drawer sessions</td></tr>

@@ -23,7 +23,7 @@
           <option value="fulfilled">Fulfilled</option>
           <option value="cancelled">Cancelled</option>
         </select>
-        <button v-if="auth.hasPermission('checkout')" class="btn btn-primary" @click="openNewOrder">+ New Order</button>
+        <button v-if="auth.hasPermission('checkout')" class="btn btn-primary" @click="openNewOrder">New Order</button>
         <button class="btn btn-ghost btn-sm" @click="loadOrders" title="Refresh">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>

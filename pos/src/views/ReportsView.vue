@@ -79,7 +79,7 @@
       <div class="card">
         <div class="card-header"><h3>Export Reports</h3></div>
         <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="btn btn-sm btn-primary" @click="exportPDF('summary')">📄 Export Today Summary (PDF)</button>
+          <button class="btn btn-sm btn-primary" @click="exportPDF('summary')">Export Today Summary (PDF)</button>
           <button class="btn btn-sm btn-outline" @click="exportCSV('today')">Today's Orders (CSV)</button>
           <button class="btn btn-sm btn-outline" @click="exportCSV('month')">This Month (CSV)</button>
           <button v-if="auth.roleKey === 'manager'" class="btn btn-sm btn-outline" @click="exportJSON">All Data (JSON)</button>

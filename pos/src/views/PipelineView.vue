@@ -3,7 +3,7 @@
     <!-- Header -->
     <div class="pipeline-header">
       <div class="pipeline-title">
-        <span class="pipeline-icon">🚦</span>
+        <span class="pipeline-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="7" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="17" r="1.5" fill="currentColor"/></svg></span>
         <div>
           <h2>Order Pipeline</h2>
           <p>Drag cards between lanes to update status</p>
@@ -36,7 +36,6 @@
         <!-- Lane header -->
         <div class="lane-header">
           <div class="lane-header-left">
-            <span class="lane-icon">{{ stage.icon }}</span>
             <span class="lane-label">{{ stage.label }}</span>
           </div>
           <span class="lane-count">{{ grouped[stage.key]?.length || 0 }}</span>
@@ -61,8 +60,8 @@
               </div>
 
               <div class="card-meta">
-                <span v-if="order.table_number || order.tableId" class="meta-chip">🪑 Table {{ order.table_number || order.tableId }}</span>
-                <span v-if="order.customer && order.customer !== 'Walk-in'" class="meta-chip">👤 {{ order.customer }}</span>
+                <span v-if="order.table_number || order.tableId" class="meta-chip">Table {{ order.table_number || order.tableId }}</span>
+                <span v-if="order.customer && order.customer !== 'Walk-in'" class="meta-chip">{{ order.customer }}</span>
                 <span v-if="order.order_type || order.type" class="meta-chip type-chip">{{ order.order_type || order.type }}</span>
               </div>
 
@@ -91,7 +90,6 @@
           </transition-group>
 
           <div v-if="!(grouped[stage.key]?.length)" class="lane-empty">
-            <div class="empty-icon">{{ stage.emptyIcon }}</div>
             <div class="empty-text">{{ stage.emptyText }}</div>
           </div>
         </div>
@@ -173,7 +171,7 @@
     <transition name="modal">
       <div v-if="cancelConfirm" class="modal-overlay" @click.self="dismissCancel">
         <div class="confirm-modal">
-          <div class="confirm-icon">⚠️</div>
+          <div class="confirm-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="currentColor"/></svg></div>
           <div class="confirm-title">Cancel Order?</div>
           <div class="confirm-text">
             Order #{{ cancelConfirm.id?.slice(-5).toUpperCase() }} will be cancelled.
@@ -210,11 +208,11 @@ const dragOver = ref(null)
 const cancelConfirm = ref(null)
 
 const stages = [
-  { key: 'new',       label: 'New Orders',     accent: '#3B82F6', icon: '📋', emptyIcon: '📭', emptyText: 'No new orders' },
-  { key: 'preparing', label: 'Preparing',      accent: '#F59E0B', icon: '👨‍🍳', emptyIcon: '🍳', emptyText: 'Nothing cooking' },
-  { key: 'ready',     label: 'Ready to Serve', accent: '#8B5CF6', icon: '🔔', emptyIcon: '🛎️', emptyText: 'Nothing ready' },
-  { key: 'fulfilled', label: 'Served',          accent: '#10B981', icon: '✅', emptyIcon: '🎉', emptyText: 'All served' },
-  { key: 'cancelled', label: 'Cancelled',       accent: '#EF4444', icon: '✕',  emptyIcon: '🚫', emptyText: 'None cancelled' }
+  { key: 'new',       label: 'New Orders',     accent: '#3B82F6', emptyText: 'No new orders' },
+  { key: 'preparing', label: 'Preparing',      accent: '#F59E0B', emptyText: 'Nothing cooking' },
+  { key: 'ready',     label: 'Ready to Serve', accent: '#8B5CF6', emptyText: 'Nothing ready' },
+  { key: 'fulfilled', label: 'Served',          accent: '#10B981', emptyText: 'All served' },
+  { key: 'cancelled', label: 'Cancelled',       accent: '#EF4444', emptyText: 'None cancelled' }
 ]
 
 const grouped = computed(() => {

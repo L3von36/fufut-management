@@ -10,7 +10,7 @@
         <!-- Fix #2: Date range filter -->
         <input v-model="dateFrom" type="date" class="input input-sm" style="width:auto" />
         <input v-model="dateTo" type="date" class="input input-sm" style="width:auto" />
-        <button class="btn btn-primary" @click="openAdd">+ Add Expense</button>
+        <button class="btn btn-primary" @click="openAdd">Add Expense</button>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
         <!-- Fix #1: SVG printer icon -->
         <button class="btn btn-outline" @click="printExpenses" title="Print expense record">

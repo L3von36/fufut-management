@@ -14,7 +14,7 @@
           <option value="">All Items</option>
           <option value="low">Low Stock Only</option>
         </select>
-        <button v-if="canManageStock" class="btn btn-primary" @click="openAdd">+ Add Item</button>
+        <button v-if="canManageStock" class="btn btn-primary" @click="openAdd">Add Item</button>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
       </div>
     </div>

@@ -9,7 +9,7 @@
           <option value="provisional">Needs real quantities</option>
           <option value="thin">Margin under 50%</option>
         </select>
-        <button v-if="canEdit" class="btn btn-primary" @click="openNew()">+ New Recipe</button>
+        <button v-if="canEdit" class="btn btn-primary" @click="openNew()">New Recipe</button>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
       </div>
     </div>
@@ -198,7 +198,7 @@
             <button class="btn btn-sm btn-ghost danger" @click="form.lines.splice(i, 1)">×</button>
           </div>
         </div>
-        <button class="btn btn-sm btn-outline" @click="addLine" style="margin-top:8px">+ Add Ingredient</button>
+        <button class="btn btn-sm btn-outline" @click="addLine" style="margin-top:8px">Add Ingredient</button>
 
         <div v-if="problems.length" class="alert-banner warning" style="margin-top:12px">
           <div v-for="(p, i) in problems" :key="i">{{ p }}</div>

@@ -17,9 +17,9 @@
         </div>
         <!-- Fix #1: Sort toggle -->
         <div class="ks-sort">
-          <button class="ks-sort-btn" :class="{ active: sortBy === 'time' }" @click="sortBy = 'time'" title="Sort by time" aria-label="Sort tickets by time waiting">🕐</button>
-          <button class="ks-sort-btn" :class="{ active: sortBy === 'table' }" @click="sortBy = 'table'" title="Sort by table" aria-label="Sort tickets by table">🪑</button>
-          <button class="ks-sort-btn" :class="{ active: sortBy === 'size' }" @click="sortBy = 'size'" title="Sort by order size" aria-label="Sort tickets by order size">📏</button>
+          <button class="ks-sort-btn" :class="{ active: sortBy === 'time' }" @click="sortBy = 'time'" title="Sort by time" aria-label="Sort tickets by time waiting"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
+          <button class="ks-sort-btn" :class="{ active: sortBy === 'table' }" @click="sortBy = 'table'" title="Sort by table" aria-label="Sort tickets by table"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button>
+          <button class="ks-sort-btn" :class="{ active: sortBy === 'size' }" @click="sortBy = 'size'" title="Sort by order size" aria-label="Sort tickets by order size"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
         </div>
         <button class="btn btn-sm" :class="muted ? 'btn-danger' : 'btn-outline'" @click="toggleMute" :title="muted ? 'Unmute' : 'Mute'">
           <svg v-if="!muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46A4.5 4.5 0 0 1 18 12c0 1.21-.47 2.31-1.24 3.13l1.44 1.44A6.95 6.95 0 0 0 20 12c0-1.87-.73-3.58-1.93-4.84l-.03.03z"/></svg>
@@ -32,7 +32,7 @@
 
     <!-- Alert Banner for Critical Overdue Tickets -->
     <div v-if="criticalOverdueCount &gt; 0" class="ks-alert-banner">
-      ⚠️ <strong>ALERT:</strong> {{ criticalOverdueCount }} ticket{{ criticalOverdueCount === 1 ? '' : 's' }} exceeded the 15-minute preparation SLA threshold!
+      <strong>ALERT:</strong> {{ criticalOverdueCount }} ticket{{ criticalOverdueCount === 1 ? '' : 's' }} exceeded the 15-minute preparation SLA threshold!
     </div>
 
     <div class="kitchen-grid">
@@ -103,7 +103,7 @@
 
             <!-- Order-level notes -->
             <div v-if="o.notes" class="ko-order-notes">
-              <span class="ko-notes-icon">📝</span> {{ o.notes }}
+              {{ o.notes }}
             </div>
 
             <div class="ko-footer">
@@ -124,7 +124,6 @@
             </div>
           </div>
           <div v-if="!newOrders.length" class="kitchen-empty">
-            <div class="ke-icon">📋</div>
             No new orders
           </div>
         </div>
@@ -191,7 +190,7 @@
             </div>
 
             <div v-if="o.notes" class="ko-order-notes">
-              <span class="ko-notes-icon">📝</span> {{ o.notes }}
+              {{ o.notes }}
             </div>
 
             <div class="ko-footer">
@@ -201,7 +200,6 @@
             </div>
           </div>
           <div v-if="!preparingOrders.length" class="kitchen-empty">
-            <div class="ke-icon">👨‍🍳</div>
             Nothing in progress
           </div>
         </div>
@@ -248,7 +246,6 @@
             </div>
           </div>
           <div v-if="!readyOrders.length" class="kitchen-empty">
-            <div class="ke-icon">🍽️</div>
             Nothing ready yet
           </div>
         </div>
@@ -1066,12 +1063,15 @@ function isStaleReady(o) {
   .kitchen-grid { grid-template-columns: 1fr; }
 }
 
-/* Fix #15: Keyboard hint */
+/* Fix #15: Keyboard hint — hidden on touch devices (no keyboard) */
 .kitchen-kb-hint {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 8px 16px; margin-top: 12px;
   font-size: .7rem; color: var(--text-muted);
   background: var(--neutral-50); border-radius: var(--radius-sm);
+}
+@media (hover: none) and (pointer: coarse), (max-width: 768px) {
+  .kitchen-kb-hint { display: none; }
 }
 .kb-key {
   display: inline-flex; align-items: center; justify-content: center;

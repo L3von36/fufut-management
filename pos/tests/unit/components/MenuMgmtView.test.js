@@ -58,9 +58,9 @@ describe('MenuMgmtView', () => {
 
     it('can take a dish off when the kitchen runs out', async () => {
       const w = await open()
-      expect(labels(w)).toContain('Mark 86')
+      expect(labels(w)).toContain('Mark Unavailable')
 
-      await w.findAll('button').find(b => b.text() === 'Mark 86').trigger('click')
+      await w.findAll('button').find(b => b.text() === 'Mark Unavailable').trigger('click')
       await flushPromises()
 
       // Its own endpoint, carrying only the flag - not the item.
@@ -78,7 +78,7 @@ describe('MenuMgmtView', () => {
     it('is offered no way to add, edit, delete or reprice', async () => {
       const w = await open()
       const l = labels(w)
-      expect(l).not.toContain('+ Add Item')
+      expect(l).not.toContain('Add Item')
       expect(l).not.toContain('Edit')
       expect(l).not.toContain('Delete')
     })
@@ -93,7 +93,7 @@ describe('MenuMgmtView', () => {
 
     it('records who changed availability', async () => {
       const w = await open()
-      await w.findAll('button').find(b => b.text() === 'Mark 86').trigger('click')
+      await w.findAll('button').find(b => b.text() === 'Mark Unavailable').trigger('click')
       await flushPromises()
       expect(w.text()).toContain('Selam Wondimu')
     })
@@ -101,11 +101,11 @@ describe('MenuMgmtView', () => {
     it('leaves the dish on if the server refuses', async () => {
       mockApiPut.mockRejectedValue(new Error('Your role does not have access to this data'))
       const w = await open()
-      await w.findAll('button').find(b => b.text() === 'Mark 86').trigger('click')
+      await w.findAll('button').find(b => b.text() === 'Mark Unavailable').trigger('click')
       await flushPromises()
       // Not flipped optimistically, so the board never claims a dish is off
       // when the kitchen is still being asked for it.
-      expect(labels(w)).toContain('Mark 86')
+      expect(labels(w)).toContain('Mark Unavailable')
     })
   })
 
@@ -113,9 +113,9 @@ describe('MenuMgmtView', () => {
     it('keeps the full menu controls', async () => {
       const w = await open()
       const l = labels(w)
-      expect(l).toContain('+ Add Item')
+      expect(l).toContain('Add Item')
       expect(l).toContain('Edit')
-      expect(l).toContain('Mark 86')
+      expect(l).toContain('Mark Unavailable')
     })
 
     it('is shown cost and margin', async () => {

@@ -7,7 +7,7 @@
           <option value="">All purchases</option>
           <option value="unpaid">Not fully paid</option>
         </select>
-        <button v-if="canEdit" class="btn btn-primary" @click="openAdd">+ Record Purchase</button>
+        <button v-if="canEdit" class="btn btn-primary" @click="openAdd">Record Purchase</button>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
       </div>
     </div>
@@ -42,7 +42,7 @@
               <td data-label="Actions">
                 <div style="display:flex;gap:4px;flex-wrap:wrap">
                   <button class="btn btn-sm btn-ghost" @click="openDetail(p)">Lines</button>
-                  <button class="btn btn-sm btn-ghost" @click="printPurchase(p)" title="Print purchase record">🖨</button>
+                  <button class="btn btn-sm btn-ghost" @click="printPurchase(p)" title="Print purchase record">Print</button>
                   <button v-if="canEdit && p.total - p.paid > 0.5" class="btn btn-sm btn-ghost" @click="openPay(p)">Pay</button>
                 </div>
               </td>
@@ -86,7 +86,7 @@
             <button class="btn btn-sm btn-ghost danger" @click="form.items.splice(i, 1)">×</button>
           </div>
         </div>
-        <button class="btn btn-sm btn-outline" @click="addLine" style="margin-top:8px">+ Add Item</button>
+        <button class="btn btn-sm btn-outline" @click="addLine" style="margin-top:8px">Add Item</button>
 
         <div class="form-row" style="margin-top:16px">
           <div class="form-group">

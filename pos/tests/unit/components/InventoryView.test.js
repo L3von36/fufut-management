@@ -65,7 +65,7 @@ describe('InventoryView', () => {
     it('can add, adjust and edit stock', async () => {
       const w = await open()
       const labels = w.findAll('button').map(b => b.text())
-      expect(labels).toContain('+ Add Item')
+      expect(labels).toContain('Add Item')
       expect(labels).toContain('Edit')
       expect(labels).toContain('+1')
       expect(w.text()).not.toContain('View only')
@@ -102,7 +102,7 @@ describe('InventoryView', () => {
       expect(labels).not.toContain('Edit')
       expect(labels).not.toContain('Delete')
       expect(labels).not.toContain('+1')
-      expect(labels).not.toContain('+ Add Item')
+      expect(labels).not.toContain('Add Item')
     })
 
     it('can still use the filters, which are read-only', async () => {

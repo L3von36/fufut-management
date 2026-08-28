@@ -44,7 +44,7 @@
           <select v-model="store.tableNum" class="select select-sm">
             <option value="">-- Select Available Table --</option>
             <option v-for="t in availableTables" :key="t.id" :value="t.number">
-              Table {{ t.number }} &middot; {{ t.name || (t.section ? t.section + ' Section' : 'Main') }} ({{ t.capacity || 4 }}s) {{ t.status !== 'available' ? '[' + t.status.toUpperCase() + ']' : '' }}
+              Table {{ t.number }} &middot; {{ (t.name && t.name !== 'Table ' + t.number) ? t.name : (t.section ? t.section + ' Section' : 'Main') }} ({{ t.capacity || 4 }}s) {{ t.status !== 'available' ? '[' + t.status.toUpperCase() + ']' : '' }}
             </option>
           </select>
         </div>
@@ -198,7 +198,7 @@
         </div>
         <div v-if="discountExpanded" class="sc-body">
           <div v-if="store.discountType === 'none'" class="discount-none">
-            <button class="btn btn-outline btn-sm" @click="store.discountType = 'percentage'">+ Apply Discount</button>
+            <button class="btn btn-outline btn-sm" @click="store.discountType = 'percentage'">Apply Discount</button>
           </div>
           <div v-else>
             <div class="discount-type-row">

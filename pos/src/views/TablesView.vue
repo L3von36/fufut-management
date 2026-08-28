@@ -331,7 +331,7 @@
         </div>
         <div class="modal-actions" style="justify-content:center">
           <button class="btn btn-secondary" @click="qrModalData = null">Close</button>
-          <button class="btn btn-primary" @click="printQrCard">🖨️ Print QR Card</button>
+          <button class="btn btn-primary" @click="printQrCard">Print QR Card</button>
         </div>
       </div>
     </div>
@@ -556,7 +556,8 @@ function serverInitials(name) {
 
 const visibleSections = computed(() => {
   if (activeSection.value !== 'All') return [activeSection.value]
-  return sections.value
+  // Hide sections that have zero tables after the current filter
+  return sections.value.filter(s => filteredTables.value.some(t => t.section === s))
 })
 
 function sectionTables(section) {

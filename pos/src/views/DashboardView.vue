@@ -50,12 +50,12 @@
           <span class="dash-qa-label">Open Checks</span>
         </button>
         <button class="dash-qa" @click="router.push('/app/cashdrawer')" style="position:relative">
-          <span class="dash-qa-icon">💵</span>
+          <span class="dash-qa-icon" v-html="ICONS.cashDrawer"></span>
           <span class="dash-qa-label">Paid In/Out</span>
           <span v-if="digitalPending.length" class="qa-badge">{{ digitalPending.length }}</span>
         </button>
         <button class="dash-qa" @click="fetchShiftAudit">
-          <span class="dash-qa-icon">📜</span>
+          <span class="dash-qa-icon" v-html="ICONS.audit"></span>
           <span class="dash-qa-label">Audit Log</span>
         </button>
       </div>
@@ -125,12 +125,12 @@
     <!-- Cashier Payment Breakdown Donut -->
     <div v-if="auth.roleKey === 'cashier' && cashierPayBreakdown.length" class="chart-grid" style="grid-template-columns:1fr 1fr">
       <div class="chart-card">
-        <h3>💳 Payment Method Mix</h3>
+        <h3>Payment Method Mix</h3>
         <canvas ref="payBreakdownChart" style="max-height:200px"></canvas>
       </div>
       <!-- Top-Selling Items Pad -->
       <div class="chart-card">
-        <h3>⚡ Top Items — Fast Order</h3>
+        <h3>Top Items — Fast Order</h3>
         <div class="top-items-grid">
           <button
             v-for="item in topItems"
@@ -217,7 +217,7 @@
       <!-- Digital Transfer Verification Feed -->
       <div class="card">
         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-          <h3>📱 Pending Digital Payment Verifications</h3>
+          <h3>Pending Digital Payment Verifications</h3>
           <span class="badge badge-warning" v-if="digitalPending.length">{{ digitalPending.length }} pending</span>
           <span class="badge badge-fulfilled" v-else>All verified</span>
         </div>
@@ -241,7 +241,7 @@
       <!-- Live Shift Audit Timeline -->
       <div class="card">
         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
-          <h3>📜 Shift Activity Audit Timeline</h3>
+          <h3>Shift Activity Audit Timeline</h3>
           <button class="btn btn-sm btn-ghost" @click="fetchShiftAudit">Refresh Log</button>
         </div>
         <div v-if="shiftLogs.length" style="max-height:280px;overflow-y:auto;padding-right:6px">
@@ -326,6 +326,8 @@ const ICONS = {
   clean:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
   reservations: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
   ready:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>',
+  cashDrawer:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><rect x="7" y="13" width="10" height="4" rx="1"/></svg>',
+  audit:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>',
 }
 
 // Greeting based on time of day

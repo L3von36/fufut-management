@@ -4,7 +4,7 @@
       <h3>Waste Log</h3>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <select v-model="filter" class="select"><option value="">All</option><option value="Food">Food</option><option value="Beverage">Beverage</option><option value="Packaging">Packaging</option><option value="Other">Other</option></select>
-        <button class="btn btn-primary" @click="openAdd">+ Log Waste</button>
+        <button class="btn btn-primary" @click="openAdd">Log Waste</button>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
       </div>
     </div>

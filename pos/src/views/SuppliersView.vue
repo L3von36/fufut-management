@@ -8,7 +8,7 @@
           <option value="owed">We owe money</option>
           <option v-for="c in categories" :key="c" :value="'cat:' + c">{{ c }}</option>
         </select>
-        <button v-if="canEdit" class="btn btn-primary" @click="openAdd">+ Add Supplier</button>
+        <button v-if="canEdit" class="btn btn-primary" @click="openAdd">Add Supplier</button>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
       </div>
     </div>

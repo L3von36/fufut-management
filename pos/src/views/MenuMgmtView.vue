@@ -5,14 +5,9 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <select v-model="filter" class="select">
           <option value="">All Categories</option>
-          <option value="Espresso">Espresso</option>
-          <option value="Filter">Filter</option>
-          <option value="Cold">Cold</option>
-          <option value="Blended">Blended</option>
-          <option value="Food">Food</option>
-          <option value="Drinks">Drinks</option>
+          <option v-for="c in categoryOptions" :key="c" :value="c">{{ c }}</option>
         </select>
-        <button v-if="isManager" class="btn btn-primary" @click="openAdd">+ Add Item</button>
+        <button v-if="isManager" class="btn btn-primary" @click="openAdd">Add Item</button>
         <base-button text="Refresh" variant="btn-outline" :on-click="loadData" />
       </div>
     </div>
@@ -52,7 +47,7 @@
                     :class="i.available !== false ? 'btn-outline' : 'btn-success'"
                     :disabled="togglingId === i.id"
                     @click="toggleAvailability(i)"
-                  >{{ togglingId === i.id ? '…' : (i.available !== false ? 'Mark 86' : 'Restore') }}</button>
+                  >{{ togglingId === i.id ? '…' : (i.available !== false ? 'Mark Unavailable' : 'Restore') }}</button>
                   <button v-if="isManager" class="btn btn-sm btn-ghost" @click="openEdit(i)">Edit</button>
                   <base-button v-if="isManager" text="Delete" variant="btn-ghost" extra-class="btn-sm" :on-click="() => handleDelete(i)" />
                 </div>
@@ -77,7 +72,7 @@
           </div>
           <div style="flex:1">
             <div class="form-group"><label>Item Name</label><input v-model="form.name" placeholder="e.g. Cappuccino" :class="{ 'input-error': vErrors.name }" /><span v-if="vErrors.name" class="field-error">{{ vErrors.name }}</span></div>
-            <div class="form-group"><label>Category</label><select v-model="form.category" class="select" :class="{ 'input-error': vErrors.category }"><option value="">Select...</option><option value="Espresso">Espresso</option><option value="Filter">Filter</option><option value="Cold">Cold</option><option value="Blended">Blended</option><option value="Food">Food</option><option value="Drinks">Drinks</option></select><span v-if="vErrors.category" class="field-error">{{ vErrors.category }}</span></div>
+            <div class="form-group"><label>Category</label><select v-model="form.category" class="select" :class="{ 'input-error': vErrors.category }"><option value="">Select...</option><option v-for="c in categoryOptions" :key="c" :value="c">{{ c }}</option></select><span v-if="vErrors.category" class="field-error">{{ vErrors.category }}</span></div>
             <div class="form-row">
               <div class="form-group"><label>Selling Price (ETB)</label><input v-model.number="form.price" type="number" step="0.01" placeholder="0" :class="{ 'input-error': vErrors.price }" /><span v-if="vErrors.price" class="field-error">{{ vErrors.price }}</span></div>
               <div class="form-group"><label>Cost (ETB)</label><input v-model.number="form.cost" type="number" step="0.01" placeholder="0" /></div>
@@ -146,6 +141,15 @@ const foodImages = [
 const filteredItems = computed(() => {
   if (!filter.value) return items.value
   return items.value.filter(i => i.category === filter.value)
+})
+
+// Derive category list dynamically from existing items (falls back to defaults if data empty)
+const categoryOptions = computed(() => {
+  const set = new Set(items.value.map(i => i.category).filter(Boolean))
+  // Always offer a sensible default list when data is sparse
+  const defaults = ['Espresso', 'Filter', 'Cold', 'Blended', 'Food', 'Drinks']
+  defaults.forEach(d => set.add(d))
+  return Array.from(set).sort((a, b) => a.localeCompare(b))
 })
 
 function getPlaceholder(item) {
