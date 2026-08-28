@@ -23,9 +23,9 @@
 
     <!-- ─── Reorder ─── -->
     <div v-if="tab === 'reorder'">
-      <div v-if="!reorder.items.length" class="alert-banner success">✅ Nothing needs reordering</div>
+      <div v-if="!reorder.items.length" class="alert-banner success">Nothing needs reordering</div>
       <div v-else class="alert-banner warning">
-        ⚠ {{ reorder.count }} item(s) at or below their reorder point — about ETB {{ fmt(reorder.estimatedTotal) }} to restock
+        {{ reorder.count }} item(s) at or below their reorder point — about ETB {{ fmt(reorder.estimatedTotal) }} to restock
       </div>
       <div class="table-wrap">
         <div class="table-scroll">

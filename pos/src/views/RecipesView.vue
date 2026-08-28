@@ -20,10 +20,10 @@
       so it leads rather than sitting at the bottom of a list.
     -->
     <div v-if="withoutRecipe.length" class="alert-banner warning">
-      ⚠ {{ withoutRecipe.length }} menu item(s) have no recipe — selling them does not reduce stock
+      {{ withoutRecipe.length }} menu item(s) have no recipe — selling them does not reduce stock
     </div>
     <div v-else-if="recipes.length" class="alert-banner success">
-      ✅ Every menu item has a recipe
+      Every menu item has a recipe
     </div>
 
     <!--
@@ -33,7 +33,7 @@
       because every figure on the row looks finished.
     -->
     <div v-if="provisionalRecipes.length" class="alert-banner warning">
-      ⚠ {{ provisionalRecipes.length }} recipe(s) still use estimated quantities — their
+      {{ provisionalRecipes.length }} recipe(s) still use estimated quantities — their
       cost and margin are guesses until the kitchen weighs them.
       <button class="btn btn-sm btn-outline" style="margin-left:8px" @click="filter = 'provisional'">
         Show them

@@ -1,9 +1,9 @@
 <template>
   <div>
     <div v-if="lowStockItems.length" class="alert-banner warning">
-      ⚠ {{ lowStockItems.length }} item(s) at or below minimum stock level
+      {{ lowStockItems.length }} item(s) at or below minimum stock level
     </div>
-    <div v-else class="alert-banner success">✅ All items are well stocked</div>
+    <div v-else class="alert-banner success">All items are well stocked</div>
 
     <div class="table-toolbar">
       <h3>Inventory</h3>

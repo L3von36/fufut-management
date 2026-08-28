@@ -104,7 +104,7 @@
             <div>
               <div class="detail-order-id">#{{ selectedOrder.id }}</div>
               <div class="detail-sub">
-                <span v-if="selectedOrder.table_number || selectedOrder.tableId">🪑 Table {{ selectedOrder.table_number || selectedOrder.tableId }}</span>
+                <span v-if="selectedOrder.table_number || selectedOrder.tableId">Table {{ selectedOrder.table_number || selectedOrder.tableId }}</span>
                 <span>ETB {{ parseFloat(selectedOrder.total||0).toFixed(0) }}</span>
                 <span class="detail-status-badge" :class="'status-' + selectedOrder.status">{{ selectedOrder.status }}</span>
               </div>
