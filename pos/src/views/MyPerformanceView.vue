@@ -1,89 +1,115 @@
 <template>
   <div class="perf">
-    <!-- Page header -->
-    <div class="perf-header">
-      <div>
-        <h2 class="perf-title">My Activity</h2>
-        <p class="perf-sub">{{ actorName }} · {{ roleLabel }} · {{ totalEntries }} audit entries in range</p>
+    <!-- Hero header -->
+    <div class="perf-hero">
+      <div class="perf-hero-left">
+        <div class="perf-hero-greeting">{{ greeting }}, {{ firstName }}</div>
+        <h2 class="perf-hero-title">My Activity</h2>
+        <div class="perf-hero-meta">
+          <span class="perf-hero-pill perf-hero-pill-name">{{ fullName }}</span>
+          <span class="perf-hero-pill">
+            <span class="perf-hero-pill-dot" :style="{ background: roleColor }"></span>
+            {{ roleLabel }}
+          </span>
+          <span class="perf-hero-pill">{{ totalEntries }} action{{ totalEntries === 1 ? '' : 's' }} in range</span>
+          <span class="perf-hero-pill">{{ rangeLabel }}</span>
+        </div>
       </div>
-      <div class="perf-header-actions">
-        <button class="btn btn-outline btn-sm" @click="loadAll" :disabled="loading">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      <div class="perf-hero-right">
+        <button class="perf-refresh-btn" @click="loadAll" :disabled="loading" :title="loading ? 'Loading…' : 'Refresh'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                :class="{ 'perf-spin': loading }">
             <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
           </svg>
-          Refresh
         </button>
       </div>
     </div>
 
-    <!-- Range filter -->
-    <div class="perf-range-bar">
-      <div class="perf-range-tabs" role="tablist" aria-label="Date range">
-        <button v-for="opt in RANGE_OPTIONS" :key="opt.key"
-                role="tab"
-                :aria-selected="range === opt.key"
-                class="perf-range-tab"
-                :class="{ active: range === opt.key }"
-                @click="selectRange(opt.key)">
-          {{ opt.label }}
-        </button>
-      </div>
+    <!-- Range tabs -->
+    <div class="perf-range">
+      <button v-for="opt in RANGE_OPTIONS" :key="opt.key"
+              class="perf-range-tab"
+              :class="{ active: range === opt.key }"
+              @click="selectRange(opt.key)">
+        <span class="perf-range-tab-icon" v-html="opt.icon"></span>
+        <span>{{ opt.label }}</span>
+      </button>
       <div class="perf-range-custom" v-if="range === 'custom'">
         <label>From <input type="date" v-model="customFrom" class="input input-sm" /></label>
         <label>To <input type="date" v-model="customTo" class="input input-sm" /></label>
-        <button class="btn btn-secondary btn-sm" @click="applyCustom">Apply</button>
+        <button class="btn btn-primary btn-sm" @click="applyCustom">Apply</button>
       </div>
     </div>
 
     <!-- Loading skeleton -->
-    <div v-if="loading && !kpis.length" class="kpi-grid">
-      <div v-for="i in 4" :key="i" class="kpi-card">
-        <div class="kpi-bar teal"></div>
-        <div class="skel-line skel-label"></div>
-        <div class="skel-line skel-value"></div>
-        <div class="skel-line skel-sub"></div>
+    <div v-if="loading && !kpis.length" class="perf-kpi-grid">
+      <div v-for="i in 4" :key="i" class="perf-kpi-card perf-skel">
+        <div class="perf-skel-icon"></div>
+        <div class="perf-skel-line perf-skel-label"></div>
+        <div class="perf-skel-line perf-skel-value"></div>
+        <div class="perf-skel-line perf-skel-sub"></div>
       </div>
     </div>
 
-    <!-- Role-specific KPI tiles -->
-    <div v-else class="kpi-grid">
-      <div v-for="kpi in kpis" :key="kpi.label" class="kpi-card">
-        <div class="kpi-bar" :class="kpi.bar || 'teal'"></div>
-        <div class="kpi-top-row">
-          <div class="kpi-label">{{ kpi.label }}</div>
-          <span class="kpi-icon" v-if="kpi.icon" v-html="kpi.icon"></span>
+    <!-- KPI tiles -->
+    <div v-else-if="kpis.length" class="perf-kpi-grid">
+      <div v-for="(kpi, i) in kpis" :key="kpi.label" class="perf-kpi-card" :class="`perf-kpi-${kpi.bar || 'teal'}`" :style="{ animationDelay: `${i * 50}ms` }">
+        <div class="perf-kpi-card-top">
+          <div class="perf-kpi-icon" v-html="kpi.icon || ICONS.activity"></div>
+          <div class="perf-kpi-trend" v-if="kpi.trend" :class="kpi.trendDir || 'up'">
+            <svg v-if="kpi.trendDir === 'down'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+            {{ kpi.trend }}
+          </div>
         </div>
-        <div class="kpi-value" :style="kpi.color ? { color: kpi.color } : {}">{{ kpi.value }}</div>
-        <div class="kpi-sub" v-if="kpi.sub" v-html="kpi.sub"></div>
-      </div>
-      <div v-if="!kpis.length" class="kpi-card kpi-empty">
-        <div class="kpi-label">No activity in this range</div>
-        <div class="kpi-sub">Pick a different range, or do something — every order, delivery, payment and adjustment lands here automatically.</div>
+        <div class="perf-kpi-label">{{ kpi.label }}</div>
+        <div class="perf-kpi-value">{{ kpi.value }}</div>
+        <div class="perf-kpi-sub" v-if="kpi.sub" v-html="kpi.sub"></div>
       </div>
     </div>
 
-    <!-- Breakdown by entity / action -->
-    <div class="perf-breakdown-grid" v-if="!loading && (entityBreakdown.length || actionBreakdown.length)">
-      <div class="card">
-        <h3 class="perf-card-title">By Area</h3>
+    <!-- Empty state -->
+    <div v-else class="perf-empty">
+      <div class="perf-empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <h3>No activity in this range</h3>
+      <p>Pick a different range, or do something — every order, delivery, payment and adjustment lands here automatically.</p>
+    </div>
+
+    <!-- Breakdown -->
+    <div class="perf-breakdown" v-if="!loading && (entityBreakdown.length || actionBreakdown.length)">
+      <div class="perf-breakdown-card" v-if="entityBreakdown.length">
+        <div class="perf-breakdown-header">
+          <h3>By Area</h3>
+          <span class="perf-breakdown-count">{{ entityBreakdown.reduce((s, e) => s + e.count, 0) }}</span>
+        </div>
         <ul class="perf-bar-list">
           <li v-for="e in entityBreakdown" :key="e.key">
             <div class="perf-bar-row">
-              <span class="perf-bar-label">{{ e.label }}</span>
+              <span class="perf-bar-label">
+                <span class="perf-bar-dot" :style="{ background: e.color }"></span>
+                {{ e.label }}
+              </span>
               <span class="perf-bar-count">{{ e.count }}</span>
             </div>
             <div class="perf-bar-track"><div class="perf-bar-fill" :style="{ width: e.pct + '%', background: e.color }"></div></div>
           </li>
         </ul>
       </div>
-      <div class="card">
-        <h3 class="perf-card-title">By Action</h3>
+      <div class="perf-breakdown-card" v-if="actionBreakdown.length">
+        <div class="perf-breakdown-header">
+          <h3>By Action</h3>
+          <span class="perf-breakdown-count">{{ actionBreakdown.reduce((s, a) => s + a.count, 0) }}</span>
+        </div>
         <ul class="perf-bar-list">
           <li v-for="a in actionBreakdown" :key="a.key">
             <div class="perf-bar-row">
-              <span class="perf-bar-label">{{ a.label }}</span>
+              <span class="perf-bar-label">
+                <span class="perf-bar-dot" :style="{ background: a.color }"></span>
+                {{ a.label }}
+              </span>
               <span class="perf-bar-count">{{ a.count }}</span>
             </div>
             <div class="perf-bar-track"><div class="perf-bar-fill" :style="{ width: a.pct + '%', background: a.color }"></div></div>
@@ -92,58 +118,48 @@
       </div>
     </div>
 
-    <!-- Inline filter -->
-    <div class="card perf-filter-card" v-if="!loading">
-      <div class="perf-filter-row">
-        <label class="perf-filter-field">
-          <span>Area</span>
-          <select v-model="filters.entity" class="input input-sm" @change="applyFilters">
-            <option value="">All</option>
+    <!-- Activity timeline -->
+    <div class="perf-timeline-section" v-if="!loading">
+      <div class="perf-timeline-header">
+        <h3>Activity Timeline</h3>
+        <div class="perf-timeline-filters">
+          <select v-model="filters.entity" class="perf-filter-select" @change="applyFilters">
+            <option value="">All areas</option>
             <option v-for="e in entityOptions" :key="e" :value="e">{{ entityLabel(e) }}</option>
           </select>
-        </label>
-        <label class="perf-filter-field">
-          <span>Action</span>
-          <select v-model="filters.action" class="input input-sm" @change="applyFilters">
-            <option value="">All</option>
+          <select v-model="filters.action" class="perf-filter-select" @change="applyFilters">
+            <option value="">All actions</option>
             <option v-for="a in actionOptions" :key="a" :value="a">{{ a }}</option>
           </select>
-        </label>
-        <label class="perf-filter-field perf-filter-search">
-          <span>Search</span>
-          <input v-model="filters.q" class="input input-sm" placeholder="Search summary, reason, id…" @input="applyFilters" />
-        </label>
+          <input v-model="filters.q" class="perf-filter-search" placeholder="Search…" @input="applyFilters" />
+        </div>
       </div>
-    </div>
 
-    <!-- Activity log table -->
-    <div class="table-wrap" v-if="!loading">
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>When</th><th>What</th><th>Area</th><th>Action</th><th>Summary</th><th>Reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="e in filteredEntries" :key="e.id">
-              <td data-label="When">{{ formatTime(e.at) }}</td>
-              <td data-label="What" style="font-family:var(--font-mono)">{{ e.entity_id || '—' }}</td>
-              <td data-label="Area"><span class="badge badge-pending">{{ entityLabel(e.entity) }}</span></td>
-              <td data-label="Action"><span class="badge" :class="actionBadge(e.action)">{{ e.action }}</span></td>
-              <td data-label="Summary">{{ changeSummary(e) }}</td>
-              <td data-label="Reason">{{ e.reason || '—' }}</td>
-            </tr>
-            <tr v-if="!filteredEntries.length">
-              <td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">
-                No entries match these filters
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-if="filteredEntries.length" class="perf-timeline">
+        <div v-for="e in filteredEntries.slice(0, 50)" :key="e.id" class="perf-timeline-item" :class="`perf-act-${actionClass(e.action)}`">
+          <div class="perf-timeline-dot">
+            <span v-html="actionIcon(e.action, e.entity)"></span>
+          </div>
+          <div class="perf-timeline-body">
+            <div class="perf-timeline-top">
+              <span class="perf-timeline-action">{{ e.action }}</span>
+              <span class="perf-timeline-area">{{ entityLabel(e.entity) }}</span>
+              <span class="perf-timeline-time">{{ formatTime(e.at) }}</span>
+            </div>
+            <div class="perf-timeline-summary">{{ changeSummary(e) }}</div>
+            <div class="perf-timeline-id" v-if="e.entity_id">
+              <span class="perf-timeline-id-chip">{{ e.entity_id }}</span>
+              <span class="perf-timeline-reason" v-if="e.reason">· {{ e.reason }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-if="filteredEntries.length > 50" class="perf-timeline-more">
+          Showing 50 of {{ filteredEntries.length }} matching entries
+        </div>
       </div>
-      <div class="pagination">
-        <span>{{ filteredEntries.length }} of {{ totalEntries }} {{ filteredEntries.length !== totalEntries ? 'matching' : 'entries' }}</span>
+      <div v-else class="perf-timeline-empty">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <p>No entries match these filters</p>
       </div>
     </div>
   </div>
@@ -159,38 +175,92 @@ const loading = ref(false)
 const entries = ref([])
 const totalEntries = computed(() => entries.value.length)
 
-// ----- Range filter -----
+// ─── Icons ────────────────────────────────────────────────────────────
+const ICONS = {
+  activity: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
+  dishes:   '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>',
+  tickets:  '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
+  inventory: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+  waste:    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  recipes:  '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+  tables:   '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+  orders:   '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
+  tips:     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  cash:     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg>',
+  payments: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>',
+  delivery: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
+  staff:    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  clock:    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  expenses: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>',
+  create:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  update:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>',
+  void:     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+  verify:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
+  refund:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>',
+}
+
+const ROLE_COLORS = {
+  manager: '#0F7B78',
+  'head-chef': '#DC2626',
+  'assistant-chef': '#F59E0B',
+  'head-waiter': '#2563EB',
+  cashier: '#0EA5E9',
+  'delivery-staff': '#6366F1',
+  cleaner: '#10B981',
+  accountant: '#9333EA',
+}
+
+const firstName = computed(() => auth.user?.firstName || 'there')
+const fullName = computed(() => {
+  if (!auth.user) return 'You'
+  return `${auth.user.firstName} ${auth.user.lastName || ''}`.trim()
+})
+const greeting = computed(() => {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+})
+const roleLabel = computed(() => {
+  if (!auth.roleKey) return ''
+  return auth.roleKey.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
+})
+const roleColor = computed(() => ROLE_COLORS[auth.roleKey] || '#94a3b8')
+
+// ─── Range filter ─────────────────────────────────────────────────────
 const RANGE_OPTIONS = [
-  { key: 'today', label: 'Today' },
-  { key: 'week', label: 'This Week' },
-  { key: 'month', label: 'This Month' },
-  { key: 'year', label: 'This Year' },
-  { key: 'custom', label: 'Custom' },
+  { key: 'today', label: 'Today',     icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' },
+  { key: 'week',  label: 'This Week', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>' },
+  { key: 'month', label: 'This Month',icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' },
+  { key: 'year',  label: 'This Year', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-6"/></svg>' },
+  { key: 'custom',label: 'Custom',    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
 ]
 const range = ref('today')
 const customFrom = ref(TODAY())
 const customTo = ref(TODAY())
+const rangeLabel = computed(() => {
+  const r = range.value
+  if (r === 'today') return 'Today'
+  if (r === 'week') return 'This week'
+  if (r === 'month') return 'This month'
+  if (r === 'year') return 'This year'
+  return `${customFrom.value} → ${customTo.value}`
+})
 
 function startOfWeek(d = new Date()) {
-  const day = d.getDay() || 7  // Mon=1..Sun=7
+  const day = d.getDay() || 7
   const mon = new Date(d)
   mon.setDate(d.getDate() - (day - 1))
   mon.setHours(0, 0, 0, 0)
   return mon
 }
-function startOfMonth(d = new Date()) {
-  return new Date(d.getFullYear(), d.getMonth(), 1)
-}
-function startOfYear(d = new Date()) {
-  return new Date(d.getFullYear(), 0, 1)
-}
+function startOfMonth(d = new Date()) { return new Date(d.getFullYear(), d.getMonth(), 1) }
+function startOfYear(d = new Date()) { return new Date(d.getFullYear(), 0, 1) }
 function iso(d) {
   const pad = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
-function endOfDayIso(d) {
-  return `${iso(d)}T23:59:59`
-}
+function endOfDayIso(d) { return `${iso(d)}T23:59:59` }
 
 function currentRange() {
   const now = new Date()
@@ -212,31 +282,19 @@ function selectRange(key) {
 }
 function applyCustom() { loadAll() }
 
-// ----- Filters within range -----
+// ─── Filters ──────────────────────────────────────────────────────────
 const filters = ref({ entity: '', action: '', q: '' })
 
 const ENTITY_LABELS = {
-  orders: 'Orders',
-  payments: 'Payments',
-  inventory: 'Inventory',
-  menu: 'Menu',
-  staff: 'Staff',
-  timeclock: 'Time Clock',
-  shifts: 'Shifts',
-  cashdrawer: 'Cash Drawer',
-  expenses: 'Expenses',
-  purchases: 'Purchases',
-  recipes: 'Recipes',
-  delivery: 'Delivery',
-  tips: 'Tips',
-  leave_requests: 'Leave',
-  overtime: 'Overtime',
-  staff_adjustments: 'Adjustments',
+  orders: 'Orders', payments: 'Payments', inventory: 'Inventory', menu: 'Menu',
+  staff: 'Staff', timeclock: 'Time Clock', shifts: 'Shifts', cashdrawer: 'Cash Drawer',
+  expenses: 'Expenses', purchases: 'Purchases', recipes: 'Recipes', delivery: 'Delivery',
+  tips: 'Tips', leave_requests: 'Leave', overtime: 'Overtime', staff_adjustments: 'Adjustments',
+  waste: 'Waste', tables: 'Tables', reservations: 'Reservations',
 }
 function entityLabel(e) { return ENTITY_LABELS[e] || (e ? e[0].toUpperCase() + e.slice(1) : '—') }
 
 const entityOptions = computed(() => {
-  // Auto-populate from data, plus a curated superset
   const seen = new Set(entries.value.map(e => e.entity).filter(Boolean))
   const curated = Object.keys(ENTITY_LABELS)
   return Array.from(new Set([...seen, ...curated])).sort()
@@ -246,14 +304,32 @@ const actionOptions = computed(() => {
   return Array.from(seen).sort()
 })
 
-function actionBadge(action) {
+function actionClass(action) {
   switch (action) {
-    case 'create': return 'badge-new'
-    case 'update': case 'advance': case 'batch-assign': return 'badge-pending'
-    case 'void': case 'refund': case 'cancel': case 'cancelled': return 'badge-danger'
-    case 'adjust': case 'verify': return 'badge-pending'
-    default: return ''
+    case 'create': return 'create'
+    case 'update': case 'advance': case 'batch-assign': return 'update'
+    case 'void': case 'refund': case 'cancel': case 'cancelled': return 'void'
+    case 'verify': return 'verify'
+    case 'adjust': return 'update'
+    default: return 'other'
   }
+}
+
+function actionIcon(action, entity) {
+  if (action === 'create') return ICONS.create
+  if (action === 'void' || action === 'refund' || action === 'cancel') return ICONS.void
+  if (action === 'verify') return ICONS.verify
+  if (entity === 'orders') return ICONS.orders
+  if (entity === 'payments') return ICONS.payments
+  if (entity === 'tips') return ICONS.tips
+  if (entity === 'delivery') return ICONS.delivery
+  if (entity === 'tables') return ICONS.tables
+  if (entity === 'inventory') return ICONS.inventory
+  if (entity === 'staff') return ICONS.staff
+  if (entity === 'timeclock') return ICONS.clock
+  if (entity === 'expenses') return ICONS.expenses
+  if (entity === 'cashdrawer') return ICONS.cash
+  return ICONS.activity
 }
 
 function changeSummary(e) {
@@ -262,14 +338,23 @@ function changeSummary(e) {
   if (!a && !b) return '—'
   if (!a) return 'deleted'
   if (typeof a === 'object') {
-    const parts = Object.keys(a).slice(0, 3).map(k => {
+    // Highlight money/duration fields first for a more useful summary
+    const priorityKeys = ['amount', 'total', 'tip', 'cost', 'status', 'method']
+    const allKeys = Object.keys(a)
+    const sorted = [...priorityKeys.filter(k => k in a), ...allKeys.filter(k => !priorityKeys.includes(k))]
+    const parts = sorted.slice(0, 4).map(k => {
       const av = a[k]
       const bv = b && b[k] !== undefined ? b[k] : null
-      const disp = (v) => (typeof v === 'object' && v !== null) ? JSON.stringify(v) : String(v)
-      if (bv !== null && String(bv) !== String(av)) return `${k}: ${disp(bv)} → ${disp(av)}`
-      return `${k}: ${disp(av)}`
+      const disp = (v) => {
+        if (typeof v === 'number' && (k === 'amount' || k === 'total' || k === 'tip' || k === 'cost')) {
+          return `ETB ${v}`
+        }
+        return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : String(v)
+      }
+      if (bv !== null && String(bv) !== String(av)) return `<strong>${k}</strong>: ${disp(bv)} → ${disp(av)}`
+      return `<strong>${k}</strong>: ${disp(av)}`
     })
-    return parts.join(', ') || '—'
+    return parts.join('  ·  ') || '—'
   }
   return String(a).slice(0, 80)
 }
@@ -277,7 +362,11 @@ function changeSummary(e) {
 function formatTime(isoStr) {
   if (!isoStr) return '—'
   const d = new Date(isoStr)
-  return isNaN(d) ? isoStr : d.toLocaleString()
+  if (isNaN(d)) return isoStr
+  // Use a consistent format: "Aug 29, 3:45 PM"
+  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return `${date} · ${time}`
 }
 
 const filteredEntries = computed(() => {
@@ -297,22 +386,18 @@ const filteredEntries = computed(() => {
 
 function applyFilters() { /* reactive; no fetch needed */ }
 
-// ----- KPI builders per role -----
+// ─── Breakdowns ───────────────────────────────────────────────────────
 const ENTITY_COLORS = {
   orders: '#0F7B78', payments: '#18B4B7', inventory: '#D6B36A', menu: '#E4CB99',
   staff: '#2E7D32', timeclock: '#D97706', shifts: '#9333EA', cashdrawer: '#0EA5E9',
   expenses: '#DC2626', purchases: '#F59E0B', recipes: '#10B981', delivery: '#6366F1',
   tips: '#EC4899', leave_requests: '#64748B', overtime: '#A855F7', staff_adjustments: '#EF4444',
+  waste: '#991B1B', tables: '#2563EB', reservations: '#7C3AED',
 }
-
-const actorName = computed(() => {
-  if (!auth.user) return 'You'
-  return `${auth.user.firstName} ${auth.user.lastName || ''}`.trim()
-})
-const roleLabel = computed(() => {
-  if (!auth.roleKey) return ''
-  return auth.roleKey.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
-})
+const ACTION_COLORS = {
+  create: '#10B981', update: '#0EA5E9', advance: '#0F7B78', verify: '#18B4B7',
+  void: '#EF4444', refund: '#DC2626', cancel: '#991B1B', adjust: '#F59E0B',
+}
 
 const entityBreakdown = computed(() => {
   const map = {}
@@ -331,7 +416,7 @@ const actionBreakdown = computed(() => {
   const map = {}
   for (const e of entries.value) {
     const k = e.action || 'other'
-    if (!map[k]) map[k] = { key: k, label: k, count: 0, color: ENTITY_COLORS.orders }
+    if (!map[k]) map[k] = { key: k, label: k, count: 0, color: ACTION_COLORS[k] || '#94a3b8' }
     map[k].count++
   }
   const list = Object.values(map).sort((a, b) => b.count - a.count).slice(0, 6)
@@ -340,39 +425,36 @@ const actionBreakdown = computed(() => {
   return list
 })
 
-/**
- * Per-role KPIs derived from the audit log slice for the signed-in user.
- *
- * The audit log records every change to orders, payments, inventory, staff,
- * shifts, cash drawer, expenses, purchases, recipes, delivery, tips, leave,
- * overtime and staff_adjustments — with actor_id set to whoever did it. So a
- * single `/api/audit?actor_id=<me>&from=<…>&to=<…>` call returns enough to
- * compute every per-role "what did I do today" metric, without a new endpoint
- * per role.
- *
- * What each role gets:
- *  - Manager:        orders taken, payments verified, expenses booked, staff
- *                    edits, cash drawer ops, deliveries settled — the audit
- *                    trail is the manager's whole day.
- *  - Head Chef:      dishes sent (order status → ready/served), inventory
- *                    adjustments, recipes edited, stock-control writes, waste
- *                    logged. Plus a "tickets still in prep" rolling count.
- *  - Assistant Chef: dishes sent (status → ready), inventory reads (the API
- *                    does not let them write), recipes viewed.
- *  - Head Waiter:    tables seated / released, orders taken, tips recorded,
- *                    reservations created.
- *  - Cashier:        payments verified, cash drawer ops, tips recorded,
- *                    refunds issued, settlements.
- *  - Delivery Staff: deliveries assigned, picked up, delivered, payments
- *                    recorded, tips recorded — the job-list as a counter.
- *  - Cleaner:        waste entries logged, inventory reads.
- *  - Accountant:     expenses booked, reports viewed, payroll runs (none yet
- *                    since accountant has read-only on most things).
- */
+// ─── Per-role KPIs ────────────────────────────────────────────────────
 const kpis = ref([])
 
-function countBy(predicate) {
-  return entries.value.filter(predicate).length
+function countBy(predicate) { return entries.value.filter(predicate).length }
+
+function sumBy(predicate, field) {
+  // Sum a numeric field from the audit `after` payload
+  let total = 0
+  for (const e of entries.value) {
+    if (!predicate(e)) continue
+    const v = e.after && (e.after[field] || e.after.total || e.after.amount)
+    if (typeof v === 'number' && Number.isFinite(v)) total += v
+  }
+  return total
+}
+
+function avgDuration(predicate, fromField, toField) {
+  let totalMs = 0
+  let count = 0
+  for (const e of entries.value) {
+    if (!predicate(e)) continue
+    const from = e.before && (e.before[fromField] || e.before.created)
+    const to = e.after && (e.after[toField] || e.after.at)
+    if (from && to) {
+      const ms = Date.parse(to) - Date.parse(from)
+      if (Number.isFinite(ms) && ms > 0) { totalMs += ms; count++ }
+    }
+  }
+  if (!count) return null
+  return Math.round(totalMs / count / 60000) // minutes
 }
 
 function buildKpis() {
@@ -381,15 +463,14 @@ function buildKpis() {
 
   if (role === 'manager') {
     out.push(
-      { label: 'Orders Touched', value: countBy(e => e.entity === 'orders'), sub: 'created · updated · voided', bar: 'teal' },
-      { label: 'Payments Verified', value: countBy(e => e.entity === 'payments'), sub: 'verify · refund · adjust', bar: 'blue' },
-      { label: 'Expenses Booked', value: countBy(e => e.entity === 'expenses'), sub: 'created · adjusted', bar: 'red' },
-      { label: 'Staff Edits', value: countBy(e => e.entity === 'staff'), sub: 'creates · updates · resets', bar: 'green' },
-      { label: 'Cash Drawer Ops', value: countBy(e => e.entity === 'cashdrawer'), sub: 'opens · paid in/out · closes', bar: 'amber' },
-      { label: 'Deliveries Settled', value: countBy(e => e.entity === 'delivery'), sub: 'assigned · advanced · settled', bar: 'indigo' },
+      { label: 'Orders Touched', value: countBy(e => e.entity === 'orders'), sub: 'created · updated · voided', bar: 'teal', icon: ICONS.orders },
+      { label: 'Payments Verified', value: countBy(e => e.entity === 'payments'), sub: 'verify · refund · adjust', bar: 'blue', icon: ICONS.payments },
+      { label: 'Expenses Booked', value: countBy(e => e.entity === 'expenses'), sub: 'created · adjusted', bar: 'red', icon: ICONS.expenses },
+      { label: 'Staff Edits', value: countBy(e => e.entity === 'staff'), sub: 'creates · updates · resets', bar: 'green', icon: ICONS.staff },
+      { label: 'Cash Drawer Ops', value: countBy(e => e.entity === 'cashdrawer'), sub: 'opens · paid in/out · closes', bar: 'amber', icon: ICONS.cash },
+      { label: 'Deliveries Settled', value: countBy(e => e.entity === 'delivery'), sub: 'assigned · advanced · settled', bar: 'indigo', icon: ICONS.delivery },
     )
   } else if (role === 'head-chef' || role === 'assistant-chef') {
-    // Dishes sent = order status updates where after.status is ready/served.
     const dishesSent = countBy(e =>
       e.entity === 'orders' && e.action === 'update' &&
       e.after && (e.after.status === 'ready' || e.after.status === 'served'))
@@ -397,68 +478,73 @@ function buildKpis() {
       e.entity === 'orders' && e.action === 'update' &&
       e.after && e.after.status === 'preparing')
     out.push(
-      { label: 'Dishes Sent', value: dishesSent, sub: 'tickets moved to ready/served', bar: 'teal' },
-      { label: 'Tickets Started', value: ticketsStarted, sub: 'orders moved into preparing', bar: 'amber' },
-      { label: 'Inventory Adjustments', value: countBy(e => e.entity === 'inventory'), sub: 'stock counts · corrections', bar: 'yellow' },
-      { label: 'Waste Logged', value: countBy(e => e.entity === 'waste' || e.entity === 'inventory' && e.action === 'waste'), sub: 'spoilage recorded', bar: 'red' },
+      { label: 'Dishes Sent', value: dishesSent, sub: 'tickets moved to ready/served', bar: 'teal', icon: ICONS.dishes },
+      { label: 'Tickets Started', value: ticketsStarted, sub: 'orders moved into preparing', bar: 'amber', icon: ICONS.tickets },
+      { label: 'Inventory Adjustments', value: countBy(e => e.entity === 'inventory'), sub: 'stock counts · corrections', bar: 'yellow', icon: ICONS.inventory },
+      { label: 'Waste Logged', value: countBy(e => e.entity === 'waste' || (e.entity === 'inventory' && e.action === 'waste')), sub: 'spoilage recorded', bar: 'red', icon: ICONS.waste },
     )
     if (role === 'head-chef') {
       out.push(
-        { label: 'Recipes Edited', value: countBy(e => e.entity === 'recipes'), sub: 'BOM changes', bar: 'green' },
-        { label: 'Stock Control Writes', value: countBy(e => e.entity === 'purchases' || e.action === 'adjust'), sub: 'suppliers · purchases', bar: 'blue' },
+        { label: 'Recipes Edited', value: countBy(e => e.entity === 'recipes'), sub: 'BOM changes', bar: 'green', icon: ICONS.recipes },
+        { label: 'Stock Control Writes', value: countBy(e => e.entity === 'purchases' || e.action === 'adjust'), sub: 'suppliers · purchases', bar: 'blue', icon: ICONS.inventory },
       )
     } else {
       out.push(
-        { label: 'Recipes Viewed', value: countBy(e => e.entity === 'recipes' && e.action === 'read'), sub: '(audited if enabled)', bar: 'green' },
-        { label: 'Time Clock Punches', value: countBy(e => e.entity === 'timeclock'), sub: 'clock in · out', bar: 'indigo' },
+        { label: 'Recipes Viewed', value: countBy(e => e.entity === 'recipes' && e.action === 'read'), sub: '(audited if enabled)', bar: 'green', icon: ICONS.recipes },
+        { label: 'Time Clock Punches', value: countBy(e => e.entity === 'timeclock'), sub: 'clock in · out', bar: 'indigo', icon: ICONS.clock },
       )
     }
   } else if (role === 'head-waiter') {
+    // Sum tips for money KPI
+    const tipsTotal = sumBy(e => e.entity === 'tips', 'amount')
     out.push(
-      { label: 'Tables Seated', value: countBy(e => e.entity === 'tables' && e.action === 'update' && e.after && e.after.status === 'occupied'), sub: 'guests seated', bar: 'teal' },
-      { label: 'Tables Released', value: countBy(e => e.entity === 'tables' && e.action === 'update' && e.after && e.after.status === 'available'), sub: 'cleared after service', bar: 'green' },
-      { label: 'Orders Taken', value: countBy(e => e.entity === 'orders' && e.action === 'create'), sub: 'new checks opened', bar: 'amber' },
-      { label: 'Tips Recorded', value: countBy(e => e.entity === 'tips'), sub: 'cash · card', bar: 'pink' },
-      { label: 'Reservations', value: countBy(e => e.entity === 'reservations' || e.action === 'create' && e.entity === 'reservations'), sub: 'booked · updated', bar: 'indigo' },
+      { label: 'Tables Seated', value: countBy(e => e.entity === 'tables' && e.action === 'update' && e.after && e.after.status === 'occupied'), sub: 'guests seated', bar: 'teal', icon: ICONS.tables },
+      { label: 'Tables Released', value: countBy(e => e.entity === 'tables' && e.action === 'update' && e.after && e.after.status === 'available'), sub: 'cleared after service', bar: 'green', icon: ICONS.tables },
+      { label: 'Orders Taken', value: countBy(e => e.entity === 'orders' && e.action === 'create'), sub: 'new checks opened', bar: 'amber', icon: ICONS.orders },
+      { label: 'Tips Recorded', value: tipsTotal > 0 ? `ETB ${tipsTotal.toFixed(0)}` : countBy(e => e.entity === 'tips'), sub: tipsTotal > 0 ? `${countBy(e => e.entity === 'tips')} tabs tipped` : 'cash · card', bar: 'pink', icon: ICONS.tips },
+      { label: 'Reservations', value: countBy(e => e.entity === 'reservations' || (e.action === 'create' && e.entity === 'reservations')), sub: 'booked · updated', bar: 'indigo', icon: ICONS.tables },
     )
   } else if (role === 'cashier') {
+    const tipsTotal = sumBy(e => e.entity === 'tips', 'amount')
     out.push(
-      { label: 'Payments Verified', value: countBy(e => e.entity === 'payments' && (e.action === 'verify' || e.action === 'create')), sub: 'telebirr · cbe · cash', bar: 'teal' },
-      { label: 'Cash Drawer Ops', value: countBy(e => e.entity === 'cashdrawer'), sub: 'opens · paid in/out · closes', bar: 'amber' },
-      { label: 'Refunds Issued', value: countBy(e => e.entity === 'payments' && e.action === 'refund'), sub: 'voided · refunded', bar: 'red' },
-      { label: 'Tips Recorded', value: countBy(e => e.entity === 'tips'), sub: 'tips taken', bar: 'pink' },
-      { label: 'Orders Settled', value: countBy(e => e.entity === 'orders' && e.action === 'update' && e.after && /paid|settled|completed/.test(e.after.status || '')), sub: 'checks closed', bar: 'green' },
+      { label: 'Payments Verified', value: countBy(e => e.entity === 'payments' && (e.action === 'verify' || e.action === 'create')), sub: 'telebirr · cbe · cash', bar: 'teal', icon: ICONS.payments },
+      { label: 'Cash Drawer Ops', value: countBy(e => e.entity === 'cashdrawer'), sub: 'opens · paid in/out · closes', bar: 'amber', icon: ICONS.cash },
+      { label: 'Refunds Issued', value: countBy(e => e.entity === 'payments' && e.action === 'refund'), sub: 'voided · refunded', bar: 'red', icon: ICONS.refund },
+      { label: 'Tips Recorded', value: tipsTotal > 0 ? `ETB ${tipsTotal.toFixed(0)}` : countBy(e => e.entity === 'tips'), sub: tipsTotal > 0 ? `${countBy(e => e.entity === 'tips')} tips taken` : 'tips taken', bar: 'pink', icon: ICONS.tips },
+      { label: 'Orders Settled', value: countBy(e => e.entity === 'orders' && e.action === 'update' && e.after && /paid|settled|completed/.test(e.after.status || '')), sub: 'checks closed', bar: 'green', icon: ICONS.orders },
     )
   } else if (role === 'delivery-staff') {
+    const tipsTotal = sumBy(e => e.entity === 'tips', 'amount')
     const taken     = countBy(e => e.entity === 'delivery' && e.action === 'update' && e.after && e.after.status === 'assigned')
     const picked    = countBy(e => e.entity === 'delivery' && e.action === 'update' && e.after && e.after.status === 'picked_up')
     const delivered = countBy(e => e.entity === 'delivery' && e.action === 'update' && e.after && e.after.status === 'delivered')
     out.push(
-      { label: 'Jobs Taken', value: taken, sub: 'assigned to me', bar: 'amber' },
-      { label: 'Picked Up', value: picked, sub: 'left the store', bar: 'blue' },
-      { label: 'Delivered', value: delivered, sub: 'completed deliveries', bar: 'green' },
-      { label: 'Payments Recorded', value: countBy(e => e.entity === 'payments' && e.action === 'create'), sub: 'cash · transfer on doorstep', bar: 'teal' },
-      { label: 'Tips Recorded', value: countBy(e => e.entity === 'tips'), sub: 'tips left by guests', bar: 'pink' },
+      { label: 'Jobs Taken', value: taken, sub: 'assigned to me', bar: 'amber', icon: ICONS.delivery },
+      { label: 'Picked Up', value: picked, sub: 'left the store', bar: 'blue', icon: ICONS.delivery },
+      { label: 'Delivered', value: delivered, sub: 'completed deliveries', bar: 'green', icon: ICONS.delivery },
+      { label: 'Payments Recorded', value: countBy(e => e.entity === 'payments' && e.action === 'create'), sub: 'cash · transfer on doorstep', bar: 'teal', icon: ICONS.payments },
+      { label: 'Tips Recorded', value: tipsTotal > 0 ? `ETB ${tipsTotal.toFixed(0)}` : countBy(e => e.entity === 'tips'), sub: tipsTotal > 0 ? `${countBy(e => e.entity === 'tips')} tips left` : 'tips left by guests', bar: 'pink', icon: ICONS.tips },
     )
   } else if (role === 'cleaner') {
+    const wasteCost = sumBy(e => e.entity === 'waste' || (e.entity === 'inventory' && e.action === 'waste'), 'cost')
     out.push(
-      { label: 'Waste Logged', value: countBy(e => e.entity === 'waste' || (e.entity === 'inventory' && e.action === 'waste')), sub: 'spoilage · breakage', bar: 'red' },
-      { label: 'Tables Cleared', value: countBy(e => e.entity === 'tables' && e.action === 'update' && e.after && e.after.status === 'available'), sub: 'reset after service', bar: 'green' },
-      { label: 'Time Clock Punches', value: countBy(e => e.entity === 'timeclock'), sub: 'clock in · out', bar: 'indigo' },
+      { label: 'Waste Logged', value: countBy(e => e.entity === 'waste' || (e.entity === 'inventory' && e.action === 'waste')), sub: wasteCost > 0 ? `ETB ${wasteCost.toFixed(0)} recorded` : 'spoilage · breakage', bar: 'red', icon: ICONS.waste },
+      { label: 'Tables Cleared', value: countBy(e => e.entity === 'tables' && e.action === 'update' && e.after && e.after.status === 'available'), sub: 'reset after service', bar: 'green', icon: ICONS.tables },
+      { label: 'Time Clock Punches', value: countBy(e => e.entity === 'timeclock'), sub: 'clock in · out', bar: 'indigo', icon: ICONS.clock },
     )
   } else if (role === 'accountant') {
     out.push(
-      { label: 'Expenses Booked', value: countBy(e => e.entity === 'expenses' && e.action === 'create'), sub: 'bills · supplier invoices', bar: 'red' },
-      { label: 'Expenses Adjusted', value: countBy(e => e.entity === 'expenses' && e.action === 'update'), sub: 'corrections · reclasses', bar: 'amber' },
-      { label: 'Reports Viewed', value: countBy(e => e.entity === 'reports' || e.action === 'read'), sub: '(audited if enabled)', bar: 'blue' },
-      { label: 'Time Clock Punches', value: countBy(e => e.entity === 'timeclock'), sub: 'clock in · out', bar: 'indigo' },
+      { label: 'Expenses Booked', value: countBy(e => e.entity === 'expenses' && e.action === 'create'), sub: 'bills · supplier invoices', bar: 'red', icon: ICONS.expenses },
+      { label: 'Expenses Adjusted', value: countBy(e => e.entity === 'expenses' && e.action === 'update'), sub: 'corrections · reclasses', bar: 'amber', icon: ICONS.expenses },
+      { label: 'Reports Viewed', value: countBy(e => e.entity === 'reports' || e.action === 'read'), sub: '(audited if enabled)', bar: 'blue', icon: ICONS.activity },
+      { label: 'Time Clock Punches', value: countBy(e => e.entity === 'timeclock'), sub: 'clock in · out', bar: 'indigo', icon: ICONS.clock },
     )
   }
 
   kpis.value = out
 }
 
-// ----- Load -----
+// ─── Load ─────────────────────────────────────────────────────────────
 async function loadAll() {
   loading.value = true
   try {
@@ -489,50 +575,216 @@ onMounted(loadAll)
 </script>
 
 <style scoped>
+/* ─── Hero header ───────────────────────────────────────────────────── */
 .perf { padding: 0; }
-.perf-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
-.perf-title { font-size: 1.2rem; font-weight: 700; color: var(--text-heading); margin: 0; }
-.perf-sub { font-size: .8rem; color: var(--text-muted); margin: 4px 0 0; }
-.perf-header-actions { display:flex; gap:8px; }
+.perf-hero {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
+  padding: 20px 24px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--teal-700, #0F7B78) 0%, var(--teal-800, #0B5A57) 100%);
+  color: #fff; box-shadow: 0 8px 24px rgba(15, 123, 120, 0.18);
+}
+.perf-hero-left { flex: 1; min-width: 240px; }
+.perf-hero-greeting { font-size: .82rem; opacity: .82; font-weight: 500; margin-bottom: 2px; text-transform: uppercase; letter-spacing: .06em; }
+.perf-hero-title { font-size: 1.75rem; font-weight: 700; margin: 0 0 10px; line-height: 1.1; }
+.perf-hero-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.perf-hero-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255, 255, 255, 0.15); padding: 4px 10px;
+  border-radius: 99px; font-size: .76rem; font-weight: 500;
+}
+.perf-hero-pill-dot { width: 7px; height: 7px; border-radius: 50%; }
+.perf-refresh-btn {
+  background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff; width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .15s;
+}
+.perf-refresh-btn:hover { background: rgba(255, 255, 255, 0.25); }
+.perf-refresh-btn:disabled { opacity: .6; cursor: not-allowed; }
 
-.perf-range-bar { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
-.perf-range-tabs { display:inline-flex; gap:4px; background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-sm); padding:4px; width: fit-content; flex-wrap: wrap; }
-.perf-range-tab { background: transparent; border: none; padding: 6px 14px; font-size: .8rem; font-weight: 500; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-xs); transition: all .15s; min-height: 32px; }
+/* ─── Range tabs ────────────────────────────────────────────────────── */
+.perf-range {
+  display: flex; gap: 6px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 4px; width: fit-content; flex-wrap: wrap; margin-bottom: 16px;
+}
+.perf-range-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: none; padding: 7px 14px;
+  font-size: .82rem; font-weight: 500; color: var(--text-muted);
+  cursor: pointer; border-radius: 8px; transition: all .15s; min-height: 34px;
+}
 .perf-range-tab:hover { color: var(--text-heading); background: var(--bg); }
-.perf-range-tab.active { background: var(--primary); color: #fff; }
-.perf-range-custom { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-.perf-range-custom label { display:flex; flex-direction:column; gap:3px; font-size:.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing:.04em; }
+.perf-range-tab.active { background: var(--primary); color: #fff; box-shadow: 0 2px 6px rgba(15, 123, 120, 0.3); }
+.perf-range-tab-icon { display: inline-flex; align-items: center; }
+.perf-range-custom { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 4px; }
+.perf-range-custom label { display: flex; flex-direction: column; gap: 3px; font-size: .72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
 
-.perf-breakdown-grid { display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px; }
-.perf-card-title { font-size:.9rem; font-weight:600; color: var(--text-heading); margin:0 0 10px; }
-.perf-bar-list { list-style:none; padding:0; margin:0; }
-.perf-bar-list li { margin-bottom: 10px; }
-.perf-bar-row { display:flex; justify-content:space-between; align-items:baseline; font-size:.78rem; margin-bottom:3px; }
-.perf-bar-label { color: var(--text-heading); font-weight: 500; }
-.perf-bar-count { color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.perf-bar-track { height: 6px; background: var(--neutral-50); border-radius: 3px; overflow:hidden; }
-.perf-bar-fill { height: 100%; border-radius: 3px; transition: width .35s var(--ease); }
+/* ─── KPI grid ───────────────────────────────────────────────────────── */
+.perf-kpi-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px; margin-bottom: 20px;
+}
+.perf-kpi-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px 18px; position: relative; overflow: hidden;
+  transition: transform .15s, box-shadow .15s;
+  animation: perf-card-in .35s var(--ease, ease) both;
+}
+.perf-kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); }
+.perf-kpi-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--kpi-color, var(--primary));
+}
+.perf-kpi-teal    { --kpi-color: #0F7B78; }
+.perf-kpi-blue    { --kpi-color: #2563EB; }
+.perf-kpi-amber   { --kpi-color: #D97706; }
+.perf-kpi-yellow  { --kpi-color: #F59E0B; }
+.perf-kpi-red     { --kpi-color: #DC2626; }
+.perf-kpi-green   { --kpi-color: #10B981; }
+.perf-kpi-indigo  { --kpi-color: #6366F1; }
+.perf-kpi-pink    { --kpi-color: #EC4899; }
 
-.perf-filter-card { padding: 12px 14px; margin-bottom:14px; }
-.perf-filter-row { display:grid; grid-template-columns: 1fr 1fr 2fr; gap:10px; }
-.perf-filter-field { display:flex; flex-direction:column; gap:3px; font-size:.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing:.04em; }
-.perf-filter-field input, .perf-filter-field select { text-transform: none; letter-spacing: 0; }
+.perf-kpi-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.perf-kpi-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--kpi-color) 12%, transparent);
+  color: var(--kpi-color);
+}
+.perf-kpi-trend {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: .72rem; font-weight: 600; padding: 2px 6px; border-radius: 6px;
+}
+.perf-kpi-trend.up { color: #10B981; background: rgba(16, 185, 129, 0.1); }
+.perf-kpi-trend.down { color: #DC2626; background: rgba(220, 38, 38, 0.1); }
+.perf-kpi-label { font-size: .76rem; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.perf-kpi-value { font-size: 1.65rem; font-weight: 700; color: var(--text-heading); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.perf-kpi-sub { font-size: .76rem; color: var(--text-muted); margin-top: 4px; }
 
+@keyframes perf-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Empty state ────────────────────────────────────────────────────── */
+.perf-empty {
+  text-align: center; padding: 60px 20px; color: var(--text-muted);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  margin-bottom: 20px;
+}
+.perf-empty-icon { color: var(--text-muted); margin-bottom: 14px; }
+.perf-empty h3 { font-size: 1rem; color: var(--text-heading); margin: 0 0 6px; }
+.perf-empty p { font-size: .85rem; max-width: 380px; margin: 0 auto; line-height: 1.5; }
+
+/* ─── Breakdown ──────────────────────────────────────────────────────── */
+.perf-breakdown {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px;
+}
+.perf-breakdown-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;
+}
+.perf-breakdown-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.perf-breakdown-header h3 { font-size: .95rem; font-weight: 600; color: var(--text-heading); margin: 0; }
+.perf-breakdown-count { font-size: .72rem; color: var(--text-muted); background: var(--bg); padding: 2px 8px; border-radius: 99px; font-variant-numeric: tabular-nums; }
+
+.perf-bar-list { list-style: none; padding: 0; margin: 0; }
+.perf-bar-list li { margin-bottom: 12px; }
+.perf-bar-row { display: flex; justify-content: space-between; align-items: baseline; font-size: .8rem; margin-bottom: 5px; }
+.perf-bar-label { color: var(--text-heading); font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+.perf-bar-dot { width: 8px; height: 8px; border-radius: 50%; }
+.perf-bar-count { color: var(--text-muted); font-variant-numeric: tabular-nums; font-weight: 600; }
+.perf-bar-track { height: 6px; background: var(--bg, #f1f5f9); border-radius: 3px; overflow: hidden; }
+.perf-bar-fill { height: 100%; border-radius: 3px; transition: width .4s var(--ease, ease); }
+
+/* ─── Timeline ───────────────────────────────────────────────────────── */
+.perf-timeline-section {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;
+}
+.perf-timeline-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.perf-timeline-header h3 { font-size: .95rem; font-weight: 600; color: var(--text-heading); margin: 0; }
+.perf-timeline-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.perf-filter-select, .perf-filter-search {
+  font-size: .78rem; padding: 5px 10px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--bg); color: var(--text-heading); min-height: 32px;
+}
+.perf-filter-search { min-width: 140px; }
+
+.perf-timeline { position: relative; padding-left: 8px; }
+.perf-timeline-item {
+  display: flex; gap: 12px; padding: 10px 0;
+  border-left: 2px solid var(--border); padding-left: 16px; margin-left: 12px;
+  position: relative;
+  animation: perf-item-in .25s var(--ease, ease) both;
+}
+.perf-timeline-item::before {
+  content: ''; position: absolute; left: -7px; top: 14px; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--surface); border: 2px solid var(--timeline-color, var(--text-muted));
+}
+.perf-act-create    { --timeline-color: #10B981; }
+.perf-act-update    { --timeline-color: #0EA5E9; }
+.perf-act-void      { --timeline-color: #EF4444; }
+.perf-act-verify    { --timeline-color: #18B4B7; }
+.perf-act-other     { --timeline-color: #94a3b8; }
+
+.perf-timeline-dot {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--timeline-color) 12%, transparent);
+  color: var(--timeline-color);
+  margin-top: 2px;
+}
+.perf-timeline-body { flex: 1; min-width: 0; }
+.perf-timeline-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.perf-timeline-action {
+  font-size: .76rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--timeline-color);
+}
+.perf-timeline-area { font-size: .72rem; color: var(--text-muted); background: var(--bg); padding: 1px 7px; border-radius: 99px; }
+.perf-timeline-time { font-size: .72rem; color: var(--text-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.perf-timeline-summary { font-size: .82rem; color: var(--text-heading); line-height: 1.4; word-break: break-word; }
+.perf-timeline-summary :deep(strong) { font-weight: 600; color: var(--text-heading); }
+.perf-timeline-id { font-size: .72rem; margin-top: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.perf-timeline-id-chip { font-family: var(--font-mono, monospace); background: var(--bg); padding: 1px 6px; border-radius: 4px; color: var(--text-muted); }
+.perf-timeline-reason { color: var(--text-muted); }
+.perf-timeline-more { padding: 12px 16px; font-size: .8rem; color: var(--text-muted); text-align: center; }
+
+.perf-timeline-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+.perf-timeline-empty svg { color: var(--text-muted); margin-bottom: 8px; }
+.perf-timeline-empty p { font-size: .85rem; margin: 0; }
+
+@keyframes perf-item-in { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
+
+/* ─── Skeleton loading ────────────────────────────────────────────────── */
+.perf-skel { pointer-events: none; }
+.perf-skel-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--bg); margin-bottom: 10px; }
+.perf-skel-line { background: var(--bg); border-radius: 4px; margin-bottom: 6px; }
+.perf-skel-label { width: 60%; height: 10px; }
+.perf-skel-value { width: 80%; height: 22px; }
+.perf-skel-sub { width: 50%; height: 10px; }
+.perf-skel .perf-skel-line { animation: perf-skel-pulse 1.5s ease-in-out infinite; }
+@keyframes perf-skel-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+/* ─── Animations ─────────────────────────────────────────────────────── */
 .perf-spin { animation: perf-spin 1s linear infinite; }
 @keyframes perf-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 
-.kpi-empty { padding: 20px; text-align:center; }
-.kpi-empty .kpi-label { font-size:.95rem; margin-bottom:6px; }
-
+/* ─── Responsive ────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .perf-header { flex-direction: column; align-items: stretch; }
-  .perf-header-actions { justify-content: flex-end; }
-  .perf-range-tabs { width: 100%; }
-  .perf-range-tab { flex: 1 1 auto; min-height: 36px; padding: 6px 8px; font-size: .76rem; }
-  .perf-range-custom { flex-direction: column; align-items: stretch; }
-  .perf-range-custom label { width: 100%; }
-  .perf-breakdown-grid { grid-template-columns: 1fr; }
-  .perf-filter-row { grid-template-columns: 1fr; }
-  .perf-filter-card { padding: 10px; }
+  .perf-hero { padding: 16px 18px; }
+  .perf-hero-title { font-size: 1.4rem; }
+  .perf-range { width: 100%; }
+  .perf-range-tab { flex: 1 1 auto; padding: 6px 8px; font-size: .76rem; }
+  .perf-kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .perf-kpi-card { padding: 12px 14px; }
+  .perf-kpi-value { font-size: 1.35rem; }
+  .perf-breakdown { grid-template-columns: 1fr; }
+  .perf-timeline-header { flex-direction: column; align-items: stretch; }
+  .perf-timeline-filters { flex-direction: column; }
+  .perf-filter-search { min-width: 0; }
+  .perf-timeline-time { margin-left: 0; }
+}
+@media (max-width: 480px) {
+  .perf-kpi-grid { grid-template-columns: 1fr; }
 }
 </style>
