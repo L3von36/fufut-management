@@ -244,7 +244,20 @@
         <div class="tm-detail-grid">
           <div class="form-group">
             <label>Assigned Server</label>
-            <input v-model="detailTable.server" placeholder="Server name" />
+            <!-- Assignment is a manager's decision, enforced server-side as
+                 well: only a manager may WRITE a new name onto a table. The
+                 dropdown lists the active head-waiters so the name stored on
+                 the table is exactly the staff member's display name - the
+                 same string their own login is filtered by. -->
+            <select v-if="isManager" v-model="detailTable.server" class="select">
+              <option value="">— Unassigned —</option>
+              <option v-for="s in assignableServers" :key="s.id" :value="s.fullName">{{ s.fullName }}</option>
+              <option v-if="customServerValue" :value="customServerValue">{{ customServerValue }} (kept)</option>
+            </select>
+            <template v-else>
+              <input :value="detailTable.server || '—'" disabled />
+              <small class="tm-field-hint">Only a manager can change the assignment</small>
+            </template>
           </div>
           <div class="form-group">
             <label>Guest Count</label>
@@ -428,6 +441,35 @@ const graceMinutes = 15
 const leadMinutes = 60
 
 const isManager = computed(() => authStore?.roleKey === 'manager')
+
+// ─── Server assignment (manager-only) ───
+// Roster of who can be assigned. Head-waiters are the floor staff; the list
+// comes from the staff roster so the stored name always matches the name the
+// waiter logs in with — a typo here would leave the waiter staring at an
+// empty floor plan, because GET /tables scopes their list by this name.
+const staffServers = ref([])
+const assignableServers = computed(() =>
+  staffServers.value
+    .filter((s) => String(s.role || '').toLowerCase() === 'head-waiter' && String(s.status || 'active').toLowerCase() === 'active')
+    .map((s) => ({ id: s.id, fullName: `${String(s.firstName || '').trim()} ${String(s.lastName || '').trim()}`.trim() }))
+    .filter((s) => s.fullName)
+)
+// A name already on the table that the roster does not know about (typed
+// before this dropdown existed) stays visible and selectable instead of
+// silently jumping to "Unassigned" on open.
+const customServerValue = computed(() => {
+  const cur = String(detailTable.value?.server || '').trim()
+  if (!cur) return ''
+  return assignableServers.value.some((s) => s.fullName.toLowerCase() === cur.toLowerCase()) ? '' : cur
+})
+async function loadStaffServers() {
+  if (!isManager.value || staffServers.value.length) return
+  try {
+    staffServers.value = (await apiGet('staff')) || []
+  } catch {
+    staffServers.value = []
+  }
+}
 
 const qrModalData = ref(null)
 const qrImageUrl = computed(() => {
@@ -788,6 +830,7 @@ function setupSSE() {
 
 async function openDetail(t) {
   detailTable.value = { ...t }
+  loadStaffServers()
   // Load orders for this specific table
   const tn = String(t.number)
   try {
@@ -948,6 +991,14 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Assignment is read-only for everyone but the manager; the hint says why
+   so the disabled field reads as a rule, not as a bug. */
+.tm-field-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: .72rem;
+  color: var(--neutral-500, #6b7280);
+}
 /* Orders waiting for a waiter. Deliberately loud — a guest is sitting there
    wondering whether anybody saw it. */
 .tm-pending {
