@@ -391,12 +391,27 @@ const FIELD_LABELS = {
  * `auto_refunded: 0` after a void means "no refund was issued", which is the
  * default and not worth a slot in the summary. `tip: ETB 0` on a takeaway
  * is the same — nobody tipped, the floor doesn't need to read that.
+ *
+ * The check looks at the RAW value (before formatting), so a numeric 0 or
+ * empty string is caught here even though formatValue would render 'ETB 0'
+ * or '0' as a non-empty string.
  */
 const NOISY_WHEN_EMPTY = new Set([
-  'auto_refunded', 'tip', 'cost', 'amount', 'total',
+  'auto_refunded', 'tip', 'cost', 'amount', 'total', 'subtotal',
   'void_category', 'void_reason', 'reason', 'notes',
   'table_id', 'table_number', 'tableNum', 'customer',
   'source', 'payment', 'method', 'pickup_status',
+  'discount', 'service_charge', 'tax', 'delivery_fee',
+])
+
+/**
+ * Fields to NEVER show in the summary — they're either redundant (subtotal
+ * is just total minus discount), internal (rule_id, dedupe_key), or noise
+ * for a floor user (payment_status when status already tells the story).
+ */
+const HIDDEN_FIELDS = new Set([
+  'subtotal', 'rule_id', 'dedupe_key', 'severity', 'entity_type',
+  'entity_id', 'actor_id', 'actor_name', 'actor_role', 'id',
 ])
 
 /**
@@ -484,14 +499,18 @@ function changeSummary(e) {
     if (!seen.has(k)) ordered.push(k)
   }
 
-  const parts = ordered.slice(0, 5).map(k => {
+  const parts = ordered.slice(0, 6).map(k => {
+    // Never show internal/redundant fields
+    if (HIDDEN_FIELDS.has(k)) return null
     const av = a[k]
     const bv = b && b[k] !== undefined ? b[k] : null
     const hasBefore = bv !== null && bv !== undefined && String(bv) !== String(av)
+    // Check the RAW value for noise — a numeric 0 or empty string should be
+    // skipped even though formatValue would render 'ETB 0' as a non-empty
+    // string. This is the fix for 'auto_refunded: 0' and 'tip: ETB 0'.
+    const rawAfterIsEmpty = av === null || av === undefined || av === '' || av === 0
+    if (NOISY_WHEN_EMPTY.has(k) && rawAfterIsEmpty && !hasBefore) return null
     const afterDisp = formatValue(k, av)
-    // Skip noisy-empty fields: "auto_refunded: 0", "tip: ETB 0", "table_id:"
-    // These add no information and clutter the summary.
-    if (!afterDisp && NOISY_WHEN_EMPTY.has(k) && !hasBefore) return null
     const beforeDisp = hasBefore ? formatValue(k, bv) : ''
     const label = fieldLabel(k)
     if (hasBefore) {
