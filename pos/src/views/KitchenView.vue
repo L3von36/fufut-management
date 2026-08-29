@@ -30,11 +30,6 @@
       </div>
     </div>
 
-    <!-- Alert Banner for Critical Overdue Tickets -->
-    <div v-if="criticalOverdueCount &gt; 0" class="ks-alert-banner">
-      <strong>ALERT:</strong> {{ criticalOverdueCount }} ticket{{ criticalOverdueCount === 1 ? '' : 's' }} exceeded the 15-minute preparation SLA threshold!
-    </div>
-
     <div class="kitchen-grid">
       <!-- ═══ NEW ORDERS ═══ -->
       <div class="kitchen-column kc-new">
@@ -289,9 +284,14 @@ let timer = null
 let clockTimer = null
 const now = ref(Date.now())
 
-const criticalOverdueCount = computed(() => {
-  return orders.value.filter(o => o.status !== 'fulfilled' && o.status !== 'cancelled' && ageInMinutes(o) >= 15).length
-})
+// A local "critical overdue" banner used to render here, counting any active
+// order older than 15 minutes. That count never matched the SLA Alerts view
+// (which reads from /api/alerts, populated by the cron sweep with different
+// per-status thresholds — 5/10/20/30/40 min, never 15 min "any active order"),
+// so the banner would say "9 tickets exceeded the 15-minute SLA threshold"
+// while the SLA Alerts list was empty. Removed: the global AlertsBanner
+// (mounted in AppLayout.vue) reads from /api/alerts — the same source as the
+// SLA Alerts view — so there is one source of truth for SLA alerts.
 
 function onDragStart(e, order) {
   e.dataTransfer.setData('text/plain', order.id)
@@ -518,6 +518,15 @@ async function loadOrders() {
 
 function connectSSE() {
   sse.connect('kitchen')
+  // The first SSE snapshot is the BASELINE — the kitchen screen's initial
+  // view of the world, not a transition into it. Without this flag the
+  // first snapshot (which arrives within milliseconds of connect, before
+  // loadOrders() has resolved) would compare against an empty `orders.value`
+  // and every ticket in it would look "new", firing a false "New order"
+  // toast every time the kitchen screen is opened. See sse.js:67 — the
+  // server calls tick() synchronously after setInterval, so the first
+  // event lands almost immediately.
+  let firstSnapshotSeen = false
   sse.on('new_order', (data) => {
     // Snapshot before we mutate, so we can name the actually-new ticket.
     const prevIds = new Set(orders.value.map(o => o.id))
@@ -530,22 +539,34 @@ function connectSSE() {
     let newId = null
     if (data && Array.isArray(data.orders)) {
       orders.value = data.orders
-      for (const o of data.orders) {
-        if (!prevIds.has(o.id)) { newId = o.id; break }
+      // Only detect "new" tickets AFTER the baseline snapshot. On the first
+      // event every ticket is technically new relative to the empty previous
+      // state, but none of them are *transitions* — they were already on the
+      // board before the kitchen screen was opened.
+      if (firstSnapshotSeen) {
+        for (const o of data.orders) {
+          if (!prevIds.has(o.id)) { newId = o.id; break }
+        }
       }
     } else {
       // Payload shape unexpected — fall back to a fetch rather than render
       // a stale board.
       loadOrders()
     }
+    firstSnapshotSeen = true
     // Items are not in the orders SSE payload — they need a single GET to
     // refresh. This is one round-trip, not two, and it is the one that
     // actually carries the per-line state.
     apiGet('orders/items/active').then(items => {
       if (Array.isArray(items)) activeItems.value = items
     }).catch(() => {})
-    playNewOrder()
-    toast(`New order #${(newId || '').slice(-4) || 'received'}`, 'info')
+    // Only sound + toast when we actually detected a new ticket. Previously
+    // the toast fired on EVERY SSE event (including the baseline), which
+    // made the kitchen screen announce a new order the moment it was opened.
+    if (newId) {
+      playNewOrder()
+      toast(`New order #${newId.slice(-4)}`, 'info')
+    }
   })
   sse.on('order_update', (data) => {
     // Snapshot the ready set BEFORE we overwrite orders.value, so we can
@@ -1151,17 +1172,9 @@ function isStaleReady(o) {
   font-weight: 600;
 }
 
-/* Alert banner for overdue items */
-.ks-alert-banner {
-  background: #FEF2F2;
-  border: 1.5px solid var(--danger);
-  color: #991B1B;
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
-  font-size: .85rem;
-  margin-bottom: 14px;
-  animation: pulse-critical 1.5s infinite;
-}
+/* (The local .ks-alert-banner was removed along with the duplicate SLA
+   count — the global AlertsBanner.vue in AppLayout handles SLA alerts
+   now, reading from /api/alerts so the count matches the SLA Alerts view.) */
 
 /* QR Guest Order chip */
 .ko-qr-chip {
