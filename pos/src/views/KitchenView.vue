@@ -469,7 +469,15 @@ const readyOrders = computed(() =>
 onMounted(() => {
   loadOrders()
   connectSSE()
-  timer = setInterval(loadOrders, 15000)
+  // Refresh fallback: only when SSE is NOT connected. When SSE is alive the
+  // server pushes every state change within seconds, so a fixed 15s poll just
+  // duplicates the work and adds latency to the waiter's "Sent to kitchen"
+  // flow (the kitchen screen re-fetches the full orders + items list on every
+  // poll, even when nothing moved). The poll becomes a safety net rather than
+  // the primary driver, firing only after a disconnect.
+  timer = setInterval(() => {
+    if (!sse.connected.value) loadOrders()
+  }, 15000)
   clockTimer = setInterval(() => {
     now.value = Date.now()
     // Fix #3: Audio alert when any order crosses the 15-minute critical threshold
@@ -511,15 +519,65 @@ async function loadOrders() {
 function connectSSE() {
   sse.connect('kitchen')
   sse.on('new_order', (data) => {
-    loadOrders()
+    // Snapshot before we mutate, so we can name the actually-new ticket.
+    const prevIds = new Set(orders.value.map(o => o.id))
+    // The SSE payload already contains the full current orders list — the
+    // server's tick signature is computed from the same `SELECT * FROM
+    // orders WHERE status NOT IN (...)` query (see handlers/sse.js). A
+    // re-fetch was duplicating that work and adding latency: the waiter's
+    // POST /api/orders returned, but the kitchen screen waited for a second
+    // round-trip before the new ticket appeared. Use the payload directly.
+    let newId = null
+    if (data && Array.isArray(data.orders)) {
+      orders.value = data.orders
+      for (const o of data.orders) {
+        if (!prevIds.has(o.id)) { newId = o.id; break }
+      }
+    } else {
+      // Payload shape unexpected — fall back to a fetch rather than render
+      // a stale board.
+      loadOrders()
+    }
+    // Items are not in the orders SSE payload — they need a single GET to
+    // refresh. This is one round-trip, not two, and it is the one that
+    // actually carries the per-line state.
+    apiGet('orders/items/active').then(items => {
+      if (Array.isArray(items)) activeItems.value = items
+    }).catch(() => {})
     playNewOrder()
-    toast(`New order #${data.id?.slice(-4) || 'received'}`, 'info')
+    toast(`New order #${(newId || '').slice(-4) || 'received'}`, 'info')
   })
   sse.on('order_update', (data) => {
-    loadOrders()
-    if (data.status === 'ready') {
+    // Snapshot the ready set BEFORE we overwrite orders.value, so we can
+    // detect a transition into 'ready' rather than re-reading the new state.
+    const wasReady = new Set(orders.value.filter(o => o.status === 'ready').map(o => o.id))
+    // The tick that produced this event already ran the SELECT; its payload
+    // carries the new orders list. Use it directly rather than re-fetching.
+    if (data && Array.isArray(data.orders)) {
+      orders.value = data.orders
+    } else {
+      loadOrders()
+    }
+    apiGet('orders/items/active').then(items => {
+      if (Array.isArray(items)) activeItems.value = items
+    }).catch(() => {})
+    // A transition into 'ready' is the moment the kitchen wants the sound.
+    // The previous code checked `data.status === 'ready'`, but the
+    // order_update event never carried that field — the SSE channel is a
+    // snapshot, not a diff, so this was always undefined and the ready
+    // sound never fired.
+    let newlyReady = null
+    if (data && Array.isArray(data.orders)) {
+      for (const o of data.orders) {
+        if (o.status === 'ready' && !wasReady.has(o.id)) {
+          newlyReady = o.id
+          break
+        }
+      }
+    }
+    if (newlyReady) {
       playOrderReady()
-      toast(`Order ${data.id?.slice(-4) || ''} is ready!`, 'success')
+      toast(`Order ${(newlyReady || '').slice(-4)} is ready!`, 'success')
     } else {
       playOrderUpdate()
     }
