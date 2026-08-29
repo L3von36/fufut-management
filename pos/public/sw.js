@@ -1,9 +1,14 @@
 // Service Worker for FU FUT POS — offline-first with sync queue
-// Bumped to v4 to evict caches poisoned by the bug fixed in cacheFirst() below:
+// Bumped to v5 to evict caches poisoned by the bug fixed in cacheFirst() below:
 // a stylesheet entry holding SPA-fallback HTML. `activate` deletes every cache
 // whose name is not CACHE, so bumping this is what heals devices already stuck
 // on a blank screen — staff cannot be asked to clear site data mid-service.
-const CACHE = 'fufut-pos-v4'
+//
+// v5 also rolls out the non-GET pass-through fix in the fetch handler: any
+// POST/PUT/DELETE that isn't an /api/ write (e.g. the Cloudflare Web Analytics
+// beacon POSTing to /cdn-cgi/rum on every Settle click) used to land in
+// cacheFirst, where cache.put() throws "Request method POST is unsupported".
+const CACHE = 'fufut-pos-v5'
 // Built with `--base /`, so these live at the site root. '/pos/*' paths only
 // hit the SPA fallback and would silently precache HTML in place of assets.
 const STATIC_ASSETS = [
@@ -51,6 +56,17 @@ self.addEventListener('fetch', (e) => {
   // exist and leaves them on a blank screen until the cache is cleared.
   if (e.request.mode === 'navigate') {
     e.respondWith(navigationFirst(e.request))
+    return
+  }
+
+  // Non-GET requests that fell through here cannot be cached — the Cache API
+  // only accepts GET. The Cloudflare Web Analytics beacon (auto-injected on
+  // Pages) POSTs to /cdn-cgi/rum on every navigation; without this guard it
+  // landed in cacheFirst and threw `Failed to execute 'put' on 'Cache':
+  // Request method POST is unsupported` every time the cashier clicked Settle
+  // on the Open Checks table. Pass writes straight to the network.
+  if (e.request.method !== 'GET') {
+    e.respondWith(networkOnly(e.request))
     return
   }
 
@@ -113,6 +129,13 @@ function isSpaFallback(req, res) {
 }
 
 async function cacheFirst(req) {
+  // Defense in depth: the fetch handler already routes non-GET requests away
+  // from here, but the Cache API spec rejects anything but GET with a
+  // TypeError. If a future change reopens that path, this guard keeps the SW
+  // from crashing mid-shift instead of leaving the cashier on a blank screen.
+  if (req.method !== 'GET') {
+    try { return await fetch(req) } catch { return new Response('Offline', { status: 503 }) }
+  }
   const cached = await caches.match(req)
   // Self-heal: if a previous version stored a fallback page here, drop it and
   // go back to the network rather than serving HTML as a script or stylesheet.
