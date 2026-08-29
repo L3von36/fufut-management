@@ -48,7 +48,11 @@
             <button class="btn btn-sm btn-outline" @click="openSplit(c)">Split</button>
             <button class="btn btn-sm btn-outline" @click="openMove(c)">Move</button>
             <button class="btn btn-sm btn-outline" @click="openMerge(c)">Merge</button>
-            <button class="btn btn-sm btn-primary" @click="settle(c)">Settle</button>
+            <!-- Settle navigates to /app/checkout, which is cashier-only. The
+                 button used to render for any signed-in user — waiters could
+                 click it and silently bounce off the route guard, or worse,
+                 the floor could reach the settlement endpoint. -->
+            <button v-if="authStore?.hasPermission('checkout')" class="btn btn-sm btn-primary" @click="settle(c)">Settle</button>
           </div>
         </footer>
       </article>
@@ -134,12 +138,14 @@ import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiGet, apiPost } from '../api'
 import { useOrderStore } from '../stores/order'
+import { useAuthStore } from '../stores/auth'
 import { useSSE } from '../composables/useSSE'
 import { formatOrderItems, titleCase } from '../lib/formatters'
 
 const router = useRouter()
 const toast = inject('toast')
 const orderStore = useOrderStore()
+const authStore = useAuthStore()
 const { connect: sseConnect, disconnect: sseDisconnect, on: sseOn } = useSSE()
 
 /** A check open this long is worth looking at rather than scrolling past. */

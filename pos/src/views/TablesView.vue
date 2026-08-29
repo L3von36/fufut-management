@@ -312,7 +312,14 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             {{ detailTable.status === 'occupied' ? 'Add Round' : 'New Order' }}
           </button>
-          <button v-if="detailTable.status === 'occupied'" class="btn btn-outline btn-sm" @click="goToCheckout">
+          <!-- "Go to Checkout" was rendered for every signed-in user on an
+               occupied table, but the floor cannot settle bills — that is the
+               cashier's job (see ROLE_PERMISSIONS, where 'checkout' is not
+               granted to head-waiter). Without this guard the button rendered
+               for waiters and either silently bounced them off the route guard
+               or, worse, hit PUT /api/orders/:id with a paymentBreakdown the
+               server accepted because the head-waiter has `orders` write. -->
+          <button v-if="detailTable.status === 'occupied' && authStore?.hasPermission('checkout')" class="btn btn-outline btn-sm" @click="goToCheckout">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             Go to Checkout
           </button>
@@ -414,8 +421,17 @@ const toast = inject('toast')
 const confirmDelete = inject('confirm')
 const authStore = useAuthStore()
 const orderStore = useOrderStore()
+// Two independent SSE channels:
+//   1. `tables` — the floor plan (existing): every table row, pushed when
+//      status/assignment changes.
+//   2. `kitchen` — every active order (new): used to detect when a dish
+//      assigned to one of THIS waiter's tables has just become ready, so the
+//      waiter hears a chime without watching the kitchen board.
+// `useSSE()` returns a self-contained instance (its own EventSource and
+// listener map), so a second call here does not collide with the first.
 const { connected: sseConnected, connect: sseConnect, disconnect: sseDisconnect, on: sseOn } = useSSE()
-const { playNewOrder } = useAudioAlerts()
+const { connected: kitchenSseConnected, connect: kitchenSseConnect, disconnect: kitchenSseDisconnect, on: kitchenSseOn } = useSSE()
+const { playNewOrder, playOrderReady } = useAudioAlerts()
 
 const tables = ref([])
 const orders = ref([])
@@ -819,11 +835,80 @@ function toggleSSE() {
   }
 }
 
+// Previous `ready` status per order id, used to detect a transition INTO ready.
+// Without this, every SSE tick that finds a ready order would re-chime — the
+// waiter would hear it every 10s until the order is served, which is worse
+// than no notification at all. We snapshot BEFORE applying the new payload,
+// compare, then replace.
+const prevOrderStatuses = ref(new Map())
+
+/**
+ * The set of table ids the signed-in waiter is responsible for right now.
+ *
+ * `tables.value` is already scoped to the signed-in waiter by GET /api/tables
+ * (the server filters by `tables.server` matching the staff display name for
+ * the head-waiter role — see fufut-api/src/handlers/tables.js). For other roles
+ * (manager, cashier) `tables.value` is the full floor plan — they hear chimes
+ * for every ready table, which is the right thing for them too: a manager wants
+ * to know if any table's food is sitting at the pass.
+ */
+function myTableIds() {
+  return new Set(tables.value.map((t) => String(t.id)))
+}
+
+function onKitchenSnapshot(payload) {
+  if (!payload || !Array.isArray(payload.orders)) return
+  const next = payload.orders
+  const myTables = myTableIds()
+  if (!myTables.size) {
+    // No tables loaded yet (or none assigned to this waiter) — still keep the
+    // previous-status map fresh so the first real snapshot doesn't fire a
+    // chime for an order that was already ready before we connected.
+    prevOrderStatuses.value = new Map(next.map((o) => [o.id, o.status]))
+    return
+  }
+  const prev = prevOrderStatuses.value
+  const newlyReady = []
+  for (const o of next) {
+    // An order belongs to one of the waiter's tables when its table_id (or
+    // legacy table_number) matches one of the table ids they can see. Both
+    // fields are normalised to strings on the server, so this is a string
+    // comparison.
+    const tid = String(o.table_id || o.table_number || o.tableNum || '')
+    if (!tid || !myTables.has(tid)) continue
+    const was = prev.get(o.id)
+    const now = o.status
+    if (now === 'ready' && was !== 'ready') {
+      newlyReady.push(o)
+    }
+  }
+  // Replace the snapshot for the next tick.
+  prevOrderStatuses.value = new Map(next.map((o) => [o.id, o.status]))
+  // Sound + toast per newly-ready order. Cap at 3 so a chef hitting "Mark all
+  // ready" on a 10-top board does not chime ten times in one tick.
+  for (const o of newlyReady.slice(0, 3)) {
+    playOrderReady()
+    const tid = o.table_id || o.table_number || o.tableNum || ''
+    toast(`Table ${tid} — order ready, pick up from the pass`, 'success')
+  }
+}
+
 function setupSSE() {
   sseConnect('tables')
   sseOn('table_update', () => loadTables())
+  // The `tables` channel only emits `table_update` — these two registrations
+  // are dead code today, but kept for back-compat with any future server-side
+  // push on the same channel.
   sseOn('new_order', () => loadOrders())
   sseOn('order_update', () => loadOrders())
+
+  // Second channel: the kitchen. The server pushes a snapshot of every active
+  // order every 10s (handlers/sse.js). We diff against the previous snapshot
+  // and chime when one of OUR tables' orders transitioned INTO ready.
+  kitchenSseConnect('kitchen')
+  // The server emits `new_order` for every snapshot, not just new tickets —
+  // the event name is historical. We treat it as "snapshot arrived".
+  kitchenSseOn('new_order', onKitchenSnapshot)
 }
 
 // ─── Detail panel ───
@@ -985,6 +1070,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   sseDisconnect()
+  kitchenSseDisconnect()
   if (timerInterval) clearInterval(timerInterval)
   if (pendingInterval) clearInterval(pendingInterval)
 })

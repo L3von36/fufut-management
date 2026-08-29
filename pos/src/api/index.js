@@ -256,7 +256,14 @@ export const ROLE_PERMISSIONS = {
   // falling back to empty; the clock-in/out half is self-service and works for
   // any signed-in account. Granting the underlying resources instead would give
   // the floor the power to rewrite anybody's hours.
-  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'checkout', 'timeclock', 'my-activity', 'alerts'],
+  //
+  // 'checkout' is deliberately NOT in the head-waiter's list. The server's
+  // role matrix (fufut-api/src/auth.js:200-207) explicitly says the head-waiter
+  // cannot write `payments`, but the settlement endpoint PUTs /api/orders/:id
+  // with a paymentBreakdown body — which the head-waiter's `orders` write grant
+  // allows through. Letting the floor see a Checkout button invited them to
+  // settle bills, which contradicted the design. Cashier and manager keep it.
+  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'timeclock', 'my-activity', 'alerts'],
   cashier: ['cashdrawer', 'orders', 'open-checks', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout', 'my-activity', 'alerts'],
   'delivery-staff': ['delivery', 'dashboard', 'timeclock', 'my-activity', 'alerts'],
   cleaner: ['waste', 'dashboard', 'timeclock', 'my-activity'],
