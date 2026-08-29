@@ -625,7 +625,18 @@ async function hydrateOpenTab() {
     const order = await apiGet('orders/' + store.activeOpenOrderId)
     if (!order || !order.id) throw new Error('Order not found')
     const st = String(order.status || '').toLowerCase()
-    if (order.payment_status === 'paid' || ['cancelled', 'completed', 'fulfilled', 'voided'].includes(st)) {
+    // A check is open until it is paid, cancelled, or voided — the SAME rule
+    // the API uses in listOpenChecks (the SQL is `status <> 'cancelled' AND
+    // voided_at IS NULL AND payment_status IN ('unpaid','partial')`).
+    //
+    // 'fulfilled' was on this reject list and broke exactly the cashier's
+    // Settle flow on Table 3: the kitchen had marked the food served so the
+    // order moved to status='fulfilled', but the bill was still unpaid — and
+    // that is the definition of an open check. Open Checks listed it; Settle
+    // then bounced to checkout which said "That check is no longer open" and
+    // left the bill uncollectable. See `pos/src/lib/openChecks.js` and the
+    // `isResumableCheck` test that asserts fulfilled+unpaid IS resumable.
+    if (order.payment_status === 'paid' || ['cancelled', 'completed', 'voided'].includes(st)) {
       store.activeOpenOrderId = null
       settledFromTab.value = false
       toast('That check is no longer open', 'info')

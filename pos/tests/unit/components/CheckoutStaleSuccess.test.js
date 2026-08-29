@@ -189,4 +189,53 @@ describe('stale success screen on re-entry (BUG-1)', () => {
     expect(store.checkoutStep).toBe('cart')
     expect(store.items.length).toBe(1)
   })
+
+  it('hydrates a fulfilled+unpaid check (food served, bill still owed) instead of refusing it as "no longer open"', async () => {
+    // The cashier's Settle flow on Table 3: the kitchen marked all the food
+    // served, so the order moved to status='fulfilled', but the bill was
+    // still unpaid. Open Checks listed it (listOpenChecks includes fulfilled
+    // + unpaid), but CheckoutView used to reject status='fulfilled' with the
+    // toast "That check is no longer open", leaving the bill uncollectable.
+    // A served-but-unpaid check IS exactly what Settle is for.
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const store = useOrderStore()
+    store.checkoutStep = 'success'
+    store.lastOrderId = 'OprevPaid'
+    store.clearCart()
+    store.orderType = 'dine-in'
+    store.tableNum = '3'
+    store.activeOpenOrderId = 'Ofulf3'
+
+    const FULFILLED_OPEN = {
+      id: 'Ofulf3',
+      status: 'fulfilled',
+      payment_status: 'unpaid',
+      table_number: 3,
+      type: 'dine-in',
+      items: [{ name: 'Fut breakfast Gebeta', qty: 6, unit_price: 1010, status: 'served' }],
+    }
+    mockApiGet.mockImplementation((endpoint) => {
+      if (endpoint === 'tables') return Promise.resolve(TABLES)
+      if (endpoint === 'orders/Ofulf3') return Promise.resolve(FULFILLED_OPEN)
+      return Promise.resolve([])
+    })
+    mockApiPut.mockReset().mockResolvedValue({ ok: true })
+
+    const wrapper = mount(CheckoutView, {
+      global: {
+        plugins: [pinia],
+        provide: { toast: toastFn },
+        stubs: { ModifierSelectionSheet: true },
+      },
+    })
+    await flushPromises()
+
+    // No "no longer open" refusal — the check is hydrated and payable.
+    expect(toastFn).not.toHaveBeenCalledWith('That check is no longer open', 'info')
+    expect(store.activeOpenOrderId).toBe('Ofulf3')
+    expect(store.items.length).toBe(1)
+    expect(store.items[0].name).toBe('Fut breakfast Gebeta')
+    expect(wrapper.text()).toContain('Fut breakfast Gebeta')
+  })
 })

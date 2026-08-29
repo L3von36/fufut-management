@@ -8,7 +8,7 @@
 // POST/PUT/DELETE that isn't an /api/ write (e.g. the Cloudflare Web Analytics
 // beacon POSTing to /cdn-cgi/rum on every Settle click) used to land in
 // cacheFirst, where cache.put() throws "Request method POST is unsupported".
-const CACHE = 'fufut-pos-v5'
+const CACHE = 'fufut-pos-v6'
 // Built with `--base /`, so these live at the site root. '/pos/*' paths only
 // hit the SPA fallback and would silently precache HTML in place of assets.
 const STATIC_ASSETS = [
@@ -29,10 +29,17 @@ self.addEventListener('install', (e) => {
   )
 })
 
-// Activate: clean old caches
+// Activate: clean old caches and take control of every open tab immediately.
+// Without clients.claim(), a tab that was already open when the new SW
+// activated stays on the OLD SW until it reloads — which is exactly why a
+// cashier on a long shift kept seeing the cache.put POST error even after
+// v5 shipped. skipWaiting() lets the new SW install fast; clients.claim()
+// then takes over the live tab so the fix lands without a manual reload.
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   )
 })
 
