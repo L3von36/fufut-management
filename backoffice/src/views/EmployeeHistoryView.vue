@@ -51,7 +51,7 @@
           <span class="eh-att-date">{{ entry.date }}</span>
           <span class="eh-att-time">In: {{ shortTime(entry.clockIn) }}</span>
           <span class="eh-att-time" v-if="entry.clockOut">Out: {{ shortTime(entry.clockOut) }}</span>
-          <span class="eh-att-time" v-else class="eh-att-open">Still working</span>
+          <span class="eh-att-time eh-att-open" v-else>Still working</span>
           <span class="eh-att-hours" v-if="entry.hours">{{ entry.hours }}h</span>
           <span v-if="entry.lateMinutes > 0" class="eh-att-late-flag">Late {{ entry.lateMinutes }}m</span>
         </div>
