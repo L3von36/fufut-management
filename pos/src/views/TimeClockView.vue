@@ -27,6 +27,57 @@
       >
         {{ busy ? 'Working…' : (me.clockedIn ? 'Clock Out' : 'Clock In') }}
       </button>
+      <button
+        v-if="me.clockedIn && !onBreak"
+        class="btn btn-outline"
+        :disabled="busy"
+        @click="startBreak"
+      >Start Break</button>
+      <button
+        v-if="onBreak"
+        class="btn btn-primary"
+        :disabled="busy"
+        @click="endBreak"
+      >End Break</button>
+      <button
+        v-if="me.clockedIn"
+        class="btn btn-outline"
+        @click="showHandover = !showHandover"
+      >Handover</button>
+    </div>
+
+    <!-- ─── Shift Handover ─── -->
+    <div v-if="showHandover" class="tc-handover card">
+      <h3>Shift Handover</h3>
+      <p class="tc-handover-sub">Record what the next shift needs to know. They'll see this when they clock in.</p>
+      <div class="tc-handover-grid">
+        <label class="tc-handover-field"><span>Pending Orders</span><textarea v-model="handover.pendingOrders" rows="2" placeholder="Table 8 has a pending order…"></textarea></label>
+        <label class="tc-handover-field"><span>Pending Tasks</span><textarea v-model="handover.pendingTasks" rows="2" placeholder="Restroom not cleaned yet…"></textarea></label>
+        <label class="tc-handover-field"><span>Cash Info</span><textarea v-model="handover.cashInfo" rows="2" placeholder="Drawer count at handover…"></textarea></label>
+        <label class="tc-handover-field"><span>Problems</span><textarea v-model="handover.problems" rows="2" placeholder="POS was slow during rush…"></textarea></label>
+        <label class="tc-handover-field"><span>Customer Issues</span><textarea v-model="handover.customerIssues" rows="2" placeholder="VIP at table 5…"></textarea></label>
+        <label class="tc-handover-field"><span>Important Notes</span><textarea v-model="handover.importantNotes" rows="2" placeholder="Anything else…"></textarea></label>
+      </div>
+      <div class="tc-handover-actions">
+        <button class="btn btn-primary btn-sm" @click="submitHandover">Record Handover</button>
+        <button class="btn btn-secondary btn-sm" @click="showHandover = false">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ─── Latest Handover ─── -->
+    <div v-if="latestHandover" class="tc-latest-handover card">
+      <div class="tc-latest-head">
+        <h3>Last Handover</h3>
+        <span class="tc-latest-meta">{{ latestHandover.staffName }} · {{ shortTime(latestHandover.created) }}</span>
+      </div>
+      <div class="tc-latest-body">
+        <div v-if="latestHandover.pending_orders"><strong>Pending Orders:</strong> {{ latestHandover.pending_orders }}</div>
+        <div v-if="latestHandover.pending_tasks"><strong>Pending Tasks:</strong> {{ latestHandover.pending_tasks }}</div>
+        <div v-if="latestHandover.cash_info"><strong>Cash:</strong> {{ latestHandover.cash_info }}</div>
+        <div v-if="latestHandover.problems"><strong>Problems:</strong> {{ latestHandover.problems }}</div>
+        <div v-if="latestHandover.customer_issues"><strong>Customer Issues:</strong> {{ latestHandover.customer_issues }}</div>
+        <div v-if="latestHandover.important_notes"><strong>Notes:</strong> {{ latestHandover.important_notes }}</div>
+      </div>
     </div>
 
     <!-- ─── My recent shifts ───
@@ -225,12 +276,81 @@ async function clockOut(force = false) {
   }
 }
 
+// ─── Breaks ───
+const onBreak = ref(false)
+
+async function startBreak() {
+  busy.value = true
+  try {
+    await apiPost('timeclock/break-start', {})
+    onBreak.value = true
+    toast('Break started')
+  } catch (e) {
+    toast(e.message || 'Could not start break', 'error')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function endBreak() {
+  busy.value = true
+  try {
+    const res = await apiPost('timeclock/break-end', {})
+    onBreak.value = false
+    toast(`Break ended · ${res.durationMin || 0} min`)
+  } catch (e) {
+    toast(e.message || 'Could not end break', 'error')
+  } finally {
+    busy.value = false
+  }
+}
+
+// ─── Shift Handover ───
+const showHandover = ref(false)
+const latestHandover = ref(null)
+const handover = ref({
+  pendingOrders: '', pendingTasks: '', cashInfo: '',
+  problems: '', customerIssues: '', importantNotes: '',
+})
+
+function shortTime(isoStr) {
+  if (!isoStr) return '—'
+  const d = new Date(isoStr)
+  if (isNaN(d)) return isoStr
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+
+async function submitHandover() {
+  busy.value = true
+  try {
+    await apiPost('handovers', handover.value)
+    toast('Handover recorded')
+    showHandover.value = false
+    handover.value = { pendingOrders: '', pendingTasks: '', cashInfo: '', problems: '', customerIssues: '', importantNotes: '' }
+    await loadLatestHandover()
+  } catch (e) {
+    toast(e.message || 'Could not record handover', 'error')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function loadLatestHandover() {
+  try {
+    const res = await apiGet('handovers/latest')
+    latestHandover.value = (res && res.handover) || null
+  } catch { latestHandover.value = null }
+}
+
 function goToOpenChecks() {
   if (auth.hasPermission('open-checks')) router.push('/app/open-checks')
   else router.push('/app/orders')
 }
 
-onMounted(loadData)
+onMounted(() => {
+  loadData()
+  loadLatestHandover()
+})
 </script>
 
 <style scoped>

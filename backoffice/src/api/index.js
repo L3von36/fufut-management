@@ -96,12 +96,12 @@ export const ROLE_PERMISSIONS = {
   // which the API authorises self-scoped for any signed-in user. The global
   // `audit` stays manager+accountant only.
   manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'pipeline', 'tables', 'attendance', 'staff-requests', 'payroll', 'my-activity', 'employee-activity', 'employee-history'],
-  'head-chef': ['dashboard', 'orders', 'inventory', 'waste', 'reports', 'pipeline', 'my-activity'],
-  'assistant-chef': ['dashboard', 'orders', 'inventory', 'my-activity'],
-  'head-waiter': ['dashboard', 'orders', 'tables', 'reservations', 'reports', 'pipeline', 'my-activity'],
-  cashier: ['dashboard', 'orders', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'my-activity'],
-  'delivery-staff': ['dashboard', 'delivery', 'my-activity'],
-  cleaner: ['dashboard', 'waste', 'my-activity'],
+  'head-chef': ['dashboard', 'orders', 'inventory', 'waste', 'reports', 'pipeline', 'my-activity', 'tasks'],
+  'assistant-chef': ['dashboard', 'orders', 'inventory', 'my-activity', 'tasks'],
+  'head-waiter': ['dashboard', 'orders', 'tables', 'reservations', 'reports', 'pipeline', 'my-activity', 'tasks'],
+  cashier: ['dashboard', 'orders', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'my-activity', 'tasks'],
+  'delivery-staff': ['dashboard', 'delivery', 'my-activity', 'tasks'],
+  cleaner: ['dashboard', 'waste', 'my-activity', 'tasks'],
   /**
    * §47's accountant. Reads the financial picture including the HR records they
    * need at month end; the server matrix grants write on expenses alone, so
@@ -111,7 +111,7 @@ export const ROLE_PERMISSIONS = {
    * manager applies them, which keeps the change and its audit entry with the
    * person answerable for it.
    */
-  accountant: ['dashboard', 'reports', 'pnl', 'revenue', 'expenses', 'orders', 'attendance', 'payroll', 'audit', 'my-activity']
+  accountant: ['dashboard', 'reports', 'pnl', 'revenue', 'expenses', 'orders', 'attendance', 'payroll', 'audit', 'my-activity', 'tasks']
 }
 
 export const ROLE_DEFAULT_VIEW = {
@@ -152,6 +152,7 @@ export const NAV_ITEMS = [
   // this one is everyone's own recap.
   { view: 'my-activity', label: 'My Activity', icon: 'file-text', section: 'System' },
   { view: 'employee-activity', label: 'Employee Activity', icon: 'users', section: 'System' },
+  { view: 'tasks', label: 'Tasks', icon: 'check-square', section: 'System' },
   { view: 'settings', label: 'Settings', icon: 'settings', section: 'System' }
 ]
 

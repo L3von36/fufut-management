@@ -25,6 +25,7 @@ const AuditLogView = () => import('../views/AuditLogView.vue')
 const MyPerformanceView = () => import('../views/MyPerformanceView.vue')
 const EmployeeActivityView = () => import('../views/EmployeeActivityView.vue')
 const EmployeeHistoryView = () => import('../views/EmployeeHistoryView.vue')
+const TasksView = () => import('../views/TasksView.vue')
 const SettingsView = () => import('../views/SettingsView.vue')
 const PipelineView = () => import('../views/PipelineView.vue')
 const TablesView = () => import('../views/TablesView.vue')
@@ -65,6 +66,7 @@ const routes = [
       { path: 'my-activity', name: 'my-activity', component: MyPerformanceView },
       { path: 'employee-activity', name: 'employee-activity', component: EmployeeActivityView },
       { path: 'employee/:id', name: 'employee-history', component: EmployeeHistoryView, props: true },
+      { path: 'tasks', name: 'tasks', component: TasksView },
       { path: 'settings', name: 'settings', component: SettingsView },
       { path: 'pipeline', name: 'pipeline', component: PipelineView },
       { path: 'tables', name: 'tables', component: TablesView }
