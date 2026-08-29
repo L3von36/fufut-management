@@ -23,6 +23,8 @@ const AuditLogView = () => import('../views/AuditLogView.vue')
 // with today/week/month/year/custom range tabs and inline filters. The view
 // reads /api/audit?actor_id=<me> which the API now allows self-scoped.
 const MyPerformanceView = () => import('../views/MyPerformanceView.vue')
+const EmployeeActivityView = () => import('../views/EmployeeActivityView.vue')
+const EmployeeHistoryView = () => import('../views/EmployeeHistoryView.vue')
 const SettingsView = () => import('../views/SettingsView.vue')
 const PipelineView = () => import('../views/PipelineView.vue')
 const TablesView = () => import('../views/TablesView.vue')
@@ -61,6 +63,8 @@ const routes = [
       { path: 'payroll', name: 'payroll', component: PayrollView },
       { path: 'audit', name: 'audit', component: AuditLogView },
       { path: 'my-activity', name: 'my-activity', component: MyPerformanceView },
+      { path: 'employee-activity', name: 'employee-activity', component: EmployeeActivityView },
+      { path: 'employee/:id', name: 'employee-history', component: EmployeeHistoryView, props: true },
       { path: 'settings', name: 'settings', component: SettingsView },
       { path: 'pipeline', name: 'pipeline', component: PipelineView },
       { path: 'tables', name: 'tables', component: TablesView }

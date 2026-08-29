@@ -95,7 +95,7 @@ export const ROLE_PERMISSIONS = {
   // KPIs ("how much did I do today"), backed by /api/audit?actor_id=<me>
   // which the API authorises self-scoped for any signed-in user. The global
   // `audit` stays manager+accountant only.
-  manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'pipeline', 'tables', 'attendance', 'staff-requests', 'payroll', 'my-activity'],
+  manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'pipeline', 'tables', 'attendance', 'staff-requests', 'payroll', 'my-activity', 'employee-activity'],
   'head-chef': ['dashboard', 'orders', 'inventory', 'waste', 'reports', 'pipeline', 'my-activity'],
   'assistant-chef': ['dashboard', 'orders', 'inventory', 'my-activity'],
   'head-waiter': ['dashboard', 'orders', 'tables', 'reservations', 'reports', 'pipeline', 'my-activity'],
@@ -151,6 +151,7 @@ export const NAV_ITEMS = [
   // the global Audit Log; the global trail is manager+accountant only,
   // this one is everyone's own recap.
   { view: 'my-activity', label: 'My Activity', icon: 'file-text', section: 'System' },
+  { view: 'employee-activity', label: 'Employee Activity', icon: 'users', section: 'System' },
   { view: 'settings', label: 'Settings', icon: 'settings', section: 'System' }
 ]
 
