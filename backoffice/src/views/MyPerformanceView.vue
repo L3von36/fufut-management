@@ -65,7 +65,7 @@
         </div>
         <div class="perf-kpi-label">{{ kpi.label }}</div>
         <div class="perf-kpi-value">{{ kpi.value }}</div>
-        <div class="perf-kpi-sub" v-if="kpi.sub" v-html="kpi.sub"></div>
+        <div class="perf-kpi-sub" v-if="kpi.sub">{{ kpi.sub }}</div>
       </div>
     </div>
 
@@ -146,7 +146,7 @@
               <span class="perf-timeline-area">{{ entityLabel(e.entity) }}</span>
               <span class="perf-timeline-time">{{ formatTime(e.at) }}</span>
             </div>
-            <div class="perf-timeline-summary">{{ changeSummary(e) }}</div>
+            <div class="perf-timeline-summary" v-html="changeSummary(e)"></div>
             <div class="perf-timeline-id" v-if="e.entity_id">
               <span class="perf-timeline-id-chip">{{ e.entity_id }}</span>
               <span class="perf-timeline-reason" v-if="e.reason">· {{ e.reason }}</span>
@@ -332,6 +332,16 @@ function actionIcon(action, entity) {
   return ICONS.activity
 }
 
+function escapeHtml(s) {
+  if (s === null || s === undefined) return ''
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function changeSummary(e) {
   const a = e.after
   const b = e.before
@@ -346,17 +356,20 @@ function changeSummary(e) {
       const av = a[k]
       const bv = b && b[k] !== undefined ? b[k] : null
       const disp = (v) => {
+        if (v === null || v === undefined) return ''
         if (typeof v === 'number' && (k === 'amount' || k === 'total' || k === 'tip' || k === 'cost')) {
           return `ETB ${v}`
         }
-        return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : String(v)
+        if (typeof v === 'object' && v !== null) return escapeHtml(JSON.stringify(v))
+        return escapeHtml(v)
       }
-      if (bv !== null && String(bv) !== String(av)) return `<strong>${k}</strong>: ${disp(bv)} → ${disp(av)}`
-      return `<strong>${k}</strong>: ${disp(av)}`
+      const keyDisp = escapeHtml(k)
+      if (bv !== null && String(bv) !== String(av)) return `<strong>${keyDisp}</strong>: ${disp(bv)} → ${disp(av)}`
+      return `<strong>${keyDisp}</strong>: ${disp(av)}`
     })
     return parts.join('  ·  ') || '—'
   }
-  return String(a).slice(0, 80)
+  return escapeHtml(String(a).slice(0, 80))
 }
 
 function formatTime(isoStr) {
