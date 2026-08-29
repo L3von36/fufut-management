@@ -35,7 +35,7 @@
           @click="ack(a)"
         >{{ acking === a.id ? '…' : 'Ack' }}</button>
       </div>
-      <button v-if="canAcknowledge && alerts.length > 1" class="alert-ack-all" @click="ackAll">
+      <button v-if="canAcknowledgeAll && alerts.length > 1" class="alert-ack-all" @click="ackAll">
         Acknowledge all
       </button>
     </div>
@@ -87,9 +87,17 @@ function syncSound(list) {
 
 // Roles the server grants alerts write (ack) to. Read is wider; a role that
 // can read but not ack simply sees the list without the buttons.
+// Per-alert Ack is allowed for manager, head-chef, head-waiter, cashier —
+// each of those roles can act on a single alert relevant to them.
 const ACK_ROLES = new Set(['manager', 'head-chef', 'head-waiter', 'cashier'])
+// Bulk Ack-all is manager-only: the server's /api/alerts/acknowledge-all
+// endpoint refuses every other role with "Manager only", so the button
+// should not render for non-managers. Without this guard the button showed
+// for head-chef/cashier/etc. and they got a 403 toast when they clicked it.
+const ACK_ALL_ROLES = new Set(['manager'])
 const READ_ROLES = new Set(['manager', 'head-chef', 'assistant-chef', 'head-waiter', 'cashier', 'delivery-staff'])
 const canAcknowledge = computed(() => ACK_ROLES.has(auth.roleKey))
+const canAcknowledgeAll = computed(() => ACK_ALL_ROLES.has(auth.roleKey))
 
 const criticalCount = computed(() => alerts.value.filter((a) => a.severity === 'critical').length)
 const hasCritical = computed(() => criticalCount.value > 0)
