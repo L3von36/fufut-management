@@ -30,7 +30,7 @@
         @dragover.prevent="dragOver = stage.key"
         @dragleave="dragOver = null"
         @drop="onDrop($event, stage.key); dragOver = null"
-        @touchmove.passive="onTouchMove"
+        @touchmove="onTouchMove"
         @touchend="onTouchEnd"
       >
         <!-- Lane header -->

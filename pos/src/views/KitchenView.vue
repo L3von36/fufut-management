@@ -759,7 +759,12 @@ function isStaleReady(o) {
 
 <style scoped>
 /* ─── Toolbar Stats ─── */
-.kitchen-toolbar-actions { display:flex; gap:10px; align-items:center; }
+/* Wrap the toolbar actions so they flow to a second row on narrow screens
+   instead of overflowing the viewport and causing horizontal page scroll.
+   The parent .table-toolbar already wraps (styles.css:153 has flex-wrap:wrap),
+   but this inner flex container was nowrap, so all chips sat on one line
+   and the rightmost (Refresh) was clipped off-screen on tablets. */
+.kitchen-toolbar-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
 .kitchen-stats { display:flex; gap:6px; }
 .ks-stat {
   padding: 3px 10px;
