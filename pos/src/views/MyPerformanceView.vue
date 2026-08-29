@@ -342,34 +342,165 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;')
 }
 
+/**
+ * Human-readable labels for the audit log's snake_case field names.
+ *
+ * The audit `after` payload carries whatever columns the mutating handler
+ * chose to record — `voided_at`, `table_id`, `auto_refunded`, etc. Showing
+ * those raw names to a floor user is hostile: they read like database
+ * columns, not like the things they actually mean. This map turns the
+ * common ones into the words the floor already uses.
+ */
+const FIELD_LABELS = {
+  status: 'Status',
+  total: 'Total',
+  tip: 'Tip',
+  amount: 'Amount',
+  cost: 'Cost',
+  type: 'Type',
+  method: 'Method',
+  payment: 'Payment',
+  table_id: 'Table',
+  table_number: 'Table',
+  tableNum: 'Table',
+  customer: 'Customer',
+  email: 'Email',
+  role: 'Role',
+  voided_at: 'Voided',
+  void_category: 'Reason',
+  void_reason: 'Reason',
+  reason: 'Reason',
+  served_at: 'Served',
+  preparing_at: 'Started cooking',
+  ready_at: 'Ready',
+  picked_up_at: 'Picked up',
+  delivered_at: 'Delivered',
+  created: 'Created',
+  updated_at: 'Updated',
+  acknowledged_at: 'Acknowledged',
+  resolved_at: 'Resolved',
+  auto_refunded: 'Auto-refunded',
+  payment_status: 'Payment',
+  pickup_status: 'Pickup',
+  source: 'Source',
+  notes: 'Notes',
+}
+
+/**
+ * Fields that add no information when they hold a zero/empty/null value.
+ * `auto_refunded: 0` after a void means "no refund was issued", which is the
+ * default and not worth a slot in the summary. `tip: ETB 0` on a takeaway
+ * is the same — nobody tipped, the floor doesn't need to read that.
+ */
+const NOISY_WHEN_EMPTY = new Set([
+  'auto_refunded', 'tip', 'cost', 'amount', 'total',
+  'void_category', 'void_reason', 'reason', 'notes',
+  'table_id', 'table_number', 'tableNum', 'customer',
+  'source', 'payment', 'method', 'pickup_status',
+])
+
+/**
+ * Fields whose value is an ISO timestamp. Rendered as "Aug 29, 7:44 PM"
+ * to match the rest of the page, rather than the raw
+ * "2026-08-29T19:44:54.714Z" the database stores.
+ */
+const TIMESTAMP_FIELDS = new Set([
+  'voided_at', 'served_at', 'preparing_at', 'ready_at',
+  'picked_up_at', 'delivered_at', 'created', 'updated_at',
+  'acknowledged_at', 'resolved_at',
+])
+
+/**
+ * Fields whose numeric value is money. Rendered as "ETB 320" rather than
+ * the raw "320".
+ */
+const MONEY_FIELDS = new Set(['total', 'tip', 'amount', 'cost'])
+
+/**
+ * Status values that get a colored badge in the summary line.
+ * Matches the colors used elsewhere in the app for the same statuses.
+ */
+const STATUS_COLORS = {
+  new: '#2563EB', preparing: '#D97706', ready: '#10B981',
+  served: '#0F7B78', fulfilled: '#0F7B78', completed: '#0F7B78',
+  cancelled: '#EF4444', voided: '#EF4444',
+  paid: '#10B981', unpaid: '#F59E0B', partial: '#F59E0B',
+  verified: '#10B981', recorded: '#0EA5E9', refunded: '#EF4444',
+  occupied: '#D97706', available: '#10B981', cleaning: '#0EA5E9',
+  assigned: '#6366F1', picked_up: '#0EA5E9', out_for_delivery: '#0EA5E9',
+  delivered: '#10B981',
+}
+
+function fieldLabel(key) {
+  return FIELD_LABELS[key] || key.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
+}
+
+function formatTimestamp(v) {
+  if (!v) return ''
+  const d = new Date(v)
+  if (isNaN(d)) return escapeHtml(String(v))
+  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return escapeHtml(`${date}, ${time}`)
+}
+
+function formatValue(key, v) {
+  if (v === null || v === undefined || v === '') return ''
+  if (TIMESTAMP_FIELDS.has(key)) return formatTimestamp(v)
+  if (MONEY_FIELDS.has(key) && typeof v === 'number') return `ETB ${escapeHtml(v)}`
+  if (typeof v === 'object') return escapeHtml(JSON.stringify(v))
+  // Status values get a colored span so the summary reads visually
+  if (key === 'status' || key === 'payment_status') {
+    const color = STATUS_COLORS[String(v).toLowerCase()] || '#475569'
+    return `<span class="perf-val-status" style="color:${color}">${escapeHtml(v)}</span>`
+  }
+  return escapeHtml(v)
+}
+
 function changeSummary(e) {
   const a = e.after
   const b = e.before
   if (!a && !b) return '—'
-  if (!a) return 'deleted'
-  if (typeof a === 'object') {
-    // Highlight money/duration fields first for a more useful summary
-    const priorityKeys = ['amount', 'total', 'tip', 'cost', 'status', 'method']
-    const allKeys = Object.keys(a)
-    const sorted = [...priorityKeys.filter(k => k in a), ...allKeys.filter(k => !priorityKeys.includes(k))]
-    const parts = sorted.slice(0, 4).map(k => {
-      const av = a[k]
-      const bv = b && b[k] !== undefined ? b[k] : null
-      const disp = (v) => {
-        if (v === null || v === undefined) return ''
-        if (typeof v === 'number' && (k === 'amount' || k === 'total' || k === 'tip' || k === 'cost')) {
-          return `ETB ${v}`
-        }
-        if (typeof v === 'object' && v !== null) return escapeHtml(JSON.stringify(v))
-        return escapeHtml(v)
-      }
-      const keyDisp = escapeHtml(k)
-      if (bv !== null && String(bv) !== String(av)) return `<strong>${keyDisp}</strong>: ${disp(bv)} → ${disp(av)}`
-      return `<strong>${keyDisp}</strong>: ${disp(av)}`
-    })
-    return parts.join('  ·  ') || '—'
+  if (!a) return '<em>deleted</em>'
+  if (typeof a !== 'object') return escapeHtml(String(a).slice(0, 80))
+
+  // Order: status first (it's the headline), then money, then timestamps,
+  // then everything else.
+  const priorityOrder = [
+    'status', 'payment_status', 'pickup_status',
+    'total', 'tip', 'amount', 'cost', 'method', 'payment',
+    'table_id', 'table_number', 'tableNum', 'type', 'customer',
+    'voided_at', 'served_at', 'preparing_at', 'ready_at', 'picked_up_at', 'delivered_at',
+    'void_category', 'void_reason', 'reason', 'notes',
+    'auto_refunded', 'source',
+  ]
+  const allKeys = Object.keys(a)
+  const seen = new Set()
+  const ordered = []
+  for (const k of priorityOrder) {
+    if (k in a) { ordered.push(k); seen.add(k) }
   }
-  return escapeHtml(String(a).slice(0, 80))
+  for (const k of allKeys) {
+    if (!seen.has(k)) ordered.push(k)
+  }
+
+  const parts = ordered.slice(0, 5).map(k => {
+    const av = a[k]
+    const bv = b && b[k] !== undefined ? b[k] : null
+    const hasBefore = bv !== null && bv !== undefined && String(bv) !== String(av)
+    const afterDisp = formatValue(k, av)
+    // Skip noisy-empty fields: "auto_refunded: 0", "tip: ETB 0", "table_id:"
+    // These add no information and clutter the summary.
+    if (!afterDisp && NOISY_WHEN_EMPTY.has(k) && !hasBefore) return null
+    const beforeDisp = hasBefore ? formatValue(k, bv) : ''
+    const label = fieldLabel(k)
+    if (hasBefore) {
+      return `<strong>${escapeHtml(label)}</strong>: ${beforeDisp} → ${afterDisp}`
+    }
+    return `<strong>${escapeHtml(label)}</strong>: ${afterDisp}`
+  }).filter(Boolean)
+
+  return parts.join('  ·  ') || '—'
 }
 
 function formatTime(isoStr) {
@@ -755,8 +886,10 @@ onMounted(loadAll)
 }
 .perf-timeline-area { font-size: .72rem; color: var(--text-muted); background: var(--bg); padding: 1px 7px; border-radius: 99px; }
 .perf-timeline-time { font-size: .72rem; color: var(--text-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
-.perf-timeline-summary { font-size: .82rem; color: var(--text-heading); line-height: 1.4; word-break: break-word; }
-.perf-timeline-summary :deep(strong) { font-weight: 600; color: var(--text-heading); }
+.perf-timeline-summary { font-size: .82rem; color: var(--text-heading); line-height: 1.5; word-break: break-word; }
+.perf-timeline-summary :deep(strong) { font-weight: 600; color: var(--text-muted); font-size: .76rem; text-transform: uppercase; letter-spacing: .03em; margin-right: 2px; }
+.perf-timeline-summary :deep(.perf-val-status) { font-weight: 600; }
+.perf-timeline-summary :deep(em) { color: var(--text-muted); font-style: italic; }
 .perf-timeline-id { font-size: .72rem; margin-top: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .perf-timeline-id-chip { font-family: var(--font-mono, monospace); background: var(--bg); padding: 1px 6px; border-radius: 4px; color: var(--text-muted); }
 .perf-timeline-reason { color: var(--text-muted); }
