@@ -437,12 +437,23 @@ function sortFn(a, b) {
   if (sortBy.value === 'table') {
     const ta = a.table_number || a.tableNum || 'zzz'
     const tb = b.table_number || b.tableNum || 'zzz'
-    return String(ta).localeCompare(String(tb), undefined, { numeric: true })
+    const cmp = String(ta).localeCompare(String(tb), undefined, { numeric: true })
+    // Stable tiebreaker: when two tickets are on the same table (or both
+    // have no table number), oldest first. Without this, tickets with the
+    // same table number jump around when the underlying orders array
+    // re-orders (e.g. on an SSE push).
+    if (cmp !== 0) return cmp
+    return (a.created || '').localeCompare(b.created || '')
   }
   if (sortBy.value === 'size') {
     const sa = getOrderLines(a).length || (a.items ? String(a.items).split(',').length : 0)
     const sb = getOrderLines(b).length || (b.items ? String(b.items).split(',').length : 0)
-    return sb - sa // largest first
+    // Largest first. When two orders have the same size, oldest first —
+    // a deterministic order matters for the chef scanning the board, and
+    // without a tiebreaker equal-size tickets jump around on every SSE push
+    // because Array.prototype.sort is only stable in modern engines.
+    if (sb !== sa) return sb - sa
+    return (a.created || '').localeCompare(b.created || '')
   }
   // default: oldest first
   return (a.created || '').localeCompare(b.created || '')
