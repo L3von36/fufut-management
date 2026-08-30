@@ -258,6 +258,67 @@
           <div style="color:var(--text-muted);font-size:.85rem">No cashier audit events recorded this shift</div>
         </div>
       </div>
+
+      <!-- Cashier extras: reconciliation, orders/hour, settlement, refunds, voids, shift, yesterday -->
+      <template v-if="auth.roleKey === 'cashier'">
+        <div class="card">
+          <div class="card-header"><h3>Cash Reconciliation</h3></div>
+          <div v-if="tillStatus && tillStatus.open" style="font-size:.82rem">
+            <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Opening Float</span><span>ETB {{ tillStatus.opening || 0 }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0"><span>+ Cash Sales</span><span style="color:var(--success)">ETB {{ tillStatus.cashSales || 0 }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0;font-weight:700;border-top:1px solid var(--border);margin-top:4px;padding-top:4px"><span>Expected Cash</span><span>ETB {{ tillStatus.expected || 0 }}</span></div>
+            <button class="btn btn-sm btn-outline" style="width:100%;margin-top:8px" @click="router.push('/app/cashdrawer')">Count Cash & Close</button>
+          </div>
+          <div v-else class="empty-state" style="font-size:.85rem">No open drawer</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Orders Per Hour</h3></div>
+          <div v-if="ordersByHour.length" style="display:flex;align-items:flex-end;gap:4px;height:80px;padding-top:10px">
+            <div v-for="(h, i) in ordersByHour" :key="i" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div :style="{ height: Math.max(4, h.count * 12) + 'px', width: '100%', background: h.count > 0 ? 'var(--primary)' : 'var(--border)', borderRadius: '3px 3px 0 0' }" :title="`${h.hour}:00 — ${h.count} orders`"></div>
+              <span style="font-size:.6rem;color:var(--text-muted)">{{ h.label }}</span>
+            </div>
+          </div>
+          <div v-else class="empty-state" style="font-size:.85rem">No orders today</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Digital Settlement</h3></div>
+          <div v-if="digitalPending.length" style="font-size:.82rem">
+            <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Pending Verification</span><span style="color:var(--warning);font-weight:600">{{ digitalPending.length }} (ETB {{ digitalPending.reduce((s,p) => s + (p.amount||0), 0).toFixed(0) }})</span></div>
+            <div v-if="verifiedDigitalTotal > 0" style="display:flex;justify-content:space-between;padding:3px 0"><span>Verified</span><span style="color:var(--success)">ETB {{ verifiedDigitalTotal.toFixed(0) }}</span></div>
+          </div>
+          <div v-else class="empty-state" style="font-size:.85rem;color:var(--success)">All digital payments verified ✓</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Refunds & Voids</h3></div>
+          <div style="font-size:.82rem">
+            <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Refunds Issued</span><span>{{ refundsToday.length }} (ETB {{ refundsTotal.toFixed(0) }})</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Voided Orders</span><span>{{ voidedToday.length }} (ETB {{ voidedTotal.toFixed(0) }})</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>My Shift</h3></div>
+          <div style="font-size:.82rem">
+            <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Working Time</span><span style="font-weight:600">{{ workingTimeLabel }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Break Status</span><span :style="{ color: onBreak ? 'var(--warning)' : 'var(--success)', fontWeight: 600 }">{{ onBreak ? 'On Break' : 'Working' }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Tips Earned</span><span style="color:var(--success)">ETB {{ myTipsToday.toFixed(0) }}</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Today vs Yesterday</h3></div>
+          <div style="font-size:.82rem">
+            <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Today's Revenue</span><span style="font-weight:600">ETB {{ todayRevenue.toFixed(0) }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Yesterday</span><span>ETB {{ yesterdayRevenue.toFixed(0) }}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0;font-weight:700;border-top:1px solid var(--border);margin-top:4px;padding-top:4px">
+              <span>Difference</span>
+              <span :style="{ color: todayRevenue >= yesterdayRevenue ? 'var(--success)' : 'var(--danger)' }">
+                {{ todayRevenue >= yesterdayRevenue ? '↑' : '↓' }} ETB {{ Math.abs(todayRevenue - yesterdayRevenue).toFixed(0) }}
+                ({{ yesterdayRevenue > 0 ? Math.round((todayRevenue / yesterdayRevenue - 1) * 100) : 0 }}%)
+              </span>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -385,6 +446,55 @@ function isToday(d) {
 
 const digitalPending = ref([])
 const shiftLogs = ref([])
+
+// ─── Cashier dashboard extras ──────────────────────────────────────
+const ordersByHour = ref([])
+const refundsToday = ref([])
+const voidedToday = ref([])
+const verifiedDigitalTotal = ref(0)
+const onBreak = ref(false)
+const myTipsToday = ref(0)
+const todayRevenue = ref(0)
+const yesterdayRevenue = ref(0)
+const clockInTime = ref(null)
+
+const refundsTotal = computed(() => refundsToday.value.reduce((s, p) => s + Math.abs(Number(p.amount) || 0), 0))
+const voidedTotal = computed(() => voidedToday.value.reduce((s, o) => s + (Number(o.total) || 0), 0))
+const workingTimeLabel = computed(() => {
+  if (!clockInTime.value) return 'Not clocked in'
+  const mins = Math.floor((Date.now() - clockInTime.value) / 60000)
+  if (mins < 60) return `${mins}m`
+  const h = Math.floor(mins / 60)
+  return `${h}h ${mins % 60}m`
+})
+
+async function loadCashierExtras() {
+  try {
+    const hours = []
+    for (let h = 8; h <= 22; h++) {
+      const count = todayOrders.value.filter(o => new Date(o.created).getHours() === h).length
+      hours.push({ hour: h, label: h <= 12 ? `${h}a` : `${h - 12}p`, count })
+    }
+    ordersByHour.value = hours
+    todayRevenue.value = todayOrders.value.reduce((s, o) => s + (Number(o.total) || 0), 0)
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+    const yOrders = await apiGet(`orders?from=${yesterday}&to=${yesterday}`).catch(() => [])
+    yesterdayRevenue.value = (Array.isArray(yOrders) ? yOrders : []).reduce((s, o) => s + (Number(o.total) || 0), 0)
+    const pays = await apiGet('payments').catch(() => [])
+    const allPays = Array.isArray(pays) ? pays : []
+    refundsToday.value = allPays.filter(p => p.status === 'refunded' || (Number(p.amount) || 0) < 0)
+    verifiedDigitalTotal.value = allPays.filter(p => p.status === 'verified' && ['telebirr','cbe','bank','card','mobile'].includes(p.method)).reduce((s, p) => s + (Number(p.amount) || 0), 0)
+    voidedToday.value = todayOrders.value.filter(o => o.voided_at)
+    const tips = await apiGet('tips').catch(() => [])
+    myTipsToday.value = (Array.isArray(tips) ? tips : []).filter(t => t.staff_id === auth.user?.id || t.collected_by === auth.user?.id).reduce((s, t) => s + (Number(t.amount) || 0), 0)
+    const me = await apiGet('timeclock/me').catch(() => null)
+    if (me && me.entry && me.entry.clockIn) {
+      const d = new Date(); const [h, m] = String(me.entry.clockIn).split(':').map(Number)
+      d.setHours(h, m, 0, 0); clockInTime.value = d.getTime()
+    }
+    onBreak.value = false
+  } catch (e) { console.error('Cashier extras load failed', e) }
+}
 
 async function fetchShiftAudit() {
   try {
@@ -677,6 +787,7 @@ function buildKpis() {
       { label: 'Orders',        value: `${todayOrders.value.length}`, sub: `${newOrd} new`, bar: 'blue', icon: ICONS.orders },
     ]
     loadCashierKpis()
+    loadCashierExtras()
   } else if (role === 'head-waiter') {
     // A waiter has no inventory permission, so loadDashboard never fetches it
     // and `low` is structurally always 0. Showing a Low Stock tile here would

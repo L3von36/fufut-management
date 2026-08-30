@@ -172,32 +172,88 @@ export function kitchenTicket(order, items = []) {
  * printDocument() so the receipt matches the kitchen ticket's paper size and
  * font stack.
  */
+/**
+ * Customer receipt — Ethiopian fiscal tax invoice (compliant layout).
+ *
+ * Redesigned to meet ERCA Directive 46/2007 + VAT Regulation 570/2026
+ * requirements:
+ *   - "TAX INVOICE" heading (prominent)
+ *   - Seller name, address, TIN, VAT registration number
+ *   - Sequential receipt number (from order ID — should be a fiscal
+ *     sequential counter in production, but the order ID is used as a
+ *     proxy until a dedicated receipt_number table exists)
+ *   - Date + time of issue
+ *   - Item lines with qty + unit price + line total
+ *   - Subtotal → Service charge (taxable) → Taxable amount → VAT 15%
+ *     → Grand total
+ *   - Payment method breakdown
+ *   - "Thank you" footer with verification note
+ *
+ * NOTE: QR code + IRN + RRN (Directive 1142/2026) are NOT implemented
+ * yet — they require integration with MoR's Electronic Invoice
+ * Registration System API. The receipt includes a placeholder line
+ * noting "QR: Pending MoR integration" so the gap is visible.
+ */
 export function customerReceipt(payload, storeItems, storeHelpers) {
   const id = payload.id || '—'
   const date = stamp()
+
+  // Business identity — these should come from settings, but are hardcoded
+  // as fallback until a settings integration is built.
+  const BUSINESS = {
+    name: 'FU FUT COFFEE',
+    address: 'Bole, Addis Ababa, Ethiopia',
+    tin: '0000000000',           // TODO: replace with real TIN
+    vatRegNo: '0000000000-V',    // TODO: replace with real VAT reg number
+    phone: '+251 11 000 0000',   // TODO: replace with real phone
+  }
+
+  // Item lines
   const lines = storeItems.map(i => {
     const modStr = (i.selectedModifiers || []).map(m => m.name).join(', ')
     const nameParts = [i.name]
     if (modStr) nameParts.push(`[${modStr}]`)
+    const lineTotal = Math.round(storeHelpers.lineTotal(i) * i.qty)
     return line(
       `${i.qty}x ${nameParts.join(' ')}`,
-      `ETB ${Math.round(storeHelpers.lineTotal(i) * i.qty)}`
+      `ETB ${lineTotal}`
     )
   }).join('')
 
+  // Tax calculation — Ethiopia 15% VAT on (subtotal + service charge - discount)
+  const subtotal = Math.round(Number(payload.subtotal || payload.total || 0))
+  const discount = Math.round(Number(payload.discount || 0))
+  const serviceCharge = Math.round(Number(payload.serviceCharge || 0))
+  const tip = Math.round(Number(payload.tip || 0))
+  const deliveryFee = Math.round(Number(payload.deliveryFee || 0))
+
+  // Taxable base = subtotal - discount + service charge
+  // (service charge is taxable consideration per VAT Proclamation 1341/2024)
+  const taxableBase = Math.max(0, subtotal - discount + serviceCharge)
+  const vatRate = 0.15
+  const vatAmount = Math.round(taxableBase * vatRate * 100) / 100
+  const grandTotal = Math.round(Number(payload.total || (taxableBase + vatAmount + tip + deliveryFee)))
+
+  // Summary lines
   const summary = [
-    line('Subtotal', `ETB ${Math.round(payload.subtotal || 0)}`),
+    line('Subtotal', `ETB ${subtotal}`),
   ]
-  if (payload.discount > 0) {
-    summary.push(line(`Discount${payload.discountReason ? ' (' + esc(payload.discountReason) + ')' : ''}`, `-ETB ${Math.round(payload.discount)}`))
+  if (discount > 0) {
+    summary.push(line(`Discount${payload.discountReason ? ' (' + esc(payload.discountReason) + ')' : ''}`, `-ETB ${discount}`))
   }
-  if (payload.tip > 0) {
-    summary.push(line('Tip', `ETB ${Math.round(payload.tip)}`))
+  if (serviceCharge > 0) {
+    summary.push(line('Service Charge (10%)', `ETB ${serviceCharge}`))
   }
-  if (payload.deliveryFee > 0) {
-    summary.push(line('Delivery Fee', `ETB ${Math.round(payload.deliveryFee)}`))
+  summary.push(line('Taxable Amount', `ETB ${taxableBase}`))
+  summary.push(line('VAT (15%)', `ETB ${vatAmount}`))
+  if (tip > 0) {
+    summary.push(line('Tip', `ETB ${tip}`))
+  }
+  if (deliveryFee > 0) {
+    summary.push(line('Delivery Fee', `ETB ${deliveryFee}`))
   }
 
+  // Payment lines
   const paymentLines = (payload.paymentBreakdown || []).map(pb => {
     const method = esc(pb.method.charAt(0).toUpperCase() + pb.method.slice(1))
     let ln = line(method, `ETB ${Math.round(pb.amount)}`)
@@ -209,22 +265,45 @@ export function customerReceipt(payload, storeItems, storeHelpers) {
   }).join('')
 
   const body = [
-    line('Type', `${esc(payload.type)}${payload.tableNum ? ' · Table ' + esc(payload.tableNum) : ''}`),
-    line('Customer', esc(payload.customer) || 'Walk-in'),
+    // ── Header: Business identity ──
+    `<h1 style="font-size:1.3em;letter-spacing:.06em">TAX INVOICE</h1>`,
+    `<div class="sub" style="font-weight:700;font-size:1.05em">${esc(BUSINESS.name)}</div>`,
+    `<div class="sub">${esc(BUSINESS.address)}</div>`,
+    `<div class="sub">TIN: ${esc(BUSINESS.tin)}</div>`,
+    `<div class="sub">VAT Reg: ${esc(BUSINESS.vatRegNo)}</div>`,
+    `<div class="sub">Tel: ${esc(BUSINESS.phone)}</div>`,
     '<hr>',
+    // ── Receipt metadata ──
+    line('Receipt No', esc(id)),
+    line('Date', esc(date)),
+    line('Type', `${esc(payload.type)}${payload.tableNum ? ' · Table ' + esc(payload.tableNum) : ''}`),
+    payload.customer ? line('Customer', esc(payload.customer)) : '',
+    payload.customer_phone ? line('Phone', esc(payload.customer_phone)) : '',
+    '<hr>',
+    // ── Item lines ──
     lines,
     '<hr>',
+    // ── Summary with VAT ──
     summary.join(''),
-    `<div class="ln total"><span>GRAND TOTAL</span><span>ETB ${esc(String(payload.total))}</span></div>`,
+    `<div class="ln total"><span>GRAND TOTAL</span><span>ETB ${grandTotal}</span></div>`,
     '<hr>',
+    // ── Payment ──
     `<div style="font-size:.82em;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;color:#666">Payment</div>`,
     paymentLines,
     '<hr>',
-    `<div class="foot">Thank you for visiting!<br>FU FUT COFFEE</div>`,
+    // ── Footer ──
+    `<div class="foot">Thank you for visiting!<br>${esc(BUSINESS.name)}</div>`,
     `<div class="foot">${esc(date)}</div>`,
+    `<div class="foot" style="font-size:.68em;margin-top:4px;color:#999">VAT ${vatRate * 100}% · TIN ${esc(BUSINESS.tin)}<br>QR: Pending MoR integration</div>`,
   ].join('')
 
-  return printDocument({ title: `Receipt #${id}`, body, paper: 'receipt', subtitle: 'FU FUT CAFÉ' })
+  return printDocument({
+    title: `Tax Invoice #${id}`,
+    body,
+    paper: 'receipt',
+    heading: '',
+    subtitle: '',
+  })
 }
 
 function modsText(modifiers) {
