@@ -237,7 +237,135 @@ function modsText(modifiers) {
 }
 
 /** A4 document: title, optional summary lines, and a table. */
-export function printZReport(drawer) {
+/**
+ * Z-Report printer. Handles two shapes:
+ *
+ * 1. NEW (fiscal): the full Z-report from GET /api/cashdrawer/:id/z-report.
+ *    Has .header, .vatBreakdown, .paymentBreakdown, .voids, .refunds,
+ *    .cashReconciliation, .serviceCharge, .tips, .grandTotals.
+ *    Renders VAT breakdown, payment methods, voids, reconciliation.
+ *
+ * 2. OLD (cash-only): a drawer object with .openingBal, .cashSales, etc.
+ *    Renders the original cash-only summary. Used as a fallback when the
+ *    Z-report endpoint is unavailable.
+ */
+export function printZReport(data) {
+  // Detect new format
+  if (data && data.header && data.vatBreakdown) {
+    return printFiscalZReport(data)
+  }
+  // Old format — cash-only
+  return printLegacyZReport(data)
+}
+
+/** New Ethiopian-compliant fiscal Z-report with VAT + payment methods + voids. */
+function printFiscalZReport(report) {
+  const h = report.header
+  const vat = report.vatBreakdown
+  const recon = report.cashReconciliation
+  const date = stamp()
+
+  // VAT breakdown rows
+  const vatRows = [
+    line('Standard Rate (15%)', `Gross: ETB ${vat.standard.gross.toLocaleString()}`),
+    line('', `VAT: ETB ${vat.standard.vat.toLocaleString()}`),
+    line('', `Receipts: ${vat.standard.count}`),
+  ]
+  if (vat.exempt.count > 0) {
+    vatRows.push(
+      line('Exempt (0%)', `Gross: ETB ${vat.exempt.gross.toLocaleString()}`),
+      line('', `Receipts: ${vat.exempt.count}`)
+    )
+  }
+  vatRows.push(
+    '<hr>',
+    line('TOTAL GROSS', `ETB ${vat.totalGross.toLocaleString()}`),
+    line('TOTAL VAT', `ETB ${vat.totalVat.toLocaleString()}`),
+  )
+
+  // Payment method rows
+  const payRows = (report.paymentBreakdown || []).map(p =>
+    line(p.method.toUpperCase(), `${p.count} × ETB ${p.total.toLocaleString()}`)
+  )
+  if (!payRows.length) payRows.push(line('—', 'No payments recorded'))
+
+  // Voids
+  const voidRows = report.voids && report.voids.count > 0 ? [
+    line('Voided Orders', `${report.voids.count} (ETB ${report.voids.total.toLocaleString()})`),
+    ...report.voids.byCategory.map(v =>
+      line(`  ${v.category}`, `${v.count} × ETB ${v.total.toLocaleString()}`)
+    ),
+  ] : [line('Voids', 'None')]
+
+  // Refunds
+  const refundRows = report.refunds && report.refunds.count > 0 ? [
+    line('Refunds', `${report.refunds.count} (ETB ${report.refunds.total.toLocaleString()})`),
+    ...report.refunds.byMethod.map(r =>
+      line(`  ${r.method}`, `${r.count} × ETB ${r.total.toLocaleString()}`)
+    ),
+  ] : [line('Refunds', 'None')]
+
+  // Cash reconciliation
+  const reconRows = [
+    line('Opening Float', `ETB ${recon.openingFloat.toLocaleString()}`),
+    line('+ Cash Sales', `ETB ${recon.cashSales.toLocaleString()}`),
+  ]
+  if (recon.paidIn > 0) reconRows.push(line('+ Paid In', `ETB ${recon.paidIn.toLocaleString()}`))
+  if (recon.paidOut > 0) reconRows.push(line('− Paid Out', `ETB ${recon.paidOut.toLocaleString()}`))
+  reconRows.push(
+    line('= Expected', `ETB ${recon.expected.toLocaleString()}`),
+    line('Counted', `ETB ${recon.counted.toLocaleString()}`),
+    `<div class="ln total"><span>NET VARIANCE</span><span style="color:${recon.variance >= 0 ? '#0f7b78' : '#d9381e'}">${recon.variance >= 0 ? '+' : ''}ETB ${recon.variance.toLocaleString()}</span></div>`,
+  )
+
+  const body = [
+    `<div style="text-align:center;margin-bottom:6px"><span class="badge-type">Z-REPORT #${h.zNumber}</span></div>`,
+    `<h1 style="font-size:1.4em">SHIFT CLOSE — FISCAL SUMMARY</h1>`,
+    line('Z-Number', `#${h.zNumber}`),
+    line('Drawer ID', esc(h.drawerId || '')),
+    line('Opened', esc(h.openedAt ? stamp(new Date(h.openedAt)) : '—')),
+    line('Closed', esc(h.closedAt ? stamp(new Date(h.closedAt)) : stamp())),
+    line('Status', esc(h.status || 'closed')),
+    line('VAT Rate', `${(h.vatRate * 100)}%`),
+    '<hr>',
+    `<div style="font-size:.82em;font-weight:700;margin-bottom:4px">VAT BREAKDOWN</div>`,
+    ...vatRows,
+    '<hr>',
+    `<div style="font-size:.82em;font-weight:700;margin-bottom:4px">PAYMENT METHODS</div>`,
+    ...payRows,
+    '<hr>',
+    `<div style="font-size:.82em;font-weight:700;margin-bottom:4px">VOIDS</div>`,
+    ...voidRows,
+    '<hr>',
+    `<div style="font-size:.82em;font-weight:700;margin-bottom:4px">REFUNDS</div>`,
+    ...refundRows,
+    '<hr>',
+    `<div style="font-size:.82em;font-weight:700;margin-bottom:4px">CASH RECONCILIATION</div>`,
+    ...reconRows,
+    '<hr>',
+    line('Service Charge', `ETB ${(report.serviceCharge || 0).toLocaleString()}`),
+    line('Tips (owed to staff)', `ETB ${(report.tips || 0).toLocaleString()}`),
+    '<hr>',
+    `<div style="font-size:.82em;font-weight:700;margin-bottom:4px">GRAND TOTALS (ALL TIME)</div>`,
+    line('Total Z-Reports', `${report.grandTotals.zCount}`),
+    line('Cumulative Cash Sales', `ETB ${report.grandTotals.cumulativeCashSales.toLocaleString()}`),
+    '<hr>',
+    line('Receipts', `${report.receiptRange.totalReceipts} (${report.receiptRange.firstReceipt || '—'} → ${report.receiptRange.lastReceipt || '—'})`),
+    '<hr>',
+    `<div class="foot">FU FUT CAFÉ · FISCAL Z-REPORT · VAT ${h.vatRate * 100}%</div>`,
+    `<div class="foot">${esc(date)}</div>`,
+  ].join('');
+
+  return printDocument({
+    title: `Z-Report #${h.zNumber} ${h.drawerId || ''}`,
+    body,
+    paper: 'receipt',
+    subtitle: 'FISCAL SHIFT SUMMARY',
+  });
+}
+
+/** Old cash-only Z-report — kept as fallback. */
+function printLegacyZReport(drawer) {
   const date = stamp();
   const opened = drawer.opened ? stamp(new Date(drawer.opened)) : '—';
   const closed = drawer.closed ? stamp(new Date(drawer.closed)) : stamp();

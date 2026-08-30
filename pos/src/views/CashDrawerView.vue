@@ -97,7 +97,7 @@
                   {{ parseFloat(h.variance||0) >= 0 ? '+' : '' }}{{ parseFloat(h.variance||0).toFixed(0) }}
                 </td>
                 <td data-label="Z-Report">
-                  <button class="btn btn-sm btn-outline" @click="printZReport(h)">Print Z-Report</button>
+                  <button class="btn btn-sm btn-outline" @click="printHistoryZReport(h)">Print Z-Report</button>
                 </td>
               </tr>
               <tr v-if="!historyDrawers.length"><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No past closed drawer sessions</td></tr>
@@ -353,15 +353,30 @@ async function handleCloseDrawer() {
       denominations: denominations.value
     })
     toast('Drawer closed and Z-Report recorded')
-    printZReport({
-      id: activeDrawer.value.id,
-      openingBal: activeDrawer.value.openingBal || activeDrawer.value.opening_balance,
-      cashSales: cashSales.value,
-      closingBal: closingBal.value,
-      expectedClose: expectedClose.value,
-      variance,
-      denominations: denominations.value
-    })
+
+    // Fetch the full fiscal Z-report from the new endpoint — includes
+    // VAT breakdown, payment methods, voids, refunds, service charge,
+    // tips, and grand totals. Falls back to the old cash-only print
+    // if the endpoint is unavailable (e.g. older API deploy).
+    try {
+      const zr = await apiGet(`cashdrawer/${activeDrawer.value.id}/z-report`)
+      if (zr && zr.ok) {
+        printZReport(zr)
+      } else {
+        throw new Error('Z-report endpoint unavailable')
+      }
+    } catch {
+      // Fallback: print the old cash-only summary
+      printZReport({
+        id: activeDrawer.value.id,
+        openingBal: activeDrawer.value.openingBal || activeDrawer.value.opening_balance,
+        cashSales: cashSales.value,
+        closingBal: closingBal.value,
+        expectedClose: expectedClose.value,
+        variance,
+        denominations: denominations.value
+      })
+    }
     showClosePrompt.value = false
     closingBal.value = 0
     denominations.value = { 200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0 }
@@ -396,6 +411,19 @@ async function submitDrawerPop() {
     popReason.value = ''
   } catch (e) {
     toast(e.message || 'Failed to log pop', 'error')
+  }
+}
+
+async function printHistoryZReport(drawer) {
+  try {
+    const zr = await apiGet(`cashdrawer/${drawer.id}/z-report`)
+    if (zr && zr.ok) {
+      printZReport(zr)
+    } else {
+      printZReport(drawer)
+    }
+  } catch {
+    printZReport(drawer)
   }
 }
 
