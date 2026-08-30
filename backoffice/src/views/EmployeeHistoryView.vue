@@ -18,6 +18,9 @@
           <span class="eh-meta-item">{{ rangeLabel }}</span>
         </div>
       </div>
+      <button class="eh-refresh-btn" @click="printReport" title="Print daily report">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>
+      </button>
       <button class="eh-refresh-btn" @click="load" :disabled="loading">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'eh-spin': loading }"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
       </button>
@@ -196,6 +199,12 @@ async function load() {
 
 onMounted(load)
 watch(() => route.params.id, load)
+
+function printReport() {
+  const id = route.params.id
+  const { from } = currentRange()
+  router.push({ name: 'daily-report', params: { id }, query: { date: from } })
+}
 </script>
 
 <style scoped>
