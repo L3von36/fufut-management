@@ -295,9 +295,14 @@ const ENTITY_LABELS = {
 function entityLabel(e) { return ENTITY_LABELS[e] || (e ? e[0].toUpperCase() + e.slice(1) : '—') }
 
 const entityOptions = computed(() => {
+  // Only show entity types that actually appear in this user's own audit
+  // entries. Previously this unioned with a hardcoded list of ALL entity
+  // types (ENTITY_LABELS), which leaked the existence of areas like "Cash
+  // Drawer", "Staff", "Expenses", "Payments" to roles that should not
+  // know about them — a cleaner would see "Cash Drawer" in their dropdown
+  // even though they have zero entries for it.
   const seen = new Set(entries.value.map(e => e.entity).filter(Boolean))
-  const curated = Object.keys(ENTITY_LABELS)
-  return Array.from(new Set([...seen, ...curated])).sort()
+  return Array.from(seen).sort()
 })
 const actionOptions = computed(() => {
   const seen = new Set(entries.value.map(e => e.action).filter(Boolean))
