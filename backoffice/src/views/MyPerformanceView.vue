@@ -198,7 +198,7 @@
               </div>
               <div class="perf-detail-meta-item" v-if="selectedEntry.actor_role">
                 <span class="perf-detail-meta-label">Role</span>
-                <span class="perf-detail-meta-val">{{ roleLabel(selectedEntry.actor_role) }}</span>
+                <span class="perf-detail-meta-val">{{ roleLabelString(selectedEntry.actor_role) }}</span>
               </div>
             </div>
 
@@ -653,6 +653,11 @@ function parseJson(v) {
 }
 
 // fieldLabel is already defined above (in the changeSummary section)
+
+function roleLabelString(r) {
+  if (!r) return ''
+  return r.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
+}
 
 function formatVal(key, v) {
   if (v === null || v === undefined || v === '') return '—'
