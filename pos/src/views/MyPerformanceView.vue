@@ -136,7 +136,10 @@
       </div>
 
       <div v-if="filteredEntries.length" class="perf-timeline">
-        <div v-for="e in filteredEntries.slice(0, 50)" :key="e.id" class="perf-timeline-item" :class="`perf-act-${actionClass(e.action)}`">
+        <div v-for="e in filteredEntries.slice(0, 50)" :key="e.id"
+             class="perf-timeline-item perf-timeline-clickable"
+             :class="`perf-act-${actionClass(e.action)}`"
+             @click="openDetail(e)">
           <div class="perf-timeline-dot">
             <span v-html="actionIcon(e.action, e.entity)"></span>
           </div>
@@ -152,6 +155,9 @@
               <span class="perf-timeline-reason" v-if="e.reason">· {{ e.reason }}</span>
             </div>
           </div>
+          <div class="perf-timeline-chevron">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
         </div>
         <div v-if="filteredEntries.length > 50" class="perf-timeline-more">
           Showing 50 of {{ filteredEntries.length }} matching entries
@@ -162,6 +168,79 @@
         <p>No entries match these filters</p>
       </div>
     </div>
+
+    <!-- Activity Detail Modal -->
+    <transition name="modal">
+      <div v-if="selectedEntry" class="perf-detail-overlay" @click.self="selectedEntry = null">
+        <div class="perf-detail-modal">
+          <div class="perf-detail-header">
+            <div class="perf-detail-title">
+              <span class="perf-detail-action-badge" :class="`perf-act-${actionClass(selectedEntry.action)}`">{{ selectedEntry.action }}</span>
+              <span class="perf-detail-area">{{ entityLabel(selectedEntry.entity) }}</span>
+            </div>
+            <button class="perf-detail-close" @click="selectedEntry = null">✕</button>
+          </div>
+
+          <div class="perf-detail-body">
+            <!-- Meta row -->
+            <div class="perf-detail-meta">
+              <div class="perf-detail-meta-item">
+                <span class="perf-detail-meta-label">When</span>
+                <span class="perf-detail-meta-val">{{ formatFullTime(selectedEntry.at) }}</span>
+              </div>
+              <div class="perf-detail-meta-item" v-if="selectedEntry.entity_id">
+                <span class="perf-detail-meta-label">Entity ID</span>
+                <span class="perf-detail-meta-val perf-mono">{{ selectedEntry.entity_id }}</span>
+              </div>
+              <div class="perf-detail-meta-item" v-if="selectedEntry.actor_name">
+                <span class="perf-detail-meta-label">By</span>
+                <span class="perf-detail-meta-val">{{ selectedEntry.actor_name }}</span>
+              </div>
+              <div class="perf-detail-meta-item" v-if="selectedEntry.actor_role">
+                <span class="perf-detail-meta-label">Role</span>
+                <span class="perf-detail-meta-val">{{ roleLabel(selectedEntry.actor_role) }}</span>
+              </div>
+            </div>
+
+            <!-- Reason -->
+            <div class="perf-detail-section" v-if="selectedEntry.reason">
+              <div class="perf-detail-section-title">Reason</div>
+              <div class="perf-detail-reason">{{ selectedEntry.reason }}</div>
+            </div>
+
+            <!-- Before / After diff -->
+            <div class="perf-detail-section" v-if="selectedEntry.after || selectedEntry.before">
+              <div class="perf-detail-section-title">Changes</div>
+              <div class="perf-detail-diff">
+                <div class="perf-detail-diff-before" v-if="selectedEntry.before && Object.keys(parseJson(selectedEntry.before)).length">
+                  <div class="perf-detail-diff-label">Before</div>
+                  <div class="perf-detail-diff-content">
+                    <div v-for="(val, key) in parseJson(selectedEntry.before)" :key="key" class="perf-detail-diff-row perf-diff-old">
+                      <span class="perf-detail-diff-key">{{ fieldLabel(key) }}</span>
+                      <span class="perf-detail-diff-val">{{ formatVal(key, val) }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="perf-detail-diff-after" v-if="selectedEntry.after">
+                  <div class="perf-detail-diff-label">After</div>
+                  <div class="perf-detail-diff-content">
+                    <div v-for="(val, key) in parseJson(selectedEntry.after)" :key="key" class="perf-detail-diff-row perf-diff-new">
+                      <span class="perf-detail-diff-key">{{ fieldLabel(key) }}</span>
+                      <span class="perf-detail-diff-val">{{ formatVal(key, val) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- No data -->
+            <div class="perf-detail-section" v-if="!selectedEntry.after && !selectedEntry.before && !selectedEntry.reason">
+              <div class="perf-detail-nodata">No detailed change data recorded for this event.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -554,6 +633,38 @@ const filteredEntries = computed(() => {
 
 function applyFilters() { /* reactive; no fetch needed */ }
 
+// ─── Activity Detail Modal ────────────────────────────────────────────
+const selectedEntry = ref(null)
+
+function openDetail(entry) { selectedEntry.value = entry }
+
+function formatFullTime(isoStr) {
+  if (!isoStr) return '—'
+  const d = new Date(isoStr)
+  if (isNaN(d)) return isoStr
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })
+}
+
+function parseJson(v) {
+  if (!v) return {}
+  if (typeof v === 'object') return v
+  try { return JSON.parse(v) } catch { return {} }
+}
+
+// fieldLabel is already defined above (in the changeSummary section)
+
+function formatVal(key, v) {
+  if (v === null || v === undefined || v === '') return '—'
+  if (TIMESTAMP_FIELDS.has(key)) {
+    const d = new Date(v)
+    if (!isNaN(d)) return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  }
+  if (MONEY_FIELDS.has(key) && typeof v === 'number') return `ETB ${v}`
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
+}
+
 // ─── Breakdowns ───────────────────────────────────────────────────────
 const ENTITY_COLORS = {
   orders: '#0F7B78', payments: '#18B4B7', inventory: '#D6B36A', menu: '#E4CB99',
@@ -918,6 +1029,51 @@ onMounted(loadAll)
 .perf-timeline-id-chip { font-family: var(--font-mono, monospace); background: var(--bg); padding: 1px 6px; border-radius: 4px; color: var(--text-muted); }
 .perf-timeline-reason { color: var(--text-muted); }
 .perf-timeline-more { padding: 12px 16px; font-size: .8rem; color: var(--text-muted); text-align: center; }
+
+/* Clickable timeline items */
+.perf-timeline-clickable { cursor: pointer; transition: background .15s, border-color .15s; border-radius: 8px; margin-left: 10px; padding: 10px 12px 10px 16px; border: 1px solid transparent; }
+.perf-timeline-clickable:hover { background: var(--bg); border-color: var(--border); }
+.perf-timeline-chevron { color: var(--text-muted); flex-shrink: 0; opacity: .5; transition: opacity .15s; }
+.perf-timeline-clickable:hover .perf-timeline-chevron { opacity: 1; }
+
+/* Activity Detail Modal */
+.perf-detail-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.perf-detail-modal { background: var(--surface); border-radius: 14px; max-width: 600px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+.perf-detail-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.perf-detail-title { display: flex; align-items: center; gap: 8px; }
+.perf-detail-action-badge { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 3px 8px; border-radius: 6px; color: var(--tl-color, var(--text-muted)); background: color-mix(in srgb, var(--tl-color, #94a3b8) 12%, transparent); }
+.perf-detail-area { font-size: .85rem; color: var(--text-muted); }
+.perf-detail-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: 6px; }
+.perf-detail-close:hover { background: var(--bg); }
+.perf-detail-body { padding: 20px; }
+
+.perf-detail-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.perf-detail-meta-item { display: flex; flex-direction: column; gap: 2px; }
+.perf-detail-meta-label { font-size: .68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.perf-detail-meta-val { font-size: .85rem; color: var(--text-heading); font-weight: 500; }
+.perf-mono { font-family: var(--font-mono, monospace); font-size: .78rem; }
+
+.perf-detail-section { margin-bottom: 20px; }
+.perf-detail-section-title { font-size: .76rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.perf-detail-reason { font-size: .88rem; color: var(--text-heading); padding: 10px 14px; background: var(--bg); border-radius: 8px; border-left: 3px solid var(--warning, #F59E0B); }
+
+.perf-detail-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.perf-detail-diff-label { font-size: .72rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.perf-detail-diff-content { display: flex; flex-direction: column; gap: 4px; }
+.perf-detail-diff-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 6px 10px; border-radius: 6px; font-size: .78rem; }
+.perf-diff-old { background: rgba(239, 68, 68, .06); border-left: 2px solid #EF4444; }
+.perf-diff-new { background: rgba(16, 185, 129, .06); border-left: 2px solid #10B981; }
+.perf-detail-diff-key { font-weight: 600; color: var(--text-muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; }
+.perf-detail-diff-val { color: var(--text-heading); word-break: break-word; }
+.perf-detail-nodata { font-size: .85rem; color: var(--text-muted); padding: 20px; text-align: center; }
+
+@media (max-width: 600px) {
+  .perf-detail-meta { grid-template-columns: 1fr; }
+  .perf-detail-diff { grid-template-columns: 1fr; }
+}
+
+.modal-enter-active, .modal-leave-active { transition: opacity .2s; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
 
 .perf-timeline-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); }
 .perf-timeline-empty svg { color: var(--text-muted); margin-bottom: 8px; }
