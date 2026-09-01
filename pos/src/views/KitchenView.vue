@@ -284,6 +284,7 @@ import { useButtonState } from '../composables/useButtonState'
 import { useAuthStore } from '../stores/auth'
 import { useSSE } from '../composables/useSSE'
 import { kitchenTicket } from '../lib/print'
+import { nameIsDrink } from '../lib/drinks'
 import { getOrderLines, formatModName as sharedFormatModName, formatOrderItems } from '../lib/orderLines'
 
 const toast = inject('toast')
@@ -423,13 +424,12 @@ async function advanceLine(order, line) {
  * Station classification, for the filter that shipped as a control that did
  * nothing. A line belongs to the bar when its category — or, for rows written
  * before categories were stamped, its name — reads as a drink; everything
- * else is hot-kitchen work.
+ * else is hot-kitchen work. The word list lives in lib/drinks.js so the
+ * barista's recipe filter judges "drink" the same way the boards do.
  */
-const DRINK_WORDS = /drink|coffee|beverage|juice|water|soda|\bbar\b|\btea\b|latte|espresso|cappuccino|macchiato|americano|mocha|smoothie|shake|lemonade/i
-
 function lineIsDrink(line) {
-  if (DRINK_WORDS.test(String(line.category || ''))) return true
-  return DRINK_WORDS.test(String(line.name || ''))
+  if (nameIsDrink(line.category)) return true
+  return nameIsDrink(line.name)
 }
 
 /**

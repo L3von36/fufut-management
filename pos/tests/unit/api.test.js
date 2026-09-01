@@ -326,6 +326,31 @@ describe('API Client', () => {
       expect(ROLE_PERMISSIONS.barista).toContain('barista')
     })
 
+    /**
+     * The role widening of the barista station: around the board, the role
+     * carries the screens that support bar work — the full Orders list (whole
+     * tickets, not just the board's routed lines), read-only SLA Alerts,
+     * Waste logging for milk/beans/cups, and the recipe book filtered to
+     * drinks — plus its own clock and activity. Mirrors
+     * fufut-api ROLE_ACCESS.barista; both sides are pinned so the nav filter
+     * and the server matrix cannot drift apart silently.
+     */
+    it('gives the barista the station support screens', () => {
+      for (const view of ['barista', 'orders', 'alerts', 'waste', 'recipes', 'timeclock', 'my-activity']) {
+        expect(ROLE_PERMISSIONS.barista).toContain(view)
+      }
+    })
+
+    it('keeps the barista out of the kitchen, the counts and the money', () => {
+      expect(ROLE_PERMISSIONS.barista).not.toContain('kitchen')
+      expect(ROLE_PERMISSIONS.barista).not.toContain('inventory')
+      expect(ROLE_PERMISSIONS.barista).not.toContain('menu-mgmt')
+      expect(ROLE_PERMISSIONS.barista).not.toContain('dashboard')
+      expect(ROLE_PERMISSIONS.barista).not.toContain('cashdrawer')
+      expect(ROLE_PERMISSIONS.barista).not.toContain('expenses')
+      expect(ROLE_PERMISSIONS.barista).not.toContain('reports')
+    })
+
     it('TODAY should return a date string in YYYY-MM-DD format', () => {
       const today = TODAY()
       expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/)

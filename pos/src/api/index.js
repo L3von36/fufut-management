@@ -253,15 +253,25 @@ export const ROLE_PERMISSIONS = {
   // Cooks from the recipes, does not set them. Two people adjusting the same
   // counts is how a stock take stops reconciling.
   'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes', 'timeclock', 'my-activity', 'alerts'],
-  // The drinks station. Orders route by category — drinks land on the barista
-  // board, food on the kitchen board — so the barista gets the barista board,
-  // their own clock and their own activity, and nothing else. No 'kitchen'
-  // (that is the food station), no 'orders' list view, no dashboard: the board
-  // IS their screen, and ROLE_DEFAULT_VIEW puts them on it at sign-in. The
-  // nav-filtered views mirror the server grant exactly (fufut-api/src/auth.js,
-  // ROLE_ACCESS.barista = orders read/write); anything wider would render and
-  // then 403 on contact.
-  barista: ['barista', 'timeclock', 'my-activity'],
+  // The drinks station. The board is still home — ROLE_DEFAULT_VIEW puts the
+  // barista on it at sign-in, and it still renders this station's lines only —
+  // but around it the role now carries the bar's supporting screens:
+  //   orders — the full Orders list, whole tickets (the board alone shows the
+  //     routed drink lines, so context like "the latte goes with ticket #12"
+  //     lives here);
+  //   alerts — the SLA warnings, read-only (ack buttons stay with the chefs,
+  //     the floor leads and the manager);
+  //   waste — logging milk, beans and cups against real stock items. The
+  //     screen's item picker reads inventory on the server, but 'inventory'
+  //     stays OFF this nav on purpose: the barista names what they throw
+  //     away, the chefs own the counts;
+  //   recipes — the screen filters itself to drink recipes for this role and
+  //     is read-only there (canEdit is manager/head-chef).
+  // No 'kitchen' (that is the food station), no 'inventory'/'menu-mgmt', no
+  // money. The nav-filtered views mirror the server grant exactly
+  // (fufut-api/src/auth.js, ROLE_ACCESS.barista); anything wider would render
+  // and then 403 on contact.
+  barista: ['barista', 'orders', 'alerts', 'waste', 'recipes', 'timeclock', 'my-activity'],
   // open-checks is the waiter's own outstanding work and the cashier's queue of
   // bills to take, so both get it. It reads orders and tables, which both roles
   // already read.

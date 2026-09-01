@@ -140,7 +140,12 @@ const RULE_META = [
 ]
 
 const ACK_ROLES = new Set(['manager', 'head-chef', 'head-waiter', 'cashier'])
-const READ_ROLES = new Set(['manager', 'head-chef', 'assistant-chef', 'head-waiter', 'cashier', 'delivery-staff'])
+// Barista reads (SLA warnings on the drinks station) but is not in ACK_ROLES:
+// same treatment as the assistant-chef — they see the ticket going late and
+// rescue it, the sign-off stays with the chefs, the floor leads and the
+// manager. Server side: ROLE_ACCESS.barista read includes 'alerts', write
+// does not.
+const READ_ROLES = new Set(['manager', 'head-chef', 'assistant-chef', 'head-waiter', 'cashier', 'delivery-staff', 'barista'])
 
 const open = ref([])
 const acked = ref([])

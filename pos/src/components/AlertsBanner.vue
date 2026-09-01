@@ -95,7 +95,10 @@ const ACK_ROLES = new Set(['manager', 'head-chef', 'head-waiter', 'cashier'])
 // should not render for non-managers. Without this guard the button showed
 // for head-chef/cashier/etc. and they got a 403 toast when they clicked it.
 const ACK_ALL_ROLES = new Set(['manager'])
-const READ_ROLES = new Set(['manager', 'head-chef', 'assistant-chef', 'head-waiter', 'cashier', 'delivery-staff'])
+// Barista reads the banner (a drink ticket going late is theirs to rescue)
+// but cannot ack — same read-only treatment the assistant-chef gets. Server
+// side: ROLE_ACCESS.barista read includes 'alerts', write does not.
+const READ_ROLES = new Set(['manager', 'head-chef', 'assistant-chef', 'head-waiter', 'cashier', 'delivery-staff', 'barista'])
 const canAcknowledge = computed(() => ACK_ROLES.has(auth.roleKey))
 const canAcknowledgeAll = computed(() => ACK_ALL_ROLES.has(auth.roleKey))
 

@@ -19,10 +19,12 @@
       nothing when it sells. This banner is the only place that fact is visible,
       so it leads rather than sitting at the bottom of a list.
     -->
-    <div v-if="withoutRecipe.length" class="alert-banner warning">
+    <!-- Both coverage banners stay manager/chef views: they count the whole
+         menu, which is food-cost completeness, not bar work. -->
+    <div v-if="!isBarView && withoutRecipe.length" class="alert-banner warning">
       {{ withoutRecipe.length }} menu item(s) have no recipe — selling them does not reduce stock
     </div>
-    <div v-else-if="recipes.length" class="alert-banner success">
+    <div v-else-if="!isBarView && recipes.length" class="alert-banner success">
       Every menu item has a recipe
     </div>
 
@@ -41,9 +43,9 @@
     </div>
 
     <div class="summary-grid">
-      <div class="summary-card"><div class="num">{{ recipes.length }}</div><div class="lbl">Recipes</div></div>
-      <div class="summary-card"><div class="num">{{ avgFoodCostPct }}%</div><div class="lbl">Avg Food Cost</div></div>
-      <div class="summary-card"><div class="num" style="color:var(--danger)">{{ withoutRecipe.length }}</div><div class="lbl">Not Costed</div></div>
+      <div class="summary-card"><div class="num">{{ visibleRecipes.length }}</div><div class="lbl">Recipes</div></div>
+      <div v-if="!isBarView" class="summary-card"><div class="num">{{ avgFoodCostPct }}%</div><div class="lbl">Avg Food Cost</div></div>
+      <div v-if="!isBarView" class="summary-card"><div class="num" style="color:var(--danger)">{{ withoutRecipe.length }}</div><div class="lbl">Not Costed</div></div>
     </div>
 
     <div class="table-wrap">
@@ -274,6 +276,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost } from '../api'
+import { nameIsDrink } from '../lib/drinks'
 import { useAuthStore } from '../stores/auth'
 
 const toast = inject('toast')
@@ -302,6 +305,30 @@ const history = ref(null)
 
 const form = ref({ menuItemId: '', name: '', variant: '', yieldQty: 1, notes: '', lines: [] })
 
+/**
+ * The barista reads the bar's recipe book, not the kitchen's.
+ *
+ * The role carries Recipes so the person pulling the shots can look up how a
+ * drink is built. Filtering to drinks happens here rather than by narrowing
+ * the server response, because a recipe's station is a property of the menu
+ * item it costs out — the same judgement the station boards already make. The
+ * word list is shared (lib/drinks.js) so a drink can never route to the
+ * barista's board but hide its recipe, or the reverse. A recipe with no menu
+ * item behind it falls back to its own name, the same fallback the boards
+ * use for rows written before categories were stamped.
+ */
+const isBarView = computed(() => auth.roleKey === 'barista')
+
+function isBarRecipe(r) {
+  const item = menuItems.value.find(m => String(m.id) === String(r.menu_item_id))
+  if (item) return nameIsDrink(item.category) || nameIsDrink(item.name)
+  return nameIsDrink(r.menu_item_name) || nameIsDrink(r.name)
+}
+
+const visibleRecipes = computed(() => (
+  isBarView.value ? recipes.value.filter(isBarRecipe) : recipes.value
+))
+
 function fmt(n) { return (Number(n) || 0).toFixed(0) }
 
 /**
@@ -322,27 +349,29 @@ const variantSuggestions = computed(() => {
 
 const withoutRecipe = computed(() => {
   // A dish is covered once it has any recipe — default or per-size. Treating a
-  // dish with only a Large recipe as uncovered would nag forever.
-  const covered = new Set(recipes.value.map(r => String(r.menu_item_id)))
+  // dish with only a Large recipe as uncovered would nag forever. Scoped to
+  // the recipes shown, so the barista view (drinks only) never counts kitchen
+  // dishes against the bar.
+  const covered = new Set(visibleRecipes.value.map(r => String(r.menu_item_id)))
   return menuItems.value.filter(m => !covered.has(String(m.id)))
 })
 
 // Flagged by the seeding that created them: the ingredient list is right, the
 // amounts are estimates. Cleared automatically when a corrected version is
 // saved, because the version INSERT omits the column and it defaults to 0.
-const provisionalRecipes = computed(() => recipes.value.filter(r => r.provisional))
+const provisionalRecipes = computed(() => visibleRecipes.value.filter(r => r.provisional))
 
 const filteredRecipes = computed(() => {
   if (filter.value === 'thin') {
-    return recipes.value.filter(r => r.margin && r.margin.grossMarginPct != null && r.margin.grossMarginPct < 50)
+    return visibleRecipes.value.filter(r => r.margin && r.margin.grossMarginPct != null && r.margin.grossMarginPct < 50)
   }
   if (filter.value === 'provisional') return provisionalRecipes.value
   if (filter.value === 'none') return []
-  return recipes.value
+  return visibleRecipes.value
 })
 
 const avgFoodCostPct = computed(() => {
-  const costed = recipes.value.filter(r => r.margin && r.menu_item_price > 0)
+  const costed = visibleRecipes.value.filter(r => r.margin && r.menu_item_price > 0)
   if (!costed.length) return 0
   const pct = costed.reduce((s, r) => s + (r.cost.totalCost / r.menu_item_price) * 100, 0) / costed.length
   return Math.round(pct)
