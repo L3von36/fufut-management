@@ -1,15 +1,18 @@
 <template>
   <div>
     <div class="table-toolbar">
-      <h3>Kitchen Display</h3>
+      <h3>{{ isBarista ? 'Barista Display' : 'Kitchen Display' }}</h3>
       <div class="kitchen-toolbar-actions">
-        <!-- Station Filter -->
-        <select v-model="stationFilter" class="ks-station-select" title="Filter by station">
+        <!-- Station Filter. The chef's board defaults to hot-kitchen work now
+             that drinks have their own screen; the barista board is pinned to
+             the bar station and does not offer the selector at all. -->
+        <select v-if="!isBarista" v-model="stationFilter" class="ks-station-select" title="Filter by station">
           <option value="all">All Stations</option>
           <option value="hot">Hot Kitchen</option>
           <option value="bar">Bar & Drinks</option>
           <option value="pass">Hot Pass Only</option>
         </select>
+        <span v-if="isBarista" class="ks-station-hint">☕ Drinks only — food tickets are on the Kitchen screen</span>
         <div class="kitchen-stats">
           <span class="ks-stat ks-new">{{ newOrders.length }} new</span>
           <span class="ks-stat ks-prep">{{ preparingOrders.length }} prepping</span>
@@ -58,7 +61,7 @@
                 v-for="line in trackedLines(o)"
                 :key="line.id"
                 class="ko-line ko-line-tap"
-                :class="'st-' + line.status"
+                :class="['st-' + line.status, lineDimClass(line)]"
                 :disabled="busyItems.has(line.id)"
                 @click="advanceLine(o, line)"
                 :title="`Mark ${line.name} as ${nextStatus(line.status)}`"
@@ -149,7 +152,7 @@
                 v-for="line in trackedLines(o)"
                 :key="line.id"
                 class="ko-line ko-line-tap"
-                :class="'st-' + line.status"
+                :class="['st-' + line.status, lineDimClass(line)]"
                 :disabled="busyItems.has(line.id)"
                 @click="advanceLine(o, line)"
                 :title="`Mark ${line.name} as ${nextStatus(line.status)}`"
@@ -257,7 +260,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { apiGet, apiPut } from '../api'
 import { useAudioAlerts } from '../composables/useAudioAlerts'
 import { useButtonState } from '../composables/useButtonState'
@@ -270,13 +274,22 @@ const toast = inject('toast')
 const auth = useAuthStore()
 const { muted, enabled, playNewOrder, playOrderReady, playOrderUpdate, toggleMute } = useAudioAlerts()
 const sse = useSSE()
+const route = useRoute()
+// One board, two stations. /app/kitchen is the chef's screen and now defaults
+// to hot-kitchen work (food); /app/barista mounts this same component pinned
+// to the bar station so drinks land in front of the barista. The split rides
+// the existing station filter — same data, same columns, same actions.
+const isBarista = computed(() => route.name === 'barista')
 const orders = ref([])
 // Tracking rows for every line on the board, fetched in one request rather than
 // one per ticket: this screen refreshes on a 15s timer and on every SSE event.
 const activeItems = ref([])
 // Lines with a request in flight, so a double-tap cannot fire twice.
 const busyItems = ref(new Set())
-const stationFilter = ref('all') // 'all' | 'hot' | 'bar' | 'pass'
+const stationFilter = ref(isBarista.value ? 'bar' : 'hot') // 'all' | 'hot' | 'bar' | 'pass'
+// The two routes share this component, so a manager walking kitchen → barista
+// in one session reuses the mounted instance. Re-pin the filter on the flip.
+watch(isBarista, () => { stationFilter.value = isBarista.value ? 'bar' : 'hot' })
 const sortBy = ref('time') // 'time' | 'table' | 'size'
 // Fix #4: Undo tracking for Start All
 const undoTimers = new Map()
@@ -414,6 +427,18 @@ const DRINK_WORDS = /drink|coffee|beverage|juice|water|soda|\bbar\b|\btea\b|latt
 function lineIsDrink(line) {
   if (DRINK_WORDS.test(String(line.category || ''))) return true
   return DRINK_WORDS.test(String(line.name || ''))
+}
+
+/**
+ * On a station-filtered board a mixed ticket still shows every line it
+ * contains (the ticket is the unit of work), but only this station's lines
+ * are ours to make: dim the others instead of hiding them. The chef sees the
+ * coffee on a burger ticket without grabbing it; the barista sees the food
+ * lines on a breakfast order without cooking it.
+ */
+function lineDimClass(line) {
+  if (stationFilter.value === 'all' || stationFilter.value === 'pass') return ''
+  return (stationFilter.value === 'bar') === lineIsDrink(line) ? '' : 'ko-line-dim'
 }
 
 /**
@@ -829,6 +854,13 @@ function isStaleReady(o) {
 .ko-line-tap.st-served { opacity: .6; }
 .ko-line-tap.st-served .ko-name { text-decoration: line-through; }
 
+/* On a station-filtered board, lines that belong to the OTHER station.
+   Visible but visually stepped back, so mixed tickets read correctly on both
+   the chef's and the barista's screen without hiding anyone's ticket. The
+   action label is hidden too — the other station cannot advance this line. */
+.ko-line-dim { opacity: .35; }
+.ko-line-dim .ko-line-action { visibility: hidden; }
+
 .ko-line-action {
   flex-shrink: 0;
   font-size: .78rem;
@@ -1186,6 +1218,18 @@ function isStaleReady(o) {
   color: var(--text-body);
   font-size: .8rem;
   font-weight: 600;
+}
+
+/* Barista board's pinned-station hint (replaces the selector there). */
+.ks-station-hint {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  white-space: nowrap;
 }
 
 /* (The local .ks-alert-banner was removed along with the duplicate SLA

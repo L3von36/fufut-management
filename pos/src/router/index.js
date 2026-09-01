@@ -69,6 +69,9 @@ const routes = [
       { path: 'reservations', name: 'reservations', component: ReservationsView },
       { path: 'delivery', name: 'delivery', component: DeliveryView },
       { path: 'kitchen', name: 'kitchen', component: KitchenView },
+      // Drinks station: the same board component, pinned to the bar filter by
+      // route name (KitchenView reads route.name === 'barista').
+      { path: 'barista', name: 'barista', component: KitchenView },
       { path: 'expenses', name: 'expenses', component: ExpensesView },
       { path: 'pnl', name: 'pnl', component: PnLView },
       { path: 'cashdrawer', name: 'cashdrawer', component: CashDrawerView },

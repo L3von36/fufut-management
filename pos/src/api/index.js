@@ -233,7 +233,7 @@ export const ROLE_PERMISSIONS = {
   // 'staff' is absent deliberately: editing colleague accounts lives in the
   // backoffice, alongside Shifts, Time Clock and the audit log. Time Clock here
   // still reads the staff list to show who is on shift.
-  manager: ['dashboard', 'orders', 'open-checks', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control', 'pipeline', 'audit', 'my-activity', 'alerts'],
+  manager: ['dashboard', 'orders', 'open-checks', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'barista', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control', 'pipeline', 'audit', 'my-activity', 'alerts'],
   // menu-mgmt is granted for one action: taking a dish off when the kitchen has
   // run out. The screen itself hides adding, editing, deleting, cost and margin
   // from anyone but a manager, and the API only lets this role write the
@@ -244,10 +244,10 @@ export const ROLE_PERMISSIONS = {
   // part of the job, committing the business to a vendor is not. This mirrors
   // the server matrix in fufut-api/src/auth.js; if the two disagree, the screen
   // renders and every request on it fails.
-  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases', 'timeclock', 'my-activity', 'alerts'],
+  'head-chef': ['kitchen', 'barista', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases', 'timeclock', 'my-activity', 'alerts'],
   // Cooks from the recipes, does not set them. Two people adjusting the same
   // counts is how a stock take stops reconciling.
-  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes', 'timeclock', 'my-activity', 'alerts'],
+  'assistant-chef': ['kitchen', 'barista', 'orders', 'dashboard', 'inventory', 'recipes', 'timeclock', 'my-activity', 'alerts'],
   // open-checks is the waiter's own outstanding work and the cashier's queue of
   // bills to take, so both get it. It reads orders and tables, which both roles
   // already read.
@@ -300,6 +300,9 @@ export const NAV_ITEMS = [
   { view: 'reservations', label: 'Reservations', icon: 'calendar', section: 'Operations' },
   { view: 'delivery', label: 'Delivery', icon: 'truck', section: 'Operations' },
   { view: 'kitchen', label: 'Kitchen', icon: 'chef-hat', section: 'Operations' },
+  // Drinks station. Same board component as the kitchen, mounted at its own
+  // route and pinned to the bar filter — see KitchenView's isBarista mode.
+  { view: 'barista', label: 'Barista', icon: 'coffee', section: 'Operations' },
   { view: 'expenses', label: 'Expenses', icon: 'wallet', section: 'Finance' },
   { view: 'pnl', label: 'P&L', icon: 'chart-bar', section: 'Finance' },
   { view: 'cashdrawer', label: 'Cash Drawer', icon: 'cash', section: 'Finance' },
