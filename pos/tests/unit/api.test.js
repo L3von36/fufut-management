@@ -312,6 +312,20 @@ describe('API Client', () => {
       expect(ROLE_PERMISSIONS['delivery-staff']).not.toContain('suppliers')
     })
 
+    /**
+     * The barista board belongs to the barista station. It rode along on the
+     * chef roles while the screen had no account of its own; since the
+     * dedicated barista role landed (and a real customer order landed on both
+     * boards at once), the kitchen door no longer opens into the bar. The
+     * manager keeps it for oversight; the barista role IS the screen.
+     */
+    it('keeps the barista board out of the chef roles', () => {
+      expect(ROLE_PERMISSIONS['head-chef']).not.toContain('barista')
+      expect(ROLE_PERMISSIONS['assistant-chef']).not.toContain('barista')
+      expect(ROLE_PERMISSIONS.manager).toContain('barista')
+      expect(ROLE_PERMISSIONS.barista).toContain('barista')
+    })
+
     it('TODAY should return a date string in YYYY-MM-DD format', () => {
       const today = TODAY()
       expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/)

@@ -244,10 +244,15 @@ export const ROLE_PERMISSIONS = {
   // part of the job, committing the business to a vendor is not. This mirrors
   // the server matrix in fufut-api/src/auth.js; if the two disagree, the screen
   // renders and every request on it fails.
-  'head-chef': ['kitchen', 'barista', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases', 'timeclock', 'my-activity', 'alerts'],
+  // No 'barista': while the drinks board was grafted onto the kitchen screen
+  // the chef rode along, but the station has its own role and its own account
+  // now (barista@fufut.coffee). Drinks route to the barista board by category
+  // — the chef's kitchen board already shows every ticket's food lines — so a
+  // second path into the bar screen just invites re-doing the bar's work.
+  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases', 'timeclock', 'my-activity', 'alerts'],
   // Cooks from the recipes, does not set them. Two people adjusting the same
   // counts is how a stock take stops reconciling.
-  'assistant-chef': ['kitchen', 'barista', 'orders', 'dashboard', 'inventory', 'recipes', 'timeclock', 'my-activity', 'alerts'],
+  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes', 'timeclock', 'my-activity', 'alerts'],
   // The drinks station. Orders route by category — drinks land on the barista
   // board, food on the kitchen board — so the barista gets the barista board,
   // their own clock and their own activity, and nothing else. No 'kitchen'
