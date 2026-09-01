@@ -281,6 +281,7 @@ const ROLES = [
   { value: 'manager', label: 'Manager' },
   { value: 'head-chef', label: 'Head Chef' },
   { value: 'assistant-chef', label: 'Assistant Chef' },
+  { value: 'barista', label: 'Barista' },
   { value: 'head-waiter', label: 'Head Waiter' },
   { value: 'cashier', label: 'Cashier' },
   { value: 'delivery-staff', label: 'Delivery Staff' },

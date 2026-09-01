@@ -248,6 +248,15 @@ export const ROLE_PERMISSIONS = {
   // Cooks from the recipes, does not set them. Two people adjusting the same
   // counts is how a stock take stops reconciling.
   'assistant-chef': ['kitchen', 'barista', 'orders', 'dashboard', 'inventory', 'recipes', 'timeclock', 'my-activity', 'alerts'],
+  // The drinks station. Orders route by category — drinks land on the barista
+  // board, food on the kitchen board — so the barista gets the barista board,
+  // their own clock and their own activity, and nothing else. No 'kitchen'
+  // (that is the food station), no 'orders' list view, no dashboard: the board
+  // IS their screen, and ROLE_DEFAULT_VIEW puts them on it at sign-in. The
+  // nav-filtered views mirror the server grant exactly (fufut-api/src/auth.js,
+  // ROLE_ACCESS.barista = orders read/write); anything wider would render and
+  // then 403 on contact.
+  barista: ['barista', 'timeclock', 'my-activity'],
   // open-checks is the waiter's own outstanding work and the cashier's queue of
   // bills to take, so both get it. It reads orders and tables, which both roles
   // already read.
@@ -278,6 +287,7 @@ export const ROLE_DEFAULT_VIEW = {
   manager: 'dashboard',
   'head-chef': 'kitchen',
   'assistant-chef': 'kitchen',
+  barista: 'barista',
   'head-waiter': 'tables',
   cashier: 'cashdrawer',
   'delivery-staff': 'delivery',

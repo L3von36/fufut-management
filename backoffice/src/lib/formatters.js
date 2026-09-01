@@ -11,6 +11,7 @@ const ROLE_LABELS = {
   manager: 'Manager',
   'head-chef': 'Head Chef',
   'assistant-chef': 'Assistant Chef',
+  barista: 'Barista',
   'head-waiter': 'Head Waiter',
   cashier: 'Cashier',
   'delivery-staff': 'Delivery Staff',
