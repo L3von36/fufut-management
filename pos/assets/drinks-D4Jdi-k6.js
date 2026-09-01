@@ -1,0 +1,1 @@
+var e=/drink|coffee|beverage|juice|water|soda|\bbar\b|\btea\b|latte|espresso|cappuccino|macchiato|americano|mocha|smoothie|shake|lemonade/i;function t(t){return e.test(String(t||``))}export{t};
