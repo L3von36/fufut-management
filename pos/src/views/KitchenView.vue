@@ -58,10 +58,10 @@
                  per-dish timing a measurement instead of an estimate. -->
             <div class="ko-items">
               <button
-                v-for="line in trackedLines(o)"
+                v-for="line in stationLines(o)"
                 :key="line.id"
                 class="ko-line ko-line-tap"
-                :class="['st-' + line.status, lineDimClass(line)]"
+                :class="'st-' + line.status"
                 :disabled="busyItems.has(line.id)"
                 @click="advanceLine(o, line)"
                 :title="`Mark ${line.name} as ${nextStatus(line.status)}`"
@@ -118,7 +118,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
               </button>
               <!-- Fix #4: Start All with undo -->
-              <base-button text="Start All" variant="btn-primary" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'preparing', { undo: true })" />
+              <base-button text="Start All" variant="btn-primary" extra-class="btn-sm" :on-click="() => bulkAdvance(o, 'new', { undo: true })" />
             </div>
           </div>
           <div v-if="!newOrders.length" class="kitchen-empty">
@@ -149,10 +149,10 @@
 
             <div class="ko-items">
               <button
-                v-for="line in trackedLines(o)"
+                v-for="line in stationLines(o)"
                 :key="line.id"
                 class="ko-line ko-line-tap"
-                :class="['st-' + line.status, lineDimClass(line)]"
+                :class="'st-' + line.status"
                 :disabled="busyItems.has(line.id)"
                 @click="advanceLine(o, line)"
                 :title="`Mark ${line.name} as ${nextStatus(line.status)}`"
@@ -194,7 +194,7 @@
             <div class="ko-footer">
               <span class="kitchen-timer" :class="timerClass(o)">{{ timerLabel(o) }}</span>
               <span v-if="lineProgress(o)" class="ko-progress">{{ lineProgress(o) }}</span>
-              <base-button text="All Ready" variant="btn-success" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'ready')" />
+              <base-button text="All Ready" variant="btn-success" extra-class="btn-sm" :on-click="() => bulkAdvance(o, 'preparing')" />
             </div>
           </div>
           <div v-if="!preparingOrders.length" class="kitchen-empty">
@@ -223,16 +223,32 @@
             </div>
 
             <div class="ko-items">
-              <div v-for="(line, li) in getOrderLines(o)" :key="li" class="ko-line">
+              <!-- Strict routing: only this station's lines. The other
+                   station's work on the same ticket never renders here. -->
+              <div v-for="line in stationLines(o)" :key="line.id" class="ko-line">
                 <div class="ko-line-main">
                   <span class="ko-qty">{{ line.qty }}x</span>
                   <span class="ko-name">{{ line.name }}</span>
                 </div>
-                <div v-if="line.modifiers && line.modifiers.length" class="ko-mods">
-                  <span v-for="(mod, mi) in line.modifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name) }}</span>
+                <div v-if="line.parsedModifiers.length" class="ko-mods">
+                  <span v-for="(mod, mi) in line.parsedModifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name || mod) }}</span>
                 </div>
               </div>
-              <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ formatOrderItems(o.items) }}</div>
+
+              <!-- Legacy orders with no tracked rows keep the summary
+                   rendering — there is nothing to classify a line with. -->
+              <template v-if="!trackedLines(o).length">
+                <div v-for="(line, li) in getOrderLines(o)" :key="li" class="ko-line">
+                  <div class="ko-line-main">
+                    <span class="ko-qty">{{ line.qty }}x</span>
+                    <span class="ko-name">{{ line.name }}</span>
+                  </div>
+                  <div v-if="line.modifiers && line.modifiers.length" class="ko-mods">
+                    <span v-for="(mod, mi) in line.modifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name) }}</span>
+                  </div>
+                </div>
+                <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ formatOrderItems(o.items) }}</div>
+              </template>
             </div>
 
             <div class="ko-footer">
@@ -240,7 +256,7 @@
               <span v-if="isStaleReady(o)" class="ko-stale-badge">⏰ Pick up!</span>
               <span class="ko-waiting">Waiting {{ waitMinutes(o) }}m</span>
               <!-- Fix #6: Bump to Pass -->
-              <base-button text="Served" variant="btn-outline" extra-class="btn-sm" :on-click="() => updateStatus(o.id, 'fulfilled')" />
+              <base-button text="Served" variant="btn-outline" extra-class="btn-sm" :on-click="() => bulkAdvance(o, 'ready')" />
             </div>
           </div>
           <div v-if="!readyOrders.length" class="kitchen-empty">
@@ -292,7 +308,6 @@ const stationFilter = ref(isBarista.value ? 'bar' : 'hot') // 'all' | 'hot' | 'b
 watch(isBarista, () => { stationFilter.value = isBarista.value ? 'bar' : 'hot' })
 const sortBy = ref('time') // 'time' | 'table' | 'size'
 // Fix #4: Undo tracking for Start All
-const undoTimers = new Map()
 let timer = null
 let clockTimer = null
 const now = ref(Date.now())
@@ -305,18 +320,6 @@ const now = ref(Date.now())
 // while the SLA Alerts list was empty. Removed: the global AlertsBanner
 // (mounted in AppLayout.vue) reads from /api/alerts — the same source as the
 // SLA Alerts view — so there is one source of truth for SLA alerts.
-
-function onDragStart(e, order) {
-  e.dataTransfer.setData('text/plain', order.id)
-  e.dataTransfer.effectAllowed = 'move'
-}
-
-function onDrop(e, targetStatus) {
-  const orderId = e.dataTransfer.getData('text/plain')
-  if (orderId) {
-    updateStatus(orderId, targetStatus)
-  }
-}
 
 const ITEM_FLOW = ['new', 'preparing', 'ready', 'served']
 
@@ -376,7 +379,7 @@ function lineActionLabel(status) {
 
 /** "2 of 3 ready" — how much of a ticket is actually finished. */
 function lineProgress(order) {
-  const lines = trackedLines(order)
+  const lines = stationLines(order)
   if (!lines.length) return ''
   const done = lines.filter(l => l.status === 'ready' || l.status === 'served').length
   return `${done} of ${lines.length} ready`
@@ -430,32 +433,59 @@ function lineIsDrink(line) {
 }
 
 /**
- * On a station-filtered board a mixed ticket still shows every line it
- * contains (the ticket is the unit of work), but only this station's lines
- * are ours to make: dim the others instead of hiding them. The chef sees the
- * coffee on a burger ticket without grabbing it; the barista sees the food
- * lines on a breakfast order without cooking it.
+ * The lines on this ticket that THIS board's station owns.
+ *
+ * Routing is strict: the barista board renders drinks and nothing else, the
+ * hot-kitchen view renders everything else and nothing else. This replaces
+ * the first cut of the split, which showed the whole ticket on both boards
+ * with the other station's lines dimmed at 35% opacity — in practice a dim
+ * line still reads as "mine to do", which is exactly the misrouting the
+ * split was built to end. All Stations keeps the whole ticket (the chef's
+ * own choice to look sideways), and Hot Pass is a pure pickup view.
  */
-function lineDimClass(line) {
-  if (stationFilter.value === 'all' || stationFilter.value === 'pass') return ''
-  return (stationFilter.value === 'bar') === lineIsDrink(line) ? '' : 'ko-line-dim'
+function stationLines(order) {
+  if (stationFilter.value === 'all' || stationFilter.value === 'pass') return trackedLines(order)
+  const wantDrink = stationFilter.value === 'bar'
+  return trackedLines(order).filter((l) => (wantDrink ? lineIsDrink(l) : !lineIsDrink(l)))
 }
 
 /**
- * Tickets visible under the current station filter. A mixed ticket stays on
- * both the hot and the bar board — each station still has work on it — and
- * Hot Pass Only narrows to what is sitting ready for pickup. A ticket with no
- * readable lines (corrupt row, empty round) is never hidden: a blank board is
- * a worse failure than an unfiltered one.
+ * Which board column this ticket belongs to, FOR THE CURRENT STATION.
+ *
+ * The ticket sits in the column of its LEAST-advanced station line, which is
+ * the same rule the server's deriveOrderStatus applies to the whole order
+ * (lib/timing.js): 'new' until every station line has been started,
+ * 'preparing' until every one is ready, 'ready' when they are. That keeps
+ * each screen honest about its own work: when the barista has readied the
+ * drinks on a mixed ticket, the ticket leaves the barista's board even
+ * though the order as a whole is still cooking — the chef's half is none of
+ * the bar's business.
+ *
+ * Returns null when the ticket has no lines for this station — hidden from
+ * all three columns, which is the whole point of the routing — or when every
+ * station line is served. A ticket with no tracked rows at all (written
+ * before per-line tracking) cannot be classified, so it falls back to the
+ * order's own status rather than vanishing: a blank board is a worse failure
+ * than an unfiltered one.
  */
-function stationVisible(order) {
-  if (stationFilter.value === 'all') return true
-  if (stationFilter.value === 'pass') return order.status === 'ready'
+function stationColumn(order) {
   const lines = trackedLines(order)
-  const known = lines.length ? lines : getOrderLines(order)
-  if (!known.length) return true
-  const wantDrink = stationFilter.value === 'bar'
-  return known.some((l) => (wantDrink ? lineIsDrink(l) : !lineIsDrink(l)))
+  if (!lines.length) {
+    if (stationFilter.value === 'pass') return order.status === 'ready' ? 'ready' : null
+    return ['new', 'preparing', 'ready'].includes(order.status) ? order.status : null
+  }
+  if (stationFilter.value === 'pass') {
+    const allUp = lines.every((l) => l.status === 'ready' || l.status === 'served')
+    return allUp ? 'ready' : null
+  }
+  const scoped = stationLines(order)
+  if (!scoped.length) return null
+  let least = ITEM_FLOW.length - 1
+  for (const l of scoped) {
+    const i = ITEM_FLOW.indexOf(l.status)
+    if (i >= 0 && i < least) least = i
+  }
+  return ITEM_FLOW[least]
 }
 
 function sortFn(a, b) {
@@ -471,8 +501,8 @@ function sortFn(a, b) {
     return (a.created || '').localeCompare(b.created || '')
   }
   if (sortBy.value === 'size') {
-    const sa = getOrderLines(a).length || (a.items ? String(a.items).split(',').length : 0)
-    const sb = getOrderLines(b).length || (b.items ? String(b.items).split(',').length : 0)
+    const sa = stationLines(a).length || (a.items ? String(a.items).split(',').length : 0)
+    const sb = stationLines(b).length || (b.items ? String(b.items).split(',').length : 0)
     // Largest first. When two orders have the same size, oldest first —
     // a deterministic order matters for the chef scanning the board, and
     // without a tiebreaker equal-size tickets jump around on every SSE push
@@ -485,17 +515,17 @@ function sortFn(a, b) {
 }
 const newOrders = computed(() =>
   orders.value
-    .filter(o => o.status === 'new' && stationVisible(o))
+    .filter(o => stationColumn(o) === 'new')
     .sort(sortFn)
 )
 const preparingOrders = computed(() =>
   orders.value
-    .filter(o => o.status === 'preparing' && stationVisible(o))
+    .filter(o => stationColumn(o) === 'preparing')
     .sort(sortFn)
 )
 const readyOrders = computed(() =>
   orders.value
-    .filter(o => o.status === 'ready' && stationVisible(o))
+    .filter(o => stationColumn(o) === 'ready')
     .sort((a, b) => {
       if (sortBy.value === 'time') return String(readySince(b) || b.created || '').localeCompare(String(readySince(a) || a.created || ''))
       return sortFn(a, b)
@@ -641,27 +671,92 @@ function connectSSE() {
   })
 }
 
-async function updateStatus(id, status, { undo = false } = {}) {
-  const o = orders.value.find(x => x.id === id)
-  if (!o) return
-  const previousStatus = o.status
-  o.status = status
+/**
+ * One tap for the whole ticket — Start All / All Ready / Served — scoped to
+ * the lines THIS station owns.
+ *
+ * Deliberately per-line PUTs rather than a single order-level PUT: an
+ * order-level status change advances every line still behind the target on
+ * the server (handlers/orders.js), so the barista bumping the drinks on a
+ * mixed ticket would drag the chef's salad through the kitchen with them.
+ * Per-line calls move only this station's lines, and the server re-derives
+ * the order status from all lines after each one, so the other station's
+ * board keeps its own truth. Progress is optimistic per line and reverted
+ * wholesale if any call fails, with a reload to resync the truth.
+ */
+async function bulkAdvance(order, fromStatus, { undo = false } = {}) {
+  // Legacy ticket: written before per-line tracking, so there are no rows to
+  // advance and no other station's work to protect. The whole-order PUT this
+  // button has always used is still the only path — keep it, undo included.
+  if (!trackedLines(order).length) {
+    const target = { new: 'preparing', preparing: 'ready', ready: 'fulfilled' }[fromStatus] || fromStatus
+    const prev = order.status
+    order.status = target
+    try {
+      await apiPut('orders/' + order.id, { status: target })
+      toast(`Order ${target}`)
+      if (target === 'ready') playOrderReady()
+      else playOrderUpdate()
+      loadOrders()
+      if (undo && fromStatus === 'new') {
+        toast(`Order #${shortId(order.id)} started — 3s to undo`, 'info', {
+          action: {
+            label: 'Undo',
+            onClick: async () => {
+              order.status = 'new'
+              try {
+                await apiPut('orders/' + order.id, { status: 'new' })
+                toast('Reverted to new', 'success')
+                loadOrders()
+              } catch { toast('Undo failed', 'error') }
+            }
+          },
+          duration: 3000
+        })
+      }
+    } catch {
+      order.status = prev
+      toast('Failed to update', 'error')
+    }
+    return
+  }
+
+  const lines = stationLines(order).filter(l => l.status === fromStatus)
+  if (!lines.length) return
+  const target = nextStatus(fromStatus)
+
+  const previous = new Map(lines.map(l => [l.id, l.status]))
+  lines.forEach(l => {
+    busyItems.value = new Set(busyItems.value).add(l.id)
+    const row = activeItems.value.find(i => i.id === l.id)
+    if (row) row.status = target
+  })
+
   try {
-    await apiPut('orders/' + id, { status })
-    toast(`Order ${status}`)
-    if (status === 'ready') playOrderReady()
+    const results = await Promise.all(
+      lines.map(l => apiPut(`orders/${order.id}/items/${l.id}`, { status: target }))
+    )
+    const rolled = results.map(r => r && r.orderStatus).find(Boolean)
+    const o = orders.value.find(x => x.id === order.id)
+    if (o && rolled) o.status = rolled === 'served' ? 'fulfilled' : rolled
+    if (target === 'ready') playOrderReady()
     else playOrderUpdate()
     loadOrders()
 
-    // Fix #4: 3-second undo toast for Start All
-    if (undo && previousStatus === 'new' && status === 'preparing') {
-      const toastId = toast(`Order #${shortId(id)} started — 3s to undo`, 'info', {
+    // Fix #4: 3-second undo toast for Start All — walk the same lines back.
+    if (undo && fromStatus === 'new' && target === 'preparing') {
+      toast(`Order #${shortId(order.id)} started — 3s to undo`, 'info', {
         action: {
           label: 'Undo',
           onClick: async () => {
-            o.status = 'new'
+            lines.forEach(l => {
+              const row = activeItems.value.find(i => i.id === l.id)
+              if (row) row.status = 'new'
+            })
             try {
-              await apiPut('orders/' + id, { status: 'new' })
+              await Promise.all(
+                lines.map(l => apiPut(`orders/${order.id}/items/${l.id}`, { status: 'new' }))
+              )
               toast('Reverted to new', 'success')
               loadOrders()
             } catch { toast('Undo failed', 'error') }
@@ -671,8 +766,16 @@ async function updateStatus(id, status, { undo = false } = {}) {
       })
     }
   } catch {
-    o.status = previousStatus
-    toast('Failed to update', 'error')
+    lines.forEach(l => {
+      const row = activeItems.value.find(i => i.id === l.id)
+      const prev = previous.get(l.id)
+      if (row && prev) row.status = prev
+    })
+    loadOrders()
+    toast('Could not update that item', 'error')
+  } finally {
+    const ids = new Set(lines.map(l => l.id))
+    busyItems.value = new Set([...busyItems.value].filter(id => !ids.has(id)))
   }
 }
 
@@ -758,27 +861,27 @@ function waitMinutes(o) {
 
 function refresh() { loadOrders() }
 
-// Fix #15: Keyboard navigation — 1/2/3 advance next item in New/Preparing/Ready columns
+// Fix #15: Keyboard navigation — 1/2/3 advance the next item in New/Preparing/Ready
 function handleKeydown(e) {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
   const key = e.key
   if (key === '1') {
     const o = newOrders.value[0]
     if (o) {
-      const lines = trackedLines(o)
+      const lines = stationLines(o)
       const next = lines.find(l => l.status !== 'served')
       if (next) advanceLine(o, next)
     }
   } else if (key === '2') {
     const o = preparingOrders.value[0]
     if (o) {
-      const lines = trackedLines(o)
+      const lines = stationLines(o)
       const next = lines.find(l => l.status !== 'served')
       if (next) advanceLine(o, next)
     }
   } else if (key === '3') {
     const o = readyOrders.value[0]
-    if (o) updateStatus(o.id, 'fulfilled')
+    if (o) bulkAdvance(o, 'ready')
   } else if (key === 'r' && !e.ctrlKey && !e.metaKey) {
     refresh()
   }
@@ -854,12 +957,8 @@ function isStaleReady(o) {
 .ko-line-tap.st-served { opacity: .6; }
 .ko-line-tap.st-served .ko-name { text-decoration: line-through; }
 
-/* On a station-filtered board, lines that belong to the OTHER station.
-   Visible but visually stepped back, so mixed tickets read correctly on both
-   the chef's and the barista's screen without hiding anyone's ticket. The
-   action label is hidden too — the other station cannot advance this line. */
-.ko-line-dim { opacity: .35; }
-.ko-line-dim .ko-line-action { visibility: hidden; }
+/* Strict station routing replaced line dimming: the other station's lines no
+   longer render at all, so the dim styles are gone with them. */
 
 .ko-line-action {
   flex-shrink: 0;

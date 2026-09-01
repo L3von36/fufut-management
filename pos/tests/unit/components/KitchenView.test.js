@@ -16,6 +16,14 @@ vi.mock('../../../src/api', () => ({
   NAV_ITEMS: []
 }))
 
+// The board reads the route to tell the kitchen screen from the barista one
+// (isBarista), so the tests need a route even though none mounts a router.
+// Flip mockRoute.name to 'barista' to exercise the barista mode.
+const mockRoute = { name: 'kitchen' }
+vi.mock('vue-router', () => ({
+  useRoute: () => mockRoute
+}))
+
 // Mock useAudioAlerts
 vi.mock('../../../src/composables/useAudioAlerts', () => ({
   useAudioAlerts: vi.fn(() => ({
@@ -175,10 +183,46 @@ describe('KitchenView', () => {
     const wrapper = mount(KitchenView, globalConfig)
     await flushPromises()
 
+    // Espresso is a drink, Firfir is food. On All Stations each tracked line
+    // gets its own control...
+    await wrapper.find('select.ks-station-select').setValue('all')
+    await flushPromises()
     const lines = wrapper.findAll('.ko-line-tap')
     expect(lines).toHaveLength(2)
     expect(lines[0].text()).toContain('Espresso')
     expect(lines[1].text()).toContain('Firfir')
+
+    // ...and on a station board only that station's lines render at all.
+    await wrapper.find('select.ks-station-select').setValue('hot')
+    await flushPromises()
+    const hotLines = wrapper.findAll('.ko-line-tap')
+    expect(hotLines).toHaveLength(1)
+    expect(hotLines[0].text()).toContain('Firfir')
+
+    await wrapper.find('select.ks-station-select').setValue('bar')
+    await flushPromises()
+    const barLines = wrapper.findAll('.ko-line-tap')
+    expect(barLines).toHaveLength(1)
+    expect(barLines[0].text()).toContain('Espresso')
+  })
+
+  it('routes a mixed ticket: each board shows only its own lines', async () => {
+    // The routing complaint this pins: a salad, a soda and a juice on one
+    // ticket used to land on both boards (dimmed, but looking like work).
+    // Strict routing means the drink never renders on the hot view and the
+    // food never renders on the bar view.
+    mockFeeds([{ ...trackedOrder, status: 'new' }], makeTrackedItems())
+    const wrapper = mount(KitchenView, globalConfig)
+    await flushPromises()
+
+    // Default hot view: the food is work, the drink is invisible.
+    expect(wrapper.text()).toContain('Firfir')
+    expect(wrapper.text()).not.toContain('Espresso')
+
+    await wrapper.find('select.ks-station-select').setValue('bar')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Espresso')
+    expect(wrapper.text()).not.toContain('Firfir')
   })
 
   it('advances a single line without touching the rest of the ticket', async () => {
@@ -188,6 +232,9 @@ describe('KitchenView', () => {
     const wrapper = mount(KitchenView, globalConfig)
     await flushPromises()
 
+    // Both lines visible on All Stations, so line[0] is the Espresso.
+    await wrapper.find('select.ks-station-select').setValue('all')
+    await flushPromises()
     await wrapper.findAll('.ko-line-tap')[0].trigger('click')
     await flushPromises()
 
@@ -203,6 +250,9 @@ describe('KitchenView', () => {
     const wrapper = mount(KitchenView, globalConfig)
     await flushPromises()
 
+    // Espresso is a drink: visible on the bar view, hidden on hot.
+    await wrapper.find('select.ks-station-select').setValue('bar')
+    await flushPromises()
     await wrapper.find('.ko-line-tap').trigger('click')
     await flushPromises()
 
@@ -220,13 +270,16 @@ describe('KitchenView', () => {
     const wrapper = mount(KitchenView, globalConfig)
     await flushPromises()
 
+    // Whole-ticket progress is an All Stations read.
+    await wrapper.find('select.ks-station-select').setValue('all')
+    await flushPromises()
     expect(wrapper.text()).toContain('1 of 2 ready')
   })
 
   // ─── Station filter ───
-  // The dropdown shipped as a control that did nothing. A mixed ticket (one
-  // drink, one food) has work at both stations, so it stays on both boards;
-  // Hot Pass Only narrows to what is sitting ready for pickup.
+  // A mixed ticket (one drink, one food) still appears on BOTH boards — the
+  // ticket header is shared context — but each board renders only its own
+  // lines. Hot Pass Only narrows to what is sitting ready for pickup.
   it('keeps a mixed ticket on both the hot and the bar board', async () => {
     // Fresh object: earlier tests mutate shared fixtures optimistically, and a
     // ticket that has quietly become 'preparing' would pass these assertions
@@ -444,6 +497,9 @@ describe('KitchenView', () => {
     const wrapper = mount(KitchenView, globalConfig)
     await flushPromises()
 
+    // Both lines are drinks (Espresso, Macchiato): visible on All Stations.
+    await wrapper.find('select.ks-station-select').setValue('all')
+    await flushPromises()
     expect(wrapper.text()).toContain('Waiting 1m')
   })
 

@@ -262,8 +262,10 @@ describe('API Client', () => {
     // 26 with Open Checks, which is where money owed is looked at.
     // 27 with My Activity, which is the per-role self-performance view.
     // 28 with SLA Alerts, the manager's view of the rules engine.
+    // 29 with Barista, the drinks station's own board.
     it('NAV_ITEMS covers the defined sections', () => {
-      expect(NAV_ITEMS.length).toBe(28)
+      expect(NAV_ITEMS.length).toBe(29)
+      expect(NAV_ITEMS.map(n => n.view)).toContain('barista')
       expect(NAV_ITEMS.map(n => n.view)).toContain('open-checks')
       expect(NAV_ITEMS.map(n => n.view)).not.toContain('staff')
       expect(NAV_ITEMS.map(n => n.view)).toContain('my-activity')
