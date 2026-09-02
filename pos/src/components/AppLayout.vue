@@ -186,11 +186,17 @@ const navSections = computed(() => {
   const sections = []
   const map = {}
   for (const item of allowedItems.value) {
-    if (!map[item.section]) {
-      map[item.section] = { name: item.section, items: [] }
-      sections.push(map[item.section])
+    // Section labels are shared with the manager's layout, where 'Sales'
+    // groups Orders with Open Checks / Menu / Checkout. The barista's only
+    // item from that group is the read-only Orders ticket list — no checkout,
+    // no open checks, no payments — so a lone "SALES" header there reads like
+    // money access they don't have. Name the group what it is for them.
+    const name = item.section === 'Sales' && auth.roleKey === 'barista' ? 'Tickets' : item.section
+    if (!map[name]) {
+      map[name] = { name, items: [] }
+      sections.push(map[name])
     }
-    map[item.section].items.push(item)
+    map[name].items.push(item)
   }
   return sections
 })

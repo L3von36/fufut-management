@@ -15,7 +15,10 @@ const PERMS = {
   manager: ['dashboard', 'orders', 'tables', 'menu-view', 'checkout', 'kitchen', 'waste', 'staff'],
   // UX-2 (waiter mobile audit pass 2): Open Checks is the waiter's money
   // screen and belongs in the bottom bar, not three taps deep behind More.
-  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'checkout', 'timeclock']
+  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'checkout', 'timeclock'],
+  // Mirrors the real barista array: Orders is the READ-ONLY ticket list
+  // granted in the station-support expansion (no checkout, no open checks).
+  barista: ['barista', 'orders', 'alerts', 'waste', 'recipes', 'timeclock', 'my-activity']
 }
 
 let currentRole = 'cleaner'
@@ -111,5 +114,28 @@ describe('AppLayout bottom nav', () => {
     const labels = wrapper.findAll('.bn-item:not(.bn-more)').map(b => b.text())
     expect(labels.length).toBe(2)
     expect(labels.some(t => t.includes('Open Checks'))).toBe(false)
+  })
+})
+
+describe('AppLayout sidebar sections', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  // 'Sales' is the manager's group (Orders + Open Checks + Checkout). The
+  // barista only holds the read-only ticket list, so their lone SALES header
+  // reads like money access they don't have — the layout renames it Tickets.
+  it('names the barista ticket group Tickets, not Sales', () => {
+    const wrapper = mountAs('barista')
+    const names = wrapper.findAll('.nav-section').map(d => d.text().trim())
+    expect(names).toContain('Tickets')
+    expect(names).not.toContain('Sales')
+  })
+
+  it('keeps the Sales group for a role that actually sells (manager)', () => {
+    const wrapper = mountAs('manager')
+    const names = wrapper.findAll('.nav-section').map(d => d.text().trim())
+    expect(names).toContain('Sales')
+    expect(names).not.toContain('Tickets')
   })
 })
