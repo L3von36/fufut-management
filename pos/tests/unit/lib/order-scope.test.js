@@ -24,8 +24,29 @@ describe('parseOrderLines', () => {
     expect(parseOrderLines([drinkLine('Soda')])).toHaveLength(1)
   })
 
-  it('returns null for the legacy human-readable summary (fail open upstream)', () => {
-    expect(parseOrderLines('2xEspresso, 1xFut breakfast Gebeta')).toBeNull()
+  it('parses the legacy flat summary the old POS wrote (server parity)', () => {
+    const lines = parseOrderLines('1xMacchiato, 1xFut breakfast Gebeta')
+    expect(lines.map(l => l.name)).toEqual(['Macchiato', 'Fut breakfast Gebeta'])
+  })
+
+  it('strips modifier lists and line notes from flat summaries', () => {
+    const lines = parseOrderLines('2x Latte [oat-milk, vanilla] (extra hot)')
+    expect(lines).toHaveLength(1)
+    expect(lines[0].name).toBe('Latte')
+    expect(lines[0].qty).toBe(2)
+  })
+
+  it('returns null for free text with no qty markers (fail open upstream)', () => {
+    expect(parseOrderLines('Breakfast combo platter')).toBeNull()
+  })
+
+  it('drops entries with no name and no menu id', () => {
+    const raw = JSON.stringify([drinkLine('Latte'), { qty: 2 }, null])
+    expect(parseOrderLines(raw)).toHaveLength(1)
+  })
+
+  it('returns null (not an empty array) for an empty JSON array', () => {
+    expect(parseOrderLines('[]')).toBeNull()
   })
 
   it('returns null for null, objects and junk', () => {
@@ -33,11 +54,6 @@ describe('parseOrderLines', () => {
     expect(parseOrderLines(undefined)).toBeNull()
     expect(parseOrderLines({ name: 'Latte' })).toBeNull()
     expect(parseOrderLines('[broken')).toBeNull()
-  })
-
-  it('drops entries with no name and no menu id', () => {
-    const raw = JSON.stringify([drinkLine('Latte'), { qty: 2 }, null])
-    expect(parseOrderLines(raw)).toHaveLength(1)
   })
 })
 
@@ -72,8 +88,13 @@ describe('scopedLines', () => {
     expect(scopedLines(raw, 'kitchen').map(l => l.name)).toEqual(['Chechebesa'])
   })
 
-  it('returns null (not an empty array) for unparseable rows so callers fail open', () => {
-    expect(scopedLines('2xEspresso', 'bar')).toBeNull()
+  it('flat-parses the legacy summary and scopes it per station', () => {
+    expect(scopedLines('2xEspresso, 1xFut breakfast Gebeta', 'bar').map(l => l.name)).toEqual(['Espresso'])
+    expect(scopedLines('2xEspresso, 1xFut breakfast Gebeta', 'kitchen').map(l => l.name)).toEqual(['Fut breakfast Gebeta'])
+  })
+
+  it('returns null (not an empty array) for free text so callers fail open', () => {
+    expect(scopedLines('Breakfast combo platter', 'bar')).toBeNull()
   })
 })
 
@@ -96,9 +117,15 @@ describe('orderVisibleToRole', () => {
     expect(orderVisibleToRole(drinksOnly, 'assistant-chef')).toBe(false)
   })
 
-  it('legacy unparseable tickets stay visible to the stations (fail open)', () => {
+  it('legacy flat tickets classify, so both stations still see the mixed ones', () => {
     expect(orderVisibleToRole(legacy, 'barista')).toBe(true)
     expect(orderVisibleToRole(legacy, 'head-chef')).toBe(true)
+  })
+
+  it('genuinely unclassifiable free-text tickets stay visible to the stations (fail open)', () => {
+    const freeText = order('Breakfast combo platter')
+    expect(orderVisibleToRole(freeText, 'barista')).toBe(true)
+    expect(orderVisibleToRole(freeText, 'head-chef')).toBe(true)
   })
 
   it('head-waiter sees his own tickets wherever they are', () => {
@@ -144,8 +171,8 @@ describe('orderLinesForRole', () => {
     expect(orderLinesForRole(order(raw), 'head-chef').map(l => l.name)).toEqual(['Chechebesa'])
   })
 
-  it('other roles (and legacy rows) read the ticket unchanged', () => {
+  it('other roles (and unclassifiable rows) read the ticket unchanged', () => {
     expect(orderLinesForRole(order(raw), 'manager')).toBeNull()
-    expect(orderLinesForRole(order('2xEspresso'), 'barista')).toBeNull()
+    expect(orderLinesForRole(order('Breakfast combo platter'), 'barista')).toBeNull()
   })
 })

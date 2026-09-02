@@ -28,28 +28,67 @@
 import { nameIsDrink } from './drinks'
 
 /**
+ * Read the flat order summary legacy orders carry in `items`.
+ *
+ * Mirror of the server's parseFlatItems (fufut-api/src/lib/timing.js), which
+ * has seen these shapes in production: "1xMacchiato, 1xFut breakfast Gebeta"
+ * and "2x Latte [oat-milk, vanilla] (extra hot), 1x Espresso". Splitting on a
+ * comma alone would break every dish whose name contains one, so the split
+ * lands only where a comma is followed by the next "<qty>x" marker.
+ *
+ * The two must agree: a ticket the server times per line (it flat-parses for
+ * the tracking backfill) cannot be unclassifiable for the Orders screen.
+ */
+function parseFlatItems(flat) {
+  const text = String(flat == null ? '' : flat).trim()
+  if (!text) return []
+  return text
+    .split(/,\s*(?=\d+\s*x)/i)
+    .map((chunk) => {
+      const m = chunk.trim().match(/^(\d+)\s*x\s*(.+)$/i)
+      if (!m) return null
+      const name = m[2]
+        .replace(/\[[^\]]*\]/g, '')  // modifier list
+        .replace(/\([^)]*\)/g, '')   // line note
+        .trim()
+      if (!name) return null
+      return { name, qty: Number(m[1]) || 1 }
+    })
+    .filter(Boolean)
+}
+
+/**
  * The lines of a stored ticket, or null when they cannot be known.
  *
- * Orders are written as a JSON array of line objects, so a parseable array is
- * the normal case. A null return means a legacy row — the old human-readable
- * "1xMacchiato, 1xFut breakfast" summary — and the caller fails OPEN: an
- * order nobody can classify is shown unfiltered rather than silently hiding
- * somebody's work behind a parse failure.
+ * Two written shapes exist and both classify:
+ *   - the JSON array of line objects the POS writes today;
+ *   - the legacy flat summary ("2xEspresso, 1xFut breakfast Gebeta"), which
+ *     the server itself flat-parses when it backfills line timing.
+ *
+ * A null return means genuinely unclassifiable — free text with no "<qty>x"
+ * markers at all — and the caller fails OPEN: an order nobody can classify is
+ * shown unfiltered rather than silently hiding somebody's work behind a parse
+ * failure.
  */
 export function parseOrderLines(rawItems) {
   if (rawItems == null) return null
   let parsed = rawItems
   if (typeof parsed === 'string') {
     const t = parsed.trim()
-    if (!t.startsWith('[') || !t.endsWith(']')) return null
-    try {
-      parsed = JSON.parse(t)
-    } catch {
-      return null
+    if (t.startsWith('[') && t.endsWith(']')) {
+      try {
+        parsed = JSON.parse(t)
+      } catch {
+        return null
+      }
+    } else {
+      parsed = parseFlatItems(t)
+      if (!parsed.length) return null
     }
   }
   if (!Array.isArray(parsed)) return null
-  return parsed.filter((l) => l && typeof l === 'object' && (l.name || l.menuItemId))
+  const lines = parsed.filter((l) => l && typeof l === 'object' && (l.name || l.menuItemId))
+  return lines.length ? lines : null
 }
 
 /**
