@@ -366,6 +366,57 @@ onMounted(() => {
 .tc-me-title { font-weight: 600; color: var(--text-heading); }
 .tc-me-sub { font-size: .76rem; color: var(--text-muted); }
 
+/* ─── Shift Handover form ───
+   These classes were referenced by the template but never defined, so the
+   form rendered as raw stacked elements. Field styling mirrors the global
+   .form-group idiom so it reads like every other form in the app. */
+.tc-handover { margin-bottom: 16px; }
+.tc-handover h3,
+.tc-latest-handover h3 { font-size: 1rem; font-weight: 600; color: var(--text-heading); margin: 0; }
+.tc-handover-sub { font-size: .78rem; color: var(--text-muted); margin: 4px 0 14px; }
+.tc-handover-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+.tc-handover-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tc-handover-field > span {
+  font-size: .75rem; font-weight: 600; color: var(--text-heading); letter-spacing: .02em;
+}
+.tc-handover-field textarea {
+  width: 100%; padding: 11px 14px; min-height: 44px;
+  border: 1.5px solid var(--border-strong); border-radius: var(--radius-sm);
+  font-family: inherit; font-size: .88rem; line-height: 1.45;
+  background-color: var(--surface); color: var(--text-heading);
+  resize: vertical; transition: all var(--duration-base) var(--ease);
+}
+.tc-handover-field textarea::placeholder { color: var(--neutral-400); }
+.tc-handover-field textarea:focus {
+  outline: none; border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(15, 123, 120, .1); background-color: var(--surface);
+}
+.tc-handover-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+/* ─── Last Handover card ───
+   Teal accent edge distinguishes it from the on-shift card (green edge) and
+   the blocked card (red edge); the notes read as a labelled list, not run-on
+   bold-prefixed sentences. */
+.tc-latest-handover {
+  margin-bottom: 16px; border-left: 3px solid var(--primary);
+}
+.tc-latest-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.tc-latest-meta { font-size: .76rem; color: var(--text-muted); white-space: nowrap; }
+.tc-latest-body > div {
+  padding: 8px 0; border-top: 1px solid var(--border);
+  font-size: .84rem; color: var(--text-body); line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.tc-latest-body > div:first-child { border-top: none; padding-top: 0; }
+.tc-latest-body strong { color: var(--text-heading); font-weight: 600; }
+
 .tc-blocked {
   background: var(--surface); border: 1px solid var(--danger);
   border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px;
@@ -399,5 +450,6 @@ onMounted(() => {
 @media (max-width: 768px) {
   .tc-me { align-items: stretch; }
   .tc-me .btn { width: 100%; justify-content: center; }
+  .tc-handover-grid { grid-template-columns: 1fr; }
 }
 </style>
