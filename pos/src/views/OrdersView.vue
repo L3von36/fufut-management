@@ -52,7 +52,7 @@
           <tbody>
             <tr v-for="o in filteredOrders" :key="o.id">
               <td data-label="ID">#{{ o.id }}</td>
-              <td data-label="Items">{{ formatOrderItems(o.items) }}</td>
+              <td data-label="Items">{{ formatOrderItems(displayItems(o)) }}</td>
               <td data-label="Total">
                 <span style="font-family:var(--font-mono);font-weight:600">ETB {{ parseFloat(o.total||0).toFixed(0) }}</span>
                 <!-- Strike-through reads as "was discounted from". A total that
@@ -98,7 +98,16 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                   </div>
                   <div class="ov-empty-text">{{ search ? 'No orders match your search' : 'No orders yet' }}</div>
-                  <div class="ov-empty-hint">{{ search ? 'Try a different keyword or clear the search.' : 'Create a new order to get started.' }}</div>
+                  <div class="ov-empty-hint" v-if="search">Try a different keyword or clear the search.</div>
+                  <!-- The empty list is the scoping working, not an outage: a
+                       barista staring at a food-only lull, or a waiter with
+                       no tables and no tickets yet, should read the silence
+                       as "nothing of mine right now" rather than go looking
+                       for a broken screen. -->
+                  <div class="ov-empty-hint" v-else-if="auth.roleKey==='barista'">Drink tickets will appear here as they are ordered.</div>
+                  <div class="ov-empty-hint" v-else-if="auth.roleKey==='head-chef' || auth.roleKey==='assistant-chef'">Food tickets will appear here as they are ordered.</div>
+                  <div class="ov-empty-hint" v-else-if="auth.roleKey==='head-waiter'">Orders you take, or on your assigned tables, will appear here.</div>
+                  <div class="ov-empty-hint" v-else>Create a new order to get started.</div>
                 </div>
               </td>
             </tr>
@@ -254,6 +263,7 @@ import { useOrderStore } from '../stores/order'
 import { useButtonState } from '../composables/useButtonState'
 import { useAuthStore } from '../stores/auth'
 import { formatOrderItems } from '../lib/formatters'
+import { orderVisibleToRole, orderLinesForRole } from '../lib/orderScope'
 import BaseButton from '../components/BaseButton.vue'
 import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
 
@@ -269,6 +279,12 @@ const payBtnState = useButtonState()
 const tendered = ref(0)
 const tables = ref([])
 const showAllTables = ref(false)
+
+// The tables this caller may work. For a head-waiter the server already
+// narrows /api/tables to the tables assigned to them by name, so this set IS
+// "my section"; for every other role it is the whole room and is only ever
+// consulted by the head-waiter branch of the scoping rule.
+const myTableNumbers = computed(() => new Set(tables.value.map(t => String(t.number))))
 
 const availableTables = computed(() => {
   if (showAllTables.value) return tables.value
@@ -289,7 +305,13 @@ const newOrder = ref({
 })
 
 const filteredOrders = computed(() => {
-  let result = orders.value
+  // Role scoping runs before the status/search filters: a barista filtering
+  // "new" must not conjure the kitchen's tickets back into their list, and
+  // the count in the toolbar has to describe what this role can actually
+  // work. Unscoped roles (manager, cashier, accountant…) pass through
+  // orderVisibleToRole untouched.
+  const scopeCtx = { myId: auth.user && auth.user.id, myTables: myTableNumbers.value }
+  let result = orders.value.filter(o => orderVisibleToRole(o, auth.roleKey, scopeCtx))
   if (filter.value) result = result.filter(o => o.status === filter.value)
   if (search.value) {
     const q = search.value.toLowerCase()
@@ -381,6 +403,19 @@ async function freeUpTable(tableNum) {
 
 async function loadOrders() {
   try { orders.value = await apiGet('orders') } catch (e) { console.error(e) }
+}
+
+/**
+ * The items cell, role-scoped.
+ *
+ * Station roles read only their own lines — the strict split the boards use
+ * (lib/orderScope.js), so the barista's row never lists the kitchen's
+ * Chechebesa and vice versa. null means "not a station role, or a legacy
+ * ticket we cannot classify": both show the ticket as stored.
+ */
+function displayItems(o) {
+  const lines = orderLinesForRole(o, auth.roleKey)
+  return lines || o.items
 }
 
 async function loadMenu() {

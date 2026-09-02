@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import OrdersView from '../../../src/views/OrdersView.vue'
+import { useAuthStore } from '../../../src/stores/auth'
 
 // Mock API
 const mockApiGet = vi.fn()
@@ -163,5 +164,121 @@ describe('OrdersView', () => {
     expect(escapeHtml(null)).toBe('')
     expect(escapeHtml(undefined)).toBe('')
     expect(escapeHtml(42)).toBe('42')
+  })
+
+  // ── Role-scoped Orders list (lib/orderScope) ──────────────────────────────
+  // The mixed ticket is the shape the owner complained about: a barista
+  // scrolling past Chechebesa on the Orders screen. The barista must see the
+  // ticket (it carries a drink) but only its drink lines; the chef the food
+  // half; a pure-food ticket must vanish from the barista's list entirely.
+  const scopeOrders = [
+    {
+      id: 'O-mixed',
+      items: JSON.stringify([
+        { menuItemId: 'M-1', name: 'Latte', qty: 2, basePrice: 85 },
+        { menuItemId: 'M-2', name: 'Chechebesa', qty: 1, basePrice: 180 }
+      ]),
+      total: 350, status: 'new', created: new Date().toISOString()
+    },
+    {
+      id: 'O-food',
+      items: JSON.stringify([{ menuItemId: 'M-2', name: 'Chechebesa', qty: 1, basePrice: 180 }]),
+      total: 180, status: 'new', created: new Date().toISOString()
+    },
+    {
+      id: 'O-drink',
+      items: JSON.stringify([{ menuItemId: 'M-3', name: 'Soda', qty: 3, basePrice: 40 }]),
+      total: 120, status: 'preparing', created: new Date().toISOString()
+    }
+  ]
+
+  function mountAsRole(roleKey, extraUser = {}) {
+    // The pinia instance must be handed to the app explicitly: without the
+    // plugin the component's useAuthStore() resolves a DIFFERENT store than
+    // the one this helper just configured (the default-role tests above never
+    // noticed — an unset role is '' either way).
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const auth = useAuthStore(pinia)
+    auth.roleKey = roleKey
+    auth.user = { id: 'S-me', firstName: 'Probe', lastName: 'Waiter', ...extraUser }
+    return mount(OrdersView, { global: { plugins: [pinia] } })
+  }
+
+  it('barista sees only tickets carrying drinks, with drink lines only', async () => {
+    mockApiGet.mockImplementation((ep) => {
+      if (ep === 'orders') return Promise.resolve(scopeOrders)
+      return Promise.resolve([])
+    })
+
+    const wrapper = mountAsRole('barista')
+    await flushPromises()
+
+    const text = wrapper.text()
+    expect(text).toContain('O-mixed')
+    expect(text).toContain('O-drink')
+    expect(text).not.toContain('O-food')
+    // The mixed ticket renders the drink line and NOT the kitchen's food.
+    expect(text).toContain('Latte')
+    expect(text).not.toContain('Chechebesa')
+    expect(text).toContain('2 results')
+  })
+
+  it('head-chef sees only tickets carrying food, with food lines only', async () => {
+    mockApiGet.mockImplementation((ep) => {
+      if (ep === 'orders') return Promise.resolve(scopeOrders)
+      return Promise.resolve([])
+    })
+
+    const wrapper = mountAsRole('head-chef')
+    await flushPromises()
+
+    const text = wrapper.text()
+    expect(text).toContain('O-mixed')
+    expect(text).toContain('O-food')
+    expect(text).not.toContain('O-drink')
+    expect(text).toContain('Chechebesa')
+    expect(text).not.toContain('Soda')
+  })
+
+  it('head-waiter sees only his own tickets and his assigned tables', async () => {
+    mockApiGet.mockImplementation((ep) => {
+      if (ep === 'orders') return Promise.resolve([
+        { id: 'O-mine', items: 'Espresso', total: 60, status: 'new', created_by: 'S-me', table_id: '3', created: new Date().toISOString() },
+        { id: 'O-mytable', items: 'Latte', total: 85, status: 'new', created_by: 'S-other', table_id: '7', created: new Date().toISOString() },
+        { id: 'O-theirs', items: 'Chechebesa', total: 180, status: 'new', created_by: 'S-other', table_id: '9', created: new Date().toISOString() },
+        { id: 'O-takeaway-theirs', items: 'Soda', total: 40, status: 'new', created_by: 'S-other', table_id: null, created: new Date().toISOString() }
+      ])
+      // head-waiter /api/tables is server-scoped to his assigned section —
+      // the mock hands back only table 7, exactly what the real server does.
+      if (ep === 'tables') return Promise.resolve([{ id: 'T-7', number: 7, status: 'occupied' }])
+      return Promise.resolve([])
+    })
+
+    const wrapper = mountAsRole('head-waiter')
+    await flushPromises()
+
+    const text = wrapper.text()
+    expect(text).toContain('O-mine')
+    expect(text).toContain('O-mytable')
+    expect(text).not.toContain('O-theirs')
+    expect(text).not.toContain('O-takeaway-theirs')
+    expect(text).toContain('2 results')
+  })
+
+  it('manager keeps the unscoped list', async () => {
+    mockApiGet.mockImplementation((ep) => {
+      if (ep === 'orders') return Promise.resolve(scopeOrders)
+      return Promise.resolve([])
+    })
+
+    const wrapper = mountAsRole('manager')
+    await flushPromises()
+
+    const text = wrapper.text()
+    expect(text).toContain('O-mixed')
+    expect(text).toContain('O-food')
+    expect(text).toContain('O-drink')
+    expect(text).toContain('3 results')
   })
 })
