@@ -94,8 +94,10 @@ export const ROLE_PERMISSIONS = {
   // `my-activity` is in every role: it is the personal audit log + per-role
   // KPIs ("how much did I do today"), backed by /api/audit?actor_id=<me>
   // which the API authorises self-scoped for any signed-in user. The global
-  // `audit` stays manager+accountant only.
-  manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'pipeline', 'tables', 'attendance', 'staff-requests', 'payroll', 'my-activity', 'employee-activity', 'employee-history', 'daily-report', 'live-feed', 'z-report'],
+  // `audit` stays manager+accountant only. `role-access` is the owner's
+  // permission-granter — deciding who sees what is a manager job by the same
+  // reasoning as POST /api/staff.
+  manager: ['dashboard', 'orders', 'menu', 'pnl', 'expenses', 'revenue', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'reports', 'reservations', 'delivery', 'audit', 'settings', 'role-access', 'pipeline', 'tables', 'attendance', 'staff-requests', 'payroll', 'my-activity', 'employee-activity', 'employee-history', 'daily-report', 'live-feed', 'z-report'],
   'head-chef': ['dashboard', 'orders', 'inventory', 'waste', 'reports', 'pipeline', 'my-activity', 'tasks'],
   'assistant-chef': ['dashboard', 'orders', 'inventory', 'my-activity', 'tasks'],
   'head-waiter': ['dashboard', 'orders', 'tables', 'reservations', 'reports', 'pipeline', 'my-activity', 'tasks'],
@@ -155,6 +157,7 @@ export const NAV_ITEMS = [
   { view: 'tasks', label: 'Tasks', icon: 'check-square', section: 'System' },
   { view: 'live-feed', label: 'Live Feed', icon: 'activity', section: 'System' },
   { view: 'z-report', label: 'Z-Report', icon: 'receipt', section: 'Finance' },
+  { view: 'role-access', label: 'Role Access', icon: 'shield', section: 'System' },
   { view: 'settings', label: 'Settings', icon: 'settings', section: 'System' }
 ]
 

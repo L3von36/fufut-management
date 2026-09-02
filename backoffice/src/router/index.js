@@ -30,6 +30,10 @@ const DailyReportView = () => import('../views/DailyReportView.vue')
 const LiveFeedView = () => import('../views/LiveFeedView.vue')
 const ZReportView = () => import('../views/ZReportView.vue')
 const SettingsView = () => import('../views/SettingsView.vue')
+// Role Access: the manager's permission-granter. Grants another role an extra
+// screen (v1: a category-scoped Inventory — bar stock for the barista, food
+// stock for the kitchen) backed by GET/PUT /api/role-scopes, manager-only.
+const RoleAccessView = () => import('../views/RoleAccessView.vue')
 const PipelineView = () => import('../views/PipelineView.vue')
 const TablesView = () => import('../views/TablesView.vue')
 // The HR cluster the backoffice owns. Time Clock records the stamps;
@@ -75,6 +79,7 @@ const routes = [
       { path: 'z-report', name: 'z-report', component: ZReportView },
       { path: 'z-report/:id', name: 'z-report-detail', component: ZReportView, props: true },
       { path: 'settings', name: 'settings', component: SettingsView },
+      { path: 'role-access', name: 'role-access', component: RoleAccessView },
       { path: 'pipeline', name: 'pipeline', component: PipelineView },
       { path: 'tables', name: 'tables', component: TablesView }
     ]

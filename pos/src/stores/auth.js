@@ -20,9 +20,9 @@ import { dbClearCaches } from '../db'
 const IDENTITY_KEY = 'fufut.pos.identity'
 const IDENTITY_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000  // matches the session cookie
 
-function rememberIdentity(user, role) {
+function rememberIdentity(user, role, screenGrants) {
   try {
-    localStorage.setItem(IDENTITY_KEY, JSON.stringify({ user, role, at: Date.now() }))
+    localStorage.setItem(IDENTITY_KEY, JSON.stringify({ user, role, screenGrants: screenGrants || [], at: Date.now() }))
   } catch { /* private mode: the session simply will not survive a reload */ }
 }
 
@@ -70,13 +70,22 @@ export const useAuthStore = defineStore('auth', () => {
   // True when the identity came from cache rather than the server, so screens
   // can say so rather than implying everything is normal.
   const offlineIdentity = ref(false)
+  // Extra views the manager granted this role through the backoffice Role
+  // Access page (v1: a category-scoped Inventory for the barista). The server
+  // sends them with login and auth/me; enforcement still lives server-side —
+  // the list comes back pre-narrowed and a scope outside it 404s/403s — so
+  // this array only decides whether the tab is worth drawing.
+  const screenGrants = ref([])
 
   const isAuthenticated = computed(() => !!user.value)
   const permissions = computed(() => (ROLE_PERMISSIONS && ROLE_PERMISSIONS[roleKey.value]) || [])
   const defaultView = computed(() => (ROLE_DEFAULT_VIEW && ROLE_DEFAULT_VIEW[roleKey.value]) || 'dashboard')
 
   function hasPermission(view) {
-    return Array.isArray(permissions.value) && permissions.value.includes(view)
+    return (
+      (Array.isArray(permissions.value) && permissions.value.includes(view)) ||
+      (Array.isArray(screenGrants.value) && screenGrants.value.includes(view))
+    )
   }
 
   async function login(staffId, password) {
@@ -87,7 +96,8 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = res.user
       roleKey.value = (res.role || '').toLowerCase().replace(/\s+/g, '-')
       mustChangePassword.value = res.mustChangePassword === true
-      rememberIdentity(res.user, res.role)
+      screenGrants.value = Array.isArray(res.screenGrants) ? res.screenGrants : []
+      rememberIdentity(res.user, res.role, screenGrants.value)
       offlineIdentity.value = false
       return res
     } finally {
@@ -103,7 +113,8 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = res.user
       roleKey.value = (res.role || '').toLowerCase().replace(/\s+/g, '-')
       mustChangePassword.value = res.mustChangePassword === true
-      rememberIdentity(res.user, res.role)
+      screenGrants.value = Array.isArray(res.screenGrants) ? res.screenGrants : []
+      rememberIdentity(res.user, res.role, screenGrants.value)
       offlineIdentity.value = false
       return res
     } finally {
@@ -117,7 +128,8 @@ export const useAuthStore = defineStore('auth', () => {
       if (res.ok) {
         user.value = res.user
         roleKey.value = (res.role || '').toLowerCase().replace(/\s+/g, '-')
-        rememberIdentity(res.user, res.role)
+        screenGrants.value = Array.isArray(res.screenGrants) ? res.screenGrants : []
+        rememberIdentity(res.user, res.role, screenGrants.value)
         offlineIdentity.value = false
         return true
       }
@@ -134,6 +146,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (saved) {
         user.value = saved.user
         roleKey.value = (saved.role || '').toLowerCase().replace(/\s+/g, '-')
+        screenGrants.value = Array.isArray(saved.screenGrants) ? saved.screenGrants : []
         offlineIdentity.value = true
         return true
       }
@@ -176,6 +189,7 @@ export const useAuthStore = defineStore('auth', () => {
     roleKey.value = ''
     mustChangePassword.value = false
     offlineIdentity.value = false
+    screenGrants.value = []
     forgetIdentity()
 
     // Clear cart persistence and draft cart state so uncommitted orders do not leak across users
@@ -210,5 +224,5 @@ export const useAuthStore = defineStore('auth', () => {
     return res
   }
 
-  return { user, roleKey, loading, mustChangePassword, offlineIdentity, isAuthenticated, permissions, defaultView, hasPermission, login, loginWithEmail, checkSession, revalidate, logout, changePassword }
+  return { user, roleKey, loading, mustChangePassword, offlineIdentity, screenGrants, isAuthenticated, permissions, defaultView, hasPermission, login, loginWithEmail, checkSession, revalidate, logout, changePassword }
 })
