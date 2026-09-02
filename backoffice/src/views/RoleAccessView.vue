@@ -52,8 +52,25 @@
                 <span class="ra-cat-count">{{ c.count }}</span>
               </label>
             </div>
-            <div v-if="!selectedCategories.size" class="ra-warn">
-              Turned on with no categories picked — this role would see an empty stock list. Pick at least one, or switch it off.
+            <div class="ra-items-head">
+              <div>
+                <div class="ra-items-title">Individual items</div>
+                <div class="ra-items-sub">Hand-pick single items on top of the categories — an item ticked here is visible even when its category above is not.</div>
+              </div>
+              <span class="ra-item-count">{{ selectedItems.size }} picked</span>
+            </div>
+            <input v-model="itemSearch" class="input ra-item-search" type="search" placeholder="Search items by name or category…" />
+            <div class="ra-items">
+              <label v-for="it in visibleItems" :key="it.id" class="ra-item" :class="{ 'is-picked': selectedItems.has(it.id), 'via-cat': selectedCategories.has(it.category) }">
+                <input type="checkbox" :checked="selectedItems.has(it.id)" @change="toggleItem(it.id)" />
+                <span class="ra-item-name">{{ it.name }}</span>
+                <span class="ra-item-cat">{{ it.category }}<template v-if="selectedCategories.has(it.category)"> · via category</template></span>
+              </label>
+              <div v-if="!items.length" class="ra-items-empty">Item list unavailable — the category pick above still works.</div>
+              <div v-else-if="!visibleItems.length" class="ra-items-empty">No items match the search.</div>
+            </div>
+            <div v-if="!selectedCategories.size && !selectedItems.size" class="ra-warn">
+              Turned on with nothing picked — this role would see an empty stock list. Pick at least one category or item, or switch it off.
             </div>
           </template>
         </div>
@@ -84,7 +101,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, inject, watch } from 'vue'
+import { ref, computed, onMounted, inject, watch } from 'vue'
 import { apiGet, apiPut } from '../api'
 
 const toast = inject('toast')
@@ -98,6 +115,32 @@ const screenState = ref({})
 const selectedCategories = ref(new Set())
 const saving = ref(false)
 const savedScope = ref(null)
+
+// Hand-picked items sit beside whole categories: an item is visible when its
+// category OR its id is picked. The picker is fed from the same inventory
+// fetch that paints the category counts.
+const items = ref([])
+const selectedItems = ref(new Set())
+const itemSearch = ref('')
+
+const itemById = computed(() => new Map(items.value.map((it) => [it.id, it])))
+
+const visibleItems = computed(() => {
+  const sorted = [...items.value].sort(
+    (a, b) => String(a.category).localeCompare(String(b.category)) || String(a.name).localeCompare(String(b.name))
+  )
+  const q = itemSearch.value.trim().toLowerCase()
+  if (!q) return sorted
+  return sorted.filter(
+    (it) => String(it.name).toLowerCase().includes(q) || String(it.category || '').toLowerCase().includes(q)
+  )
+})
+
+function toggleItem(id) {
+  const next = new Set(selectedItems.value)
+  next.has(id) ? next.delete(id) : next.add(id)
+  selectedItems.value = next
+}
 
 const ROLE_BLURBS = {
   'head-chef': 'runs the kitchen',
@@ -146,14 +189,24 @@ function toggleScreen(key, evt) {
 }
 
 // Chips for the saved-access list, one per enabled screen; inventory's shows
-// how it is scoped.
+// how it is scoped — categories first, then hand-picked item names.
 function scopeChips(scope) {
   if (!scope) return []
   return screens.value
     .filter((s) => scope[s.key] && scope[s.key].enabled)
     .map((s) => {
-      if (s.key === 'inventory' && Array.isArray(scope.inventory.categories)) {
-        return `Inventory: ${scope.inventory.categories.join(', ')}`
+      if (s.key === 'inventory' && scope.inventory) {
+        const cats = scope.inventory.categories || []
+        const picked = (scope.inventory.itemIds || []).map((id) => (itemById.value.get(id) || {}).name || id)
+        const parts = [...cats, ...picked]
+        if (!parts.length) return 'Inventory'
+        if (parts.length > 8) {
+          const bits = []
+          if (cats.length) bits.push(`${cats.length} categories`)
+          if (picked.length) bits.push(`${picked.length} items`)
+          return `Inventory: ${bits.join(' + ')}`
+        }
+        return `Inventory: ${parts.join(', ')}`
       }
       return s.label
     })
@@ -165,14 +218,18 @@ async function load() {
     screens.value = res.screens || []
     roles.value = (res.roles || []).map((key) => ({ key, label: roleLabel(key), blurb: ROLE_BLURBS[key] || '' }))
     const counts = {}
+    const rows = []
     // The category list rides along with live item counts so the owner can
-    // see how big each slice is before handing it out.
+    // see how big each slice is before handing it out — and the same rows
+    // feed the individual-item picker.
     try {
-      const items = await apiGet('inventory')
-      for (const it of Array.isArray(items) ? items : []) {
+      const inv = await apiGet('inventory')
+      for (const it of Array.isArray(inv) ? inv : []) {
         if (it.category) counts[it.category] = (counts[it.category] || 0) + 1
+        if (it.id) rows.push({ id: it.id, name: it.name, category: it.category })
       }
     } catch { /* counts are decorative; the checkbox list still works */ }
+    items.value = rows
     categories.value = (res.categories || []).map((name) => ({ name, count: counts[name] || 0 }))
     scopes.value = res.scopes || []
     syncFromSaved()
@@ -192,6 +249,8 @@ function syncFromSaved() {
   screenState.value = state
   const inv = saved && saved.scope && saved.scope.inventory
   selectedCategories.value = new Set(inv && inv.enabled ? inv.categories || [] : [])
+  selectedItems.value = new Set(inv && inv.enabled ? inv.itemIds || [] : [])
+  itemSearch.value = ''
 }
 
 // Switching roles must show THAT role's saved state, not the previous one's.
@@ -203,7 +262,11 @@ async function save() {
     const payload = {}
     for (const s of screens.value) {
       if (s.key === 'inventory') {
-        payload.inventory = { enabled: !!screenState.value.inventory?.enabled, categories: [...selectedCategories.value] }
+        payload.inventory = {
+          enabled: !!screenState.value.inventory?.enabled,
+          categories: [...selectedCategories.value],
+          itemIds: [...selectedItems.value],
+        }
       } else {
         payload[s.key] = { enabled: !!screenState.value[s.key]?.enabled }
       }
@@ -264,6 +327,23 @@ onMounted(load)
 .ra-cat-name { flex: 1; min-width: 0; }
 .ra-cat-count { font-size: .7rem; color: var(--text-muted); white-space: nowrap; }
 .ra-warn { font-size: .78rem; color: #b45309; background: rgba(180, 83, 9, .08); border: 1px solid rgba(180, 83, 9, .25); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; }
+.ra-items-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin: 2px 0 8px; }
+.ra-items-title { font-size: .8rem; font-weight: 600; color: var(--text-heading); }
+.ra-items-sub { font-size: .74rem; color: var(--text-muted); margin-top: 2px; max-width: 560px; }
+.ra-item-count { font-size: .72rem; color: var(--text-muted); white-space: nowrap; }
+.ra-item-search { max-width: 380px; padding: 8px 12px !important; font-size: .8rem !important; margin-bottom: 8px; }
+.ra-items { max-height: 240px; overflow-y: auto; border: 1.5px solid var(--border); border-radius: 8px; padding: 4px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px; margin-bottom: 12px; }
+.ra-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border: 1.5px solid transparent; border-radius: 6px; cursor: pointer;
+  font-size: .76rem; color: var(--text-body); transition: border-color .15s, background .15s;
+}
+.ra-item:hover { background: rgba(15, 123, 120, .05); }
+.ra-item.is-picked { border-color: #0f7b78; background: rgba(15, 123, 120, .08); }
+.ra-item input { accent-color: #0f7b78; flex: none; }
+.ra-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ra-item-cat { font-size: .66rem; color: var(--text-muted); white-space: nowrap; }
+.ra-items-empty { grid-column: 1 / -1; font-size: .76rem; color: var(--text-muted); padding: 10px; }
 .ra-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 .ra-meta { font-size: .74rem; color: var(--text-muted); }
 .ra-note { font-size: .74rem; color: var(--text-muted); margin: 10px 0 0; }
