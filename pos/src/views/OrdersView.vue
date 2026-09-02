@@ -389,11 +389,15 @@ async function freeUpTable(tableNum) {
   const match = tables.value.find(t => String(t.number) === String(tableNum))
   if (!match) return
   try {
-    const updated = { ...match, status: 'available', guests: 0, server: '', seated_at: '' }
+    // The party resets; the section owner (`server`) survives. That name is
+    // what the waiter's Orders scoping matches on — freeing a table must not
+    // wipe the table out of its waiter's section. Only the manager's
+    // assignment dropdown moves a table between sections.
+    const updated = { ...match, status: 'available', guests: 0, seated_at: '' }
+    delete updated.server
     await apiPut('tables/' + match.id, updated)
     match.status = 'available'
     match.guests = 0
-    match.server = ''
     match.seated_at = ''
     toast(`Table ${match.number} is now Available`, 'success')
   } catch (e) {

@@ -115,6 +115,12 @@ describe('success screen', () => {
     await flushPromises()
 
     expect(mockApiPut).toHaveBeenCalledWith('tables/T3', expect.objectContaining({ status: 'available' }))
+    // The section owner survives: the PUT must not carry a server key at all
+    // (omitting it leaves the stored name untouched — that name is what the
+    // head-waiter's Orders scoping matches on). Overwriting it with '' would
+    // wipe the table out of Yonas's section on every freed party.
+    const putBody = mockApiPut.mock.calls.find((c) => c[0] === 'tables/T3')[1]
+    expect(putBody).not.toHaveProperty('server')
     expect(wrapper.findAll('button').find((b) => b.text().includes('Free Up Table'))).toBeUndefined()
   })
 

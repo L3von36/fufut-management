@@ -671,11 +671,14 @@ async function confirmFreeTable() {
   const match = tables.value.find(t => String(t.number) === String(tableNum))
   if (!match) return
   try {
-    const updated = { ...match, status: 'available', guests: 0, server: '', seated_at: '' }
+    // The party resets; the section owner (`server`) survives — the waiter's
+    // Orders scoping matches on that name, so freeing a table must not wipe
+    // it out of their section. Manager reassignment is the only mover.
+    const updated = { ...match, status: 'available', guests: 0, seated_at: '' }
+    delete updated.server
     await apiPut('tables/' + match.id, updated)
     match.status = 'available'
     match.guests = 0
-    match.server = ''
     match.seated_at = ''
     toast(`Table ${match.number} is now Available`, 'success')
     successTableFreed.value = true

@@ -948,8 +948,10 @@ function quickStatus(status) {
     detailTable.value.seated_at = ''
     detailTable.value.newSeating = false
     if (status === 'available') {
+      // Guests clear with the party; the section owner (`server`) stays —
+      // the waiter's Orders scoping matches on that name. Reassignment is
+      // the dropdown's job, not a side effect of freeing the table.
       detailTable.value.guests = 0
-      detailTable.value.server = ''
     }
   }
 }
