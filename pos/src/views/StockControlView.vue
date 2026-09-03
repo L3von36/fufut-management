@@ -133,6 +133,50 @@
       </div>
     </div>
 
+    <!-- ─── Stock as of a day ─── -->
+    <div v-if="tab === 'snapshot'">
+      <!--
+        The manager's "how much did we have on the 20th?" question. Figures
+        come from the ledger's own running balance where history exists; where
+        it does not, they are worked backwards from today and labelled as
+        estimates rather than passed off as recordings.
+      -->
+      <p class="tab-note">
+        The shelf as it stood at the end of the chosen day, from the stock ledger.
+        “Recorded” figures are the ledger's own running balance; “estimated” ones
+        are worked backwards from today where the ledger has no earlier history.
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <label style="font-size:.8rem;color:var(--text-muted)">As of</label>
+        <input type="date" v-model="snapDate" class="input input-sm" style="width:auto" />
+        <button class="btn btn-outline btn-sm" @click="loadTab">Show</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Item</th><th>Stock at end of {{ snapDate }}</th><th>Basis</th><th>Stock now</th><th>Bought</th><th>Consumed</th><th>Wasted</th><th>Adjusted</th></tr></thead>
+            <tbody>
+              <tr v-for="i in snapshot.items" :key="i.inventoryId">
+                <td data-label="Item"><strong>{{ i.name }}</strong></td>
+                <td data-label="Stock at end of day"><strong>{{ i.stockAtDate }} {{ i.unit }}</strong></td>
+                <td data-label="Basis">
+                  <span class="badge" :class="i.basis === 'ledger' ? 'badge-ok' : 'badge-pending'">
+                    {{ i.basis === 'ledger' ? 'recorded' : 'estimated' }}
+                  </span>
+                </td>
+                <td data-label="Stock now">{{ i.stockNow }} {{ i.unit }}</td>
+                <td data-label="Bought">{{ i.day.purchased || '—' }}</td>
+                <td data-label="Consumed">{{ i.day.sold || '—' }}</td>
+                <td data-label="Wasted">{{ i.day.wasted || '—' }}</td>
+                <td data-label="Adjusted">{{ i.day.adjusted || '—' }}</td>
+              </tr>
+              <tr v-if="!snapshot.items.length"><td colspan="8" class="empty">Nothing to show for that day</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- ─── Stock count ─── -->
     <div v-if="tab === 'count'">
       <p class="tab-note">
@@ -178,7 +222,7 @@
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
-import { apiGet, apiPost } from '../api'
+import { apiGet, apiPost, TODAY } from '../api'
 import { printReport } from '../lib/print'
 
 const toast = inject('toast')
@@ -186,6 +230,7 @@ const toast = inject('toast')
 const TABS = [
   { key: 'reorder', label: 'Reorder' },
   { key: 'variance', label: 'Variance' },
+  { key: 'snapshot', label: 'As Of' },
   { key: 'forecast', label: 'Forecast' },
   { key: 'capacity', label: 'What Can We Make' },
   { key: 'count', label: 'Stock Count' },
@@ -206,6 +251,10 @@ const variance = ref({ items: [], note: '' })
 const forecast = ref({ items: [] })
 const capacity = ref({ items: [] })
 const countRows = ref([])
+const snapshot = ref({ items: [], note: '' })
+// Through the api module's TODAY so the day is the cafe's today, consistently
+// with every other screen, and testable.
+const snapDate = ref(TODAY())
 
 function fmt(n) { return (Number(n) || 0).toFixed(0) }
 
@@ -238,6 +287,7 @@ async function loadTab() {
   try {
     if (tab.value === 'reorder') reorder.value = await apiGet('inventory/reorder')
     else if (tab.value === 'variance') variance.value = await apiGet(`inventory/variance?${range.value}`)
+    else if (tab.value === 'snapshot') snapshot.value = await apiGet(`inventory/snapshot?date=${snapDate.value}`)
     else if (tab.value === 'forecast') forecast.value = await apiGet(`inventory/forecast?${range.value}`)
     else if (tab.value === 'capacity') capacity.value = await apiGet('inventory/capacity')
     else if (tab.value === 'count') await loadCountSheet()
@@ -294,6 +344,20 @@ function printTab() {
       // Carried onto the paper too: a printed variance sheet outlives the
       // screen that explained what it does and does not mean.
       footer: variance.value.note || 'Variance is a question, not a finding.',
+    }
+  } else if (tab.value === 'snapshot') {
+    spec = {
+      title: `Stock as of ${snapDate.value}`,
+      subtitle: 'End-of-day figures from the stock ledger',
+      headers: ['Item', 'Stock at end of day', 'Basis', 'Stock now', 'Bought', 'Consumed', 'Wasted', 'Adjusted'],
+      rows: snapshot.value.items.map((i) => [
+        i.name,
+        `${i.stockAtDate} ${i.unit}`,
+        i.basis === 'ledger' ? 'recorded' : 'estimated',
+        `${i.stockNow} ${i.unit}`,
+        i.day.purchased, i.day.sold, i.day.wasted, i.day.adjusted,
+      ]),
+      footer: snapshot.value.note || '',
     }
   } else if (tab.value === 'forecast') {
     spec = {

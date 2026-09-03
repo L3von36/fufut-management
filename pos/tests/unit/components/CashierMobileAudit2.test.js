@@ -331,11 +331,14 @@ describe('N6: AnalyticsView cancellation rate is bounded by definition', () => {
   })
 
   it('divides cancels by cancels-plus-real, never exceeding 100%', async () => {
+    // Days relative to *now* — fixed dates slid out of the 14-day default
+    // window as the calendar moved, which read as a mysteriously calm cafe.
+    const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
     const cancelled = Array.from({ length: 95 }, (_, i) => ({
-      id: 'X' + i, total: 100, status: 'cancelled', created: '2026-08-20 10:00:00',
+      id: 'X' + i, total: 100, status: 'cancelled', created: `${daysAgo(10)} 10:00:00`,
     }))
     const real = Array.from({ length: 6 }, (_, i) => ({
-      id: 'R' + i, total: 178, status: 'served', payment_status: 'paid', created: '2026-08-27 19:00:00',
+      id: 'R' + i, total: 178, status: 'served', payment_status: 'paid', created: `${daysAgo(5)} 19:00:00`,
     }))
     mockApiGet.mockImplementation((ep) => {
       if (ep === 'orders') return Promise.resolve([...cancelled, ...real])

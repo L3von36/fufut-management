@@ -3,12 +3,17 @@
     <div class="table-toolbar">
       <h3>Purchases</h3>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <input type="date" v-model="from" class="input input-sm" style="width:auto" title="From day" />
+        <input type="date" v-model="to" class="input input-sm" style="width:auto" title="To day" />
         <select v-model="filter" class="select">
           <option value="">All purchases</option>
           <option value="unpaid">Not fully paid</option>
         </select>
         <button v-if="canEdit" class="btn btn-primary" @click="openAdd">Record Purchase</button>
         <button class="btn btn-outline" @click="loadData">Refresh</button>
+        <button class="btn btn-outline" :disabled="exporting" @click="exportCsv" title="Download the filtered purchases, one line per item">
+          {{ exporting ? 'Exporting…' : 'Export CSV' }}
+        </button>
       </div>
     </div>
 
@@ -196,6 +201,8 @@ import { ref, computed, onMounted, inject } from 'vue'
 import { apiGet, apiPost } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { printReport } from '../lib/print'
+import { downloadCsv } from '../lib/csv'
+import { purchaseQuery, purchasesToCsv, purchaseExportName } from '../lib/purchaseExport'
 
 const toast = inject('toast')
 const auth = useAuthStore()
@@ -209,6 +216,11 @@ const purchases = ref([])
 const suppliers = ref([])
 const inventory = ref([])
 const filter = ref('')
+// Day bounds for "what did we buy between" — empty means all days. Applied
+// server-side against the purchase date, where the comparison is exact.
+const from = ref('')
+const to = ref('')
+const exporting = ref(false)
 const showModal = ref(false)
 const detail = ref(null)
 const paying = ref(null)
@@ -247,7 +259,7 @@ onMounted(loadData)
 async function loadData() {
   try {
     const [p, s, inv] = await Promise.all([
-      apiGet('purchases'),
+      apiGet('purchases' + purchaseQuery({ from: from.value, to: to.value })),
       apiGet('suppliers').catch(() => []),
       apiGet('inventory'),
     ])
@@ -255,6 +267,37 @@ async function loadData() {
     suppliers.value = Array.isArray(s) ? s : []
     inventory.value = Array.isArray(inv) ? inv : []
   } catch (e) { console.error(e); toast('Could not load purchases', 'error') }
+}
+
+/**
+ * Export the filtered purchases with their item lines — the manager's
+ * "what did we buy" question is answered per item, not per header row. Lines
+ * are fetched per purchase in small chunks so a wide range cannot open a
+ * hundred requests at once; a purchase whose lines fail still exports, marked
+ * with no lines, rather than silently dropping the whole day.
+ */
+async function exportCsv() {
+  const rows = filtered.value
+  if (!rows.length) { toast('Nothing to export in this range', 'error'); return }
+  exporting.value = true
+  try {
+    const CHUNK = 12
+    const full = []
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const slice = rows.slice(i, i + CHUNK)
+      const details = await Promise.all(
+        slice.map((p) => apiGet('purchases/' + p.id).catch(() => null))
+      )
+      slice.forEach((p, j) => full.push({ ...p, lines: (details[j] && details[j].lines) || [] }))
+    }
+    downloadCsv(purchaseExportName({ from: from.value, to: to.value }), purchasesToCsv(full))
+    toast(`Exported ${full.length} purchase(s)`)
+  } catch (e) {
+    console.error(e)
+    toast(e?.message || 'Could not export', 'error')
+  } finally {
+    exporting.value = false
+  }
 }
 
 function openAdd() {
