@@ -262,12 +262,15 @@ function formatSettingPreview(raw, key) {
     }
   }
 
-  // Tax bands: [{"upto":666,"rate":0,"deduct":0}, …]
+  // Tax bands: [{"upTo":2000,"rate":0,"deduct":0}, …] — the stored key is
+  // camelCase `upTo` (migration 025); `upto` is accepted only so an old or
+  // hand-typed value still previews instead of silently showing nothing.
   if (k.includes('tax') && k.includes('band')) {
     if (Array.isArray(parsed)) {
       return parsed.map((b, i) => {
         const parts = []
-        if (b.upto != null) parts.push(`up to ${money(b.upto).replace('ETB ', '')}`)
+        const upto = b.upTo != null ? b.upTo : b.upto
+        if (upto != null) parts.push(`up to ${money(upto).replace('ETB ', '')}`)
         if (b.rate != null) parts.push(`${(b.rate * 100).toFixed(0)}%`)
         if (b.deduct != null) parts.push(`deduct ${money(b.deduct).replace('ETB ', '')}`)
         return parts.length ? `Band ${i + 1}: ${parts.join(', ')}` : `Band ${i + 1}`
