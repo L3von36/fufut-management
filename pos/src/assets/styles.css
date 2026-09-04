@@ -394,11 +394,11 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 }
 @keyframes ssePulse{0%,100%{box-shadow:0 0 4px rgba(46,125,50,.4)}50%{box-shadow:0 0 10px rgba(46,125,50,.7)}}
 
-/* Section tabs */
-.tm-section-tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
-.tm-tab{padding:7px 16px;min-height:44px;border-radius:99px;font-size:.78rem;font-weight:500;border:1.5px solid var(--border);background:var(--surface);color:var(--text-muted);cursor:pointer;transition:all var(--duration-fast) var(--ease);white-space:nowrap}
-.tm-tab:hover{border-color:var(--primary);color:var(--primary)}
-.tm-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+/* Section tabs live in TablesView.vue's scoped styles now. They were also
+   defined here, and the old min-height:44px leaked into the component's slim
+   pill: with the 12.8px root font a short label made the button roughly
+   square, and border-radius:999px turned a square into a circle. Keeping one
+   definition, next to the markup it styles. */
 
 /* Section header */
 .tm-section{margin-bottom:28px}
@@ -607,13 +607,9 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
   .tm-card-body{padding:11px 11px 11px 13px}
   .tm-table-num{font-size:1.7rem}
 
-  /* Section tabs behave like an app's segmented control: a single swipeable
-     row that snaps, rather than wrapping and reflowing the page. */
-  .tm-section-tabs{gap:6px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;
-    scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;
-    padding-bottom:2px;margin-inline:-16px;padding-inline:16px}
-  .tm-section-tabs::-webkit-scrollbar{display:none}
-  .tm-tab{padding:8px 14px;font-size:.76rem;flex:0 0 auto;scroll-snap-align:start;min-height:44px}
+  /* Section tabs are styled entirely in TablesView.vue (see the note at their
+     old global definition above — the duplicated min-height here is what
+     squared every zone chip into a circle on phones). */
 
   /* Section headings stay put while scrolling a long floor, so you always know
      which room you are looking at. */

@@ -1382,28 +1382,34 @@ onUnmounted(() => {
   margin-left: 8px;
 }
 
-/* ═══ SECTION TABS (horizontally scrollable on mobile) ═══ */
+/* ═══ SECTION TABS ═══
+   These are the floor's zone chips: All / Patio / Main Hall / Window / VIP
+   Room / Bar. They used to render as CIRCLES on phones: the global stylesheet
+   also styled .tm-tab and its min-height:44px won (the rules below never set
+   min-height), while this component's small font kept the width at ~45px —
+   a roughly square button, which border-radius:999px renders as a circle.
+   styles.css no longer defines these classes, and the rules below own the
+   geometry outright. min-width guarantees at least a 2:1 pill at any label,
+   so no future tweak can square them back into bubbles. */
 .tm-section-tabs {
   display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding-bottom: 4px;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 14px;
 }
-.tm-section-tabs::-webkit-scrollbar { display: none; }
 .tm-tab {
-  flex-shrink: 0;
-  padding: 6px 14px;
+  min-width: 84px;
+  min-height: 40px;
+  padding: 6px 16px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-muted);
-  font-size: .82rem;
+  font-size: .85rem;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
+  text-align: center;
   transition: all .15s;
 }
 .tm-tab:hover { border-color: var(--primary); color: var(--primary); }
