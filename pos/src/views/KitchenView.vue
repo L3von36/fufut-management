@@ -85,7 +85,7 @@
                    order_items, so they keep the original read-only rendering
                    rather than showing an empty ticket. -->
               <template v-if="!trackedLines(o).length">
-                <div v-for="(line, li) in getOrderLines(o)" :key="li" class="ko-line">
+                <div v-for="(line, li) in fallbackLines(o)" :key="li" class="ko-line">
                   <div class="ko-line-main">
                     <span class="ko-qty">{{ line.qty }}x</span>
                     <span class="ko-name">{{ line.name }}</span>
@@ -95,7 +95,7 @@
                   </div>
                   <div v-if="line.notes" class="ko-line-notes">{{ line.notes }}</div>
                 </div>
-                <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ formatOrderItems(o.items) }}</div>
+                <div v-if="!fallbackLines(o).length" class="ko-fallback">{{ formatOrderItems(o.items) }}</div>
               </template>
             </div>
 
@@ -173,7 +173,7 @@
               </button>
 
               <template v-if="!trackedLines(o).length">
-                <div v-for="(line, li) in getOrderLines(o)" :key="li" class="ko-line">
+                <div v-for="(line, li) in fallbackLines(o)" :key="li" class="ko-line">
                   <div class="ko-line-main">
                     <span class="ko-qty">{{ line.qty }}x</span>
                     <span class="ko-name">{{ line.name }}</span>
@@ -183,7 +183,7 @@
                   </div>
                   <div v-if="line.notes" class="ko-line-notes">{{ line.notes }}</div>
                 </div>
-                <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ formatOrderItems(o.items) }}</div>
+                <div v-if="!fallbackLines(o).length" class="ko-fallback">{{ formatOrderItems(o.items) }}</div>
               </template>
             </div>
 
@@ -238,7 +238,7 @@
               <!-- Legacy orders with no tracked rows keep the summary
                    rendering — there is nothing to classify a line with. -->
               <template v-if="!trackedLines(o).length">
-                <div v-for="(line, li) in getOrderLines(o)" :key="li" class="ko-line">
+                <div v-for="(line, li) in fallbackLines(o)" :key="li" class="ko-line">
                   <div class="ko-line-main">
                     <span class="ko-qty">{{ line.qty }}x</span>
                     <span class="ko-name">{{ line.name }}</span>
@@ -247,7 +247,7 @@
                     <span v-for="(mod, mi) in line.modifiers" :key="mi" class="ko-mod-chip">{{ formatModName(mod.name) }}</span>
                   </div>
                 </div>
-                <div v-if="!getOrderLines(o).length" class="ko-fallback">{{ formatOrderItems(o.items) }}</div>
+                <div v-if="!fallbackLines(o).length" class="ko-fallback">{{ formatOrderItems(o.items) }}</div>
               </template>
             </div>
 
@@ -285,6 +285,7 @@ import { useAuthStore } from '../stores/auth'
 import { useSSE } from '../composables/useSSE'
 import { kitchenTicket } from '../lib/print'
 import { nameIsDrink } from '../lib/drinks'
+import { scopedLines } from '../lib/orderScope'
 import { getOrderLines, formatModName as sharedFormatModName, formatOrderItems } from '../lib/orderLines'
 
 const toast = inject('toast')
@@ -463,14 +464,26 @@ function stationLines(order) {
  *
  * Returns null when the ticket has no lines for this station — hidden from
  * all three columns, which is the whole point of the routing — or when every
- * station line is served. A ticket with no tracked rows at all (written
- * before per-line tracking) cannot be classified, so it falls back to the
- * order's own status rather than vanishing: a blank board is a worse failure
+ * station line is served.
+ *
+ * The empty-tracked-rows case now classifies from the ticket's own item
+ * summary (lib/orderScope — the same judgement the boards use) instead of
+ * falling straight back to the order status. That fallback used to render a
+ * freshly-fired ticket on BOTH boards for the seconds before its item rows
+ * arrived: a tea order would flash on the kitchen screen, then vanish the
+ * moment the lines landed and strict routing applied. A ticket the summary
+ * proves belongs to the other station is now hidden from the first tick; a
+ * genuinely unclassifiable one (legacy free text, no "<qty>x" markers) still
+ * falls back to the order status, because a blank board is a worse failure
  * than an unfiltered one.
  */
 function stationColumn(order) {
   const lines = trackedLines(order)
   if (!lines.length) {
+    if (stationFilter.value === 'hot' || stationFilter.value === 'bar') {
+      const parsed = scopedLines(order.items, stationFilter.value === 'bar' ? 'bar' : 'kitchen')
+      if (parsed !== null && !parsed.length) return null
+    }
     if (stationFilter.value === 'pass') return order.status === 'ready' ? 'ready' : null
     return ['new', 'preparing', 'ready'].includes(order.status) ? order.status : null
   }
@@ -486,6 +499,20 @@ function stationColumn(order) {
     if (i >= 0 && i < least) least = i
   }
   return ITEM_FLOW[least]
+}
+
+/**
+ * Lines for the pre-tracking fallback rendering, scoped to this station the
+ * same way tracked lines are — a mixed ticket's other half never flashes on
+ * this board while the item rows are still in flight. Unclassifiable legacy
+ * tickets fall back to the full line list, as ever.
+ */
+function fallbackLines(order) {
+  if (stationFilter.value === 'hot' || stationFilter.value === 'bar') {
+    const scoped = scopedLines(order.items, stationFilter.value === 'bar' ? 'bar' : 'kitchen')
+    if (scoped !== null) return scoped
+  }
+  return getOrderLines(order)
 }
 
 function sortFn(a, b) {

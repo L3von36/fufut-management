@@ -374,15 +374,35 @@ describe('KitchenView', () => {
 
   it('should show order items', async () => {
     mockApiGet.mockResolvedValue([
-      { id: 'O-1', items: '2xEspresso, 1xLatte, Macchiato', status: 'new', type: 'dine-in', created: new Date().toISOString() }
+      { id: 'O-1', items: '2xEspresso, 1xLatte, Macchiato', status: 'new', type: 'dine-in', created: new Date().toISOString() },
+      { id: 'O-2', items: '1xFut breakfast Gebeta, 1xChechebesa', status: 'new', type: 'dine-in', created: new Date().toISOString() }
     ])
 
     const wrapper = mount(KitchenView, globalConfig)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Espresso')
-    expect(wrapper.text()).toContain('Latte')
-    expect(wrapper.text()).toContain('Macchiato')
+    // Station routing applies from the FIRST tick, even before the item rows
+    // arrive: the board classifies the ticket from its own item summary. A
+    // drinks-only ticket is the bar's work and must not flash here (this was
+    // the "tea appears on the chef board then vanishes" bug), while the food
+    // ticket renders through the same fallback path.
+    expect(wrapper.text()).not.toContain('Espresso')
+    expect(wrapper.text()).not.toContain('Latte')
+    expect(wrapper.text()).toContain('Fut breakfast Gebeta')
+    expect(wrapper.text()).toContain('Chechebesa')
+  })
+
+  it('shows the whole fallback list when the ticket cannot be classified', async () => {
+    // Legacy free text with no "<qty>x" markers at all: the board cannot tell
+    // whose ticket it is, so it fails open rather than hiding somebody's work.
+    mockApiGet.mockResolvedValue([
+      { id: 'O-1', items: 'the usual for the morning crew', status: 'new', type: 'dine-in', created: new Date().toISOString() }
+    ])
+
+    const wrapper = mount(KitchenView, globalConfig)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('the usual for the morning crew')
   })
 
   it('should show refresh button', async () => {

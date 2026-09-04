@@ -95,11 +95,11 @@ beforeEach(() => {
 })
 
 describe('SLA dashboard', () => {
-  it('renders all eight rules of the engine', async () => {
+  it('renders all nine rules of the engine', async () => {
     const wrapper = mountView()
     await flushPromises()
     const cards = wrapper.findAll('.sla-rule')
-    expect(cards.length).toBe(8)
+    expect(cards.length).toBe(9)
     const names = cards.map((c) => c.find('.sla-rule-name').text())
     expect(names).toContain('Preparing too long')
     expect(names).toContain('Reservation no-show')

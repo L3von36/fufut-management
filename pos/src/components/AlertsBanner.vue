@@ -72,8 +72,18 @@ const toast = inject('toast', () => {})
 // critical is the room's. One chime per batch of new criticals — the sweep
 // can raise five at once on a cold start, and five sirens is noise, not
 // signal.
-const { playCriticalAlert, opsMuted, toggleOpsMute } = useAudioAlerts()
+// The pickup ping ('order-ready-now' — food on the pass for YOUR table) is
+// the one warning that gets a sound of its own: the warm order chime, the
+// same one the kitchen hears when a ticket goes ready. It is aimed at the
+// waiter and it is time-sensitive in a way a breach count is not.
+const { playCriticalAlert, playOrderReady, opsMuted, toggleOpsMute } = useAudioAlerts()
 const soundedCritical = new Set()
+const soundedPings = new Set()
+// The first fetch after mount is a baseline, not a transition: an existing
+// ping was raised before this tablet opened, and replaying it now tells the
+// waiter about food that was already picked up (or already ignored). Only
+// pings that ARRIVE after the first load chime.
+let soundsArmed = false
 
 function syncSound(list) {
   const fresh = (list || []).filter(
@@ -83,6 +93,17 @@ function syncSound(list) {
     if (a && a.severity === 'critical') soundedCritical.add(a.id)
   }
   if (fresh.length) playCriticalAlert()
+  // A fresh ping means the kitchen just finished your table's food. Ids are
+  // tracked separately so the ping does not re-chime on every poll while it
+  // sits open — one chime per ready order, not a siren.
+  let freshPing = false
+  for (const a of list || []) {
+    if (!a || a.rule_id !== 'order-ready-now') continue
+    if (soundsArmed && !soundedPings.has(a.id)) freshPing = true
+    soundedPings.add(a.id)
+  }
+  if (freshPing) playOrderReady()
+  soundsArmed = true
 }
 
 // Roles the server grants alerts write (ack) to. Read is wider; a role that

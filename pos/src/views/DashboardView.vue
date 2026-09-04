@@ -87,6 +87,34 @@
       </div>
     </div>
 
+    <!-- ═══ Bill Requests — the floor asking for the check ═══ -->
+    <!-- A waiter's "table X wants the bill" arrives on the tables SSE channel
+         and lands here: the tile pulses, a ding fires, and the request sits
+         in this list until the bill is settled (which clears it server-side
+         via the payment), the waiter retracts it, or the party leaves. The
+         cashier settles — the dismiss action is the manager's, because the
+         request is addressed to the till and only the manager may overrule
+         the floor lead who raised it. -->
+    <div v-if="canSeeBillRequests && billRequests.length" class="bill-req-card">
+      <div class="bill-req-head">
+        <span class="bill-req-pulse" aria-hidden="true"></span>
+        <strong>Bill Requests</strong>
+        <span class="bill-req-count">{{ billRequests.length }}</span>
+      </div>
+      <div class="bill-req-list">
+        <div v-for="t in billRequests" :key="t.id" class="bill-req-row">
+          <div class="bill-req-main">
+            <span class="bill-req-table">Table {{ t.number }}</span>
+            <span class="bill-req-meta">
+              asked {{ timeAgo(t.bill_requested_at) }}<span v-if="t.bill_requested_by"> · by {{ t.bill_requested_by }}</span>
+            </span>
+          </div>
+          <button class="btn btn-primary btn-sm" @click="router.push('/app/checkout')">Settle</button>
+          <button v-if="auth.roleKey === 'manager'" class="btn btn-ghost btn-sm" @click="dismissBillRequest(t)">Dismiss</button>
+        </div>
+      </div>
+    </div>
+
     <!-- KPI Grid — skeleton while loading first fetch -->
     <div class="kpi-grid">
       <template v-if="loading && !kpis.length">
@@ -324,12 +352,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { apiGet, apiPost, TODAY } from '../api'
 import { isRealOrder } from '../lib/formatters'
 import { useSSE } from '../composables/useSSE'
+import { useAudioAlerts } from '../composables/useAudioAlerts'
 
 const router = useRouter()
 
@@ -446,6 +475,47 @@ function isToday(d) {
 
 const digitalPending = ref([])
 const shiftLogs = ref([])
+
+// ─── Bill requests — the floor asking for the check ──────────────────
+// A waiter stamps the table; the tables SSE channel carries it here within
+// seconds. The first load is a baseline (an old request waiting when the
+// till opens must show, but must not ding like a fresh one); after that any
+// request the poll or push has not seen before fires one ding and one toast.
+const toast = inject('toast', () => {})
+const { playNewOrder } = useAudioAlerts()
+const billRequests = ref([])
+const seenBillRequests = new Set()
+let billRequestsArmed = false
+const canSeeBillRequests = computed(() => ['cashier', 'manager'].includes(auth.roleKey))
+
+async function loadBillRequests() {
+  if (!canSeeBillRequests.value) return
+  try {
+    const tables = await apiGet('tables')
+    const rows = (Array.isArray(tables) ? tables : []).filter((t) => t && t.bill_requested_at)
+    billRequests.value = rows
+    let fresh = null
+    for (const r of rows) {
+      if (billRequestsArmed && !seenBillRequests.has(r.id) && !fresh) fresh = r
+      seenBillRequests.add(r.id)
+    }
+    billRequestsArmed = true
+    if (fresh) {
+      playNewOrder()
+      toast(`Table ${fresh.number} asks for the bill`, 'info')
+    }
+  } catch { /* the floor plan is optional on this screen */ }
+}
+
+async function dismissBillRequest(t) {
+  try {
+    await apiPost(`tables/${t.id}/cancel-bill-request`, {})
+    billRequests.value = billRequests.value.filter((x) => x.id !== t.id)
+    toast(`Bill request for Table ${t.number} dismissed`, 'success')
+  } catch (e) {
+    toast((e && e.message) || 'Could not dismiss the request', 'error')
+  }
+}
 
 // ─── Cashier dashboard extras ──────────────────────────────────────
 const ordersByHour = ref([])
@@ -592,7 +662,7 @@ onMounted(async () => {
   await loadDashboard()
   const role = auth.roleKey
   if (role === 'manager' || role === 'cashier') {
-    interval = setInterval(loadDashboard, 30000)
+    interval = setInterval(() => { loadDashboard(); loadBillRequests() }, 30000)
   }
   // The floor moves from other people's screens. Only manager and cashier had
   // any refresh at all, and then only every 30s, so a waiter's or chef's
@@ -600,7 +670,10 @@ onMounted(async () => {
   // only fires when something actually changed, so this costs nothing when the
   // floor is quiet.
   sseConnect('tables')
-  sseOn('table_update', () => loadDashboard())
+  sseOn('table_update', () => { loadDashboard(); loadBillRequests() })
+  // The waiter's "bring the bill" rides the same channel — but the first
+  // list must be on screen without waiting for the floor to move.
+  loadBillRequests()
 })
 
 onUnmounted(() => {
@@ -1005,4 +1078,21 @@ async function buildCharts() {
 .top-item-name{font-size:.78rem;font-weight:600;color:var(--text-heading);line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .top-item-price{font-size:.72rem;color:var(--success);font-weight:700;margin-top:2px}
 :global([data-theme="dark"]) .top-item-btn:hover{background:rgba(15,123,120,.15)}
+
+/* Bill Requests — the floor asking for the check. One card, one row per
+   table; the pulse matches the alerts banner so the two read as the same
+   kind of "somebody needs you" signal. */
+.bill-req-card{margin-top:14px;border:1.5px solid var(--warning,#f59e0b);border-radius:var(--radius-md);background:rgba(245,158,11,.07);overflow:hidden}
+.bill-req-head{display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:.86rem;color:var(--text-heading)}
+.bill-req-pulse{width:9px;height:9px;border-radius:50%;background:var(--warning,#f59e0b);animation:billReqPulse 1.4s ease-in-out infinite;flex-shrink:0}
+@keyframes billReqPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.8)}}
+.bill-req-count{background:var(--warning,#f59e0b);color:#fff;border-radius:999px;padding:1px 8px;font-size:.7rem;font-weight:700}
+.bill-req-list{border-top:1px solid var(--border)}
+.bill-req-row{display:flex;align-items:center;gap:10px;padding:8px 14px}
+.bill-req-row+.bill-req-row{border-top:1px solid var(--border)}
+.bill-req-main{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1;flex-wrap:wrap}
+.bill-req-table{font-weight:700;color:var(--text-heading);font-size:.9rem}
+.bill-req-meta{font-size:.76rem;color:var(--text-muted)}
+@media (prefers-reduced-motion: reduce){.bill-req-pulse{animation:none}}
+:global([data-theme="dark"]) .bill-req-card{background:rgba(245,158,11,.1)}
 </style>

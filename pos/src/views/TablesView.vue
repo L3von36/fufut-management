@@ -172,6 +172,14 @@
                 <span v-if="tableOrderTotals[t.id]" class="tfc-amount">{{ formatETB(tableOrderTotals[t.id]) }}</span>
               </div>
               <span v-if="tableOpenTab[t.id]" class="tfc-tab-badge">Open Tab</span>
+              <!-- Money state of the party's checks — the "is the table paid?"
+                   answer, which used to be a question only the cashier could
+                   answer. The bill-request chip rides beside it so the floor
+                   plan and the cashier's screen tell the same story. -->
+              <div class="tfc-info-row" v-if="t.payment || t.bill_requested_at">
+                <span v-if="t.payment" class="tfc-pay-badge" :class="'pay-' + t.payment">{{ paymentLabel(t.payment) }}</span>
+                <span v-if="t.bill_requested_at" class="tfc-bill-req">Bill Requested</span>
+              </div>
             </template>
 
             <!-- Reserved -->
@@ -280,7 +288,11 @@
 
         <!-- Active orders for this table -->
         <div class="tm-orders-section" v-if="detailTable.status === 'occupied'">
-          <h4>Active Orders</h4>
+          <h4>
+            Active Orders
+            <span v-if="detailTable.payment" class="tm-detail-pay" :class="'pay-' + detailTable.payment">{{ paymentLabel(detailTable.payment) }}</span>
+            <span v-if="detailTable.bill_requested_at" class="tm-detail-pay bill-requested">Bill requested{{ detailTable.bill_requested_by ? ` by ${detailTable.bill_requested_by}` : '' }}</span>
+          </h4>
           <div v-if="detailOrders.length" class="tm-orders-list">
             <div v-for="o in detailOrders" :key="o.id" class="tm-order-card">
               <div class="tm-order-header">
@@ -328,6 +340,20 @@
                for waiters and either silently bounced them off the route guard
                or, worse, hit PUT /api/orders/:id with a paymentBreakdown the
                server accepted because the head-waiter has `orders` write. -->
+          <!-- Ask for the bill: the waiter's "table X wants the check" write.
+               It stamps the table, rides the SSE channel to the cashier's
+               screen within seconds, and clears when the bill is settled or
+               the waiter retracts it. -->
+          <button
+            v-if="detailTable.status === 'occupied' && canRequestBill"
+            class="btn btn-sm"
+            :class="detailTable.bill_requested_at ? 'btn-warning' : 'btn-outline'"
+            :disabled="billRequesting"
+            @click="detailTable.bill_requested_at ? cancelBillRequest() : requestBill()"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M4 4h16v13H7l-3 3z"/><line x1="9" y1="9" x2="15" y2="9"/></svg>
+            {{ billRequesting ? '…' : (detailTable.bill_requested_at ? 'Cancel Bill Request' : 'Ask for the Bill') }}
+          </button>
           <button v-if="detailTable.status === 'occupied' && authStore?.hasPermission('checkout')" class="btn btn-outline btn-sm" @click="goToCheckout">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             Go to Checkout
@@ -1018,6 +1044,50 @@ async function deleteTable() {
   } catch { toast('Failed to delete', 'error') }
 }
 
+// ─── Bill request: the floor's "bring the check" write ───
+//
+// Who may raise one mirrors the server gate exactly (head-waiter, manager —
+// the roles holding `tables` write). The cashier is the recipient, not the
+// asker; their screen clears the request by settling the bill.
+const billRequesting = ref(false)
+const canRequestBill = computed(() => ['head-waiter', 'manager'].includes(authStore?.roleKey))
+
+function paymentLabel(state) {
+  return { paid: 'Paid', partial: 'Partly Paid', unpaid: 'Unpaid' }[state] || state
+}
+
+async function requestBill() {
+  if (!detailTable.value || billRequesting.value) return
+  billRequesting.value = true
+  try {
+    const res = await apiPost(`tables/${detailTable.value.id}/request-bill`, {})
+    detailTable.value.bill_requested_at = res?.requestedAt || new Date().toISOString()
+    const t = tables.value.find((x) => x.id === detailTable.value.id)
+    if (t) t.bill_requested_at = detailTable.value.bill_requested_at
+    toast(res?.alreadyRequested ? 'Bill already requested' : `Bill requested for table ${detailTable.value.number}`)
+  } catch (e) {
+    toast(e?.message || 'Could not request the bill', 'error')
+  } finally {
+    billRequesting.value = false
+  }
+}
+
+async function cancelBillRequest() {
+  if (!detailTable.value || billRequesting.value) return
+  billRequesting.value = true
+  try {
+    await apiPost(`tables/${detailTable.value.id}/cancel-bill-request`, {})
+    detailTable.value.bill_requested_at = ''
+    const t = tables.value.find((x) => x.id === detailTable.value.id)
+    if (t) t.bill_requested_at = ''
+    toast('Bill request cancelled')
+  } catch (e) {
+    toast(e?.message || 'Could not cancel the request', 'error')
+  } finally {
+    billRequesting.value = false
+  }
+}
+
 // ─── New Order / Checkout for table ───
 
 async function newOrderForTable() {
@@ -1340,6 +1410,57 @@ onUnmounted(() => {
 }
 :global([data-theme="dark"]) .tm-tab-badge {
   background: #b45309;
+}
+
+/* The money state of the party's checks, on the tile and in the detail
+   panel. Paid is calm (the party can leave), unpaid is the ordinary state of
+   a sitting table, partial is "some money is down". */
+.tfc-pay-badge, .tm-detail-pay {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm, 4px);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  line-height: 1.3;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tfc-pay-badge.pay-unpaid { background: rgba(245, 158, 11, .16); color: #b45309; }
+.tfc-pay-badge.pay-partial { background: rgba(59, 130, 246, .16); color: #1d4ed8; }
+.tfc-pay-badge.pay-paid { background: rgba(16, 185, 129, .16); color: #047857; }
+:global([data-theme="dark"]) .tfc-pay-badge.pay-unpaid { background: rgba(245, 158, 11, .22); color: #fbbf24; }
+:global([data-theme="dark"]) .tfc-pay-badge.pay-partial { background: rgba(59, 130, 246, .22); color: #93c5fd; }
+:global([data-theme="dark"]) .tfc-pay-badge.pay-paid { background: rgba(16, 185, 129, .22); color: #34d399; }
+.tm-detail-pay { margin-left: 10px; }
+.tm-detail-pay.pay-unpaid { background: rgba(245, 158, 11, .16); color: #b45309; }
+.tm-detail-pay.pay-partial { background: rgba(59, 130, 246, .16); color: #1d4ed8; }
+.tm-detail-pay.pay-paid { background: rgba(16, 185, 129, .16); color: #047857; }
+.tm-detail-pay.bill-requested { background: rgba(239, 68, 68, .14); color: #b91c1c; }
+
+/* The "Bill Requested" chip on the tile — the cashier's screen and the floor
+   plan must agree that somebody asked for the check. */
+.tfc-bill-req {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm, 4px);
+  background: #dc2626;
+  color: #fff;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  line-height: 1.3;
+  animation: bill-req-pulse 1.6s ease-in-out infinite;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+@keyframes bill-req-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .55; }
+}
+:global([data-theme="dark"]) .tfc-bill-req { background: #b91c1c; }
+@media (prefers-reduced-motion: reduce) {
+  .tfc-bill-req { animation: none; }
 }
 
 /* Four chips across stop being readable well before the phone breakpoint - the

@@ -131,6 +131,7 @@ import { useAuthStore } from '../stores/auth'
 const RULE_META = [
   { id: 'order-preparing-too-long', name: 'Preparing too long', watches: 'A ticket sitting in "preparing" past its window', threshold: 'warn 20 min · critical 40 min' },
   { id: 'order-new-unaccepted', name: 'Order unaccepted', watches: 'A new order nobody has accepted yet', threshold: '5 min' },
+  { id: 'order-ready-now', name: 'Ready for pickup', watches: 'A ticket waiting on the pass for its waiter', threshold: 'raised the moment it turns ready' },
   { id: 'order-ready-not-served', name: 'Ready, not served', watches: 'Food at the pass going cold', threshold: '10 min' },
   { id: 'delivery-ready-unassigned', name: 'Delivery unassigned', watches: 'A packed delivery order with no driver', threshold: '10 min' },
   { id: 'delivery-in-transit-too-long', name: 'Driver out too long', watches: 'A driver in transit past the outer limit', threshold: '45 min' },
