@@ -359,12 +359,18 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 /* â•â•â• PHASE 4: TABLE MANAGEMENT â•â•â• */
 .tm-page{} 
 .tm-toolbar-actions{display:flex;gap:8px;align-items:center}
-/* Live button — distinct from green "available" tables */
+/* Live button — distinct from green "available" tables.
+   Rectangle (--radius-sm), not a 999px pill: on a phone the coarse-pointer
+   rule gives buttons min-height:44px, and the short "Live" label plus the
+   dot made this one roughly square — a fully-rounded square is a circle,
+   which is exactly what staff were tapping. Same bug class as the zone
+   chips; same cure, refuse the full round. */
 .tm-live-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 12px; border-radius: 999px; font-size: .78rem; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 14px; border-radius: var(--radius-sm); font-size: .8rem; font-weight: 600;
+  min-height: 40px;
   border: 1.5px solid var(--border-strong); background: var(--surface);
-  color: var(--text-muted); cursor: pointer;
+  color: var(--text-muted); cursor: pointer; white-space: nowrap;
   transition: all var(--duration-fast) var(--ease);
 }
 .tm-live-btn:hover { border-color: var(--primary); color: var(--primary); }
@@ -629,8 +635,12 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
     border-top:1px solid var(--border);padding-top:12px;
     padding-bottom:calc(12px + env(safe-area-inset-bottom))}
   .tm-detail-actions .btn{flex:1 1 auto;min-height:46px;justify-content:center}
-  .tm-quick-status{gap:6px}
-  .tm-qs-btn{flex:1 1 auto;min-height:44px}
+  /* Quick status opens as a 2-up grid on phones: flex:auto in a single row
+     squeezed four status words into ~80px-wide, 44px-tall lozenges — round
+     enough to read as broken. A 40% basis gives each one a real rectangle
+     at half the row width instead. */
+  .tm-quick-status{gap:8px;flex-wrap:wrap}
+  .tm-qs-btn{flex:1 1 40%;min-height:44px;text-align:center}
 }
 
 @keyframes tmSheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}

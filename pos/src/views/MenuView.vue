@@ -799,7 +799,7 @@ async function loadData() {
    with the categories above it. */
 .course-bar{display:flex;align-items:center;gap:6px;padding:0 16px 8px;flex-shrink:0}
 .course-label{font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-right:2px}
-.course-chip{padding:5px 12px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-size:.74rem;font-weight:600;color:var(--text-muted);cursor:pointer;min-height:32px;transition:all var(--duration-fast) var(--ease)}
+.course-chip{padding:5px 12px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-size:.74rem;font-weight:600;color:var(--text-muted);cursor:pointer;min-height:32px;min-width:72px;text-align:center;transition:all var(--duration-fast) var(--ease)}
 .course-chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
 
 .cart-item-course{font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-top:2px}
@@ -863,7 +863,10 @@ async function loadData() {
 /* Category tabs */
 .menu-categories{display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;flex-shrink:0;scrollbar-width:none}
 .menu-categories::-webkit-scrollbar{display:none}
-.cat-tab{display:flex;align-items:center;gap:6px;padding:8px 14px;min-height:44px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-body);font-size:.78rem;font-weight:500;white-space:nowrap;cursor:pointer;transition:all var(--duration-fast) var(--ease);flex-shrink:0}
+/* min-width guard: short category names inside a 44px-tall 99px-radius tab
+   went square and read as circles on touch screens. ≥84px wide keeps every
+   tab at a 2:1 pill. Same fix as the tables floor's zone chips had. */
+.cat-tab{display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;min-height:44px;min-width:84px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-body);font-size:.78rem;font-weight:500;white-space:nowrap;cursor:pointer;transition:all var(--duration-fast) var(--ease);flex-shrink:0}
 .cat-tab:hover{border-color:var(--primary);color:var(--primary);background:var(--teal-50)}
 .cat-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 .cat-tab .cat-icon{font-size:1rem}

@@ -64,10 +64,19 @@
     </div>
     </div>
 
-    <!-- ═══ SECTION TABS ═══ -->
-    <div class="tm-section-tabs">
-      <button v-for="s in allSections" :key="s" class="tm-tab" :class="{ active: activeSection === s }" @click="activeSection = s">{{ s }}</button>
-    </div>
+    <!-- ═══ ZONE PICKER ═══
+       A dropdown, not a row of chips. Six zone chips wrapped to two rows of
+       pills on a phone, cost ~100px of vertical space before the floor plan,
+       and short labels ("All") kept squaring off inside a fully-rounded
+       border — the circle-button bug. A select costs one row, shows every
+       zone in the native picker (one tap to open, one to choose), and cannot
+       render as a circle because it is a rectangle by construction. -->
+    <label class="tm-zonepick">
+      <span class="tm-zonepick-label">Zone</span>
+      <select v-model="activeSection" class="tm-zonepick-select">
+        <option v-for="s in allSections" :key="s" :value="s">{{ s === 'All' ? 'All sections' : s }}</option>
+      </select>
+    </label>
 
     <!-- ═══ STATUS STRIP ═══
          Four KPI cards used to occupy the whole first screen, so the floor plan -
@@ -1382,38 +1391,56 @@ onUnmounted(() => {
   margin-left: 8px;
 }
 
-/* ═══ SECTION TABS ═══
-   These are the floor's zone chips: All / Patio / Main Hall / Window / VIP
-   Room / Bar. They used to render as CIRCLES on phones: the global stylesheet
-   also styled .tm-tab and its min-height:44px won (the rules below never set
-   min-height), while this component's small font kept the width at ~45px —
-   a roughly square button, which border-radius:999px renders as a circle.
-   styles.css no longer defines these classes, and the rules below own the
-   geometry outright. min-width guarantees at least a 2:1 pill at any label,
-   so no future tweak can square them back into bubbles. */
-.tm-section-tabs {
+/* ═══ ZONE PICKER ═══
+   Replaced the zone chip row (see the template comment for why). The select
+   is styled as a plain rectangle on purpose: --radius-sm, not 999px, so no
+   label length can ever turn it into a circle. The chevron is a data-URI so
+   appearance:none cannot leave it native and inconsistent across browsers. */
+.tm-zonepick {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 14px;
 }
-.tm-tab {
-  min-width: 84px;
-  min-height: 40px;
-  padding: 6px 16px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: transparent;
+.tm-zonepick-label {
+  font-size: .78rem;
+  font-weight: 600;
   color: var(--text-muted);
-  font-size: .85rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  flex-shrink: 0;
+}
+.tm-zonepick-select {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 1 260px;
+  min-width: 200px;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 8px 36px 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background:
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%2364748b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 14px center,
+    var(--surface);
+  color: var(--text-heading);
+  font-size: .88rem;
   font-weight: 500;
   cursor: pointer;
-  white-space: nowrap;
-  text-align: center;
-  transition: all .15s;
+  transition: border-color .15s;
 }
-.tm-tab:hover { border-color: var(--primary); color: var(--primary); }
-.tm-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.tm-zonepick-select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.tm-zonepick-select:hover { border-color: var(--border-strong); }
+:global([data-theme="dark"]) .tm-zonepick-select {
+  background:
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%2394a3b8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 14px center,
+    var(--surface);
+}
 
 /* Refresh icon button */
 .tm-refresh-btn {
