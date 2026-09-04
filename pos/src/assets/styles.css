@@ -287,6 +287,32 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .bn-item:active{background:var(--teal-50)}
 .bn-more{display:none!important}
 
+/* MORE SHEET (mobile) — Miller's law level 2 and 3: the screens that did
+   not make the bar, grouped under section headers. Inert on desktop, where
+   the More trigger is display:none. z-index 190: above the bar (150),
+   below modals (500). */
+.bn-sheet-overlay{position:fixed;inset:0;z-index:190;background:rgba(7,55,53,.45);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.bn-sheet{position:absolute;left:0;right:0;bottom:0;max-height:min(72vh,560px);background:var(--surface);border-radius:16px 16px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+.bn-sheet-handle{width:40px;height:4px;border-radius:99px;background:var(--border);margin:10px auto 0;flex-shrink:0}
+.bn-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 4px;flex-shrink:0}
+.bn-sheet-head h3{margin:0;font-size:.95rem;color:var(--text-heading)}
+.bn-sheet-close{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--border);border-radius:99px;background:var(--surface);color:var(--text-muted);cursor:pointer;flex-shrink:0}
+.bn-sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 14px 10px}
+.bn-sheet-sec-name{font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);padding:12px 4px 6px;font-weight:600}
+.bn-sheet-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.bn-sheet-item{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--surface);color:var(--text-body);font-size:.85rem;font-weight:500;cursor:pointer;text-align:left;transition:border-color var(--duration-fast) var(--ease),background var(--duration-fast) var(--ease);min-width:0}
+.bn-sheet-item svg{width:18px;height:18px;flex-shrink:0;opacity:.65}
+.bn-sheet-item.active{border-color:var(--primary);color:var(--primary);background:var(--teal-50)}
+.bn-sheet-item.active svg{opacity:1}
+.bn-sheet-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Sheet enter/leave */
+.bn-sheet-enter-active,.bn-sheet-leave-active{transition:opacity .18s ease}
+.bn-sheet-enter-active .bn-sheet,.bn-sheet-leave-active .bn-sheet{transition:transform .22s cubic-bezier(.32,.72,0,1)}
+.bn-sheet-enter-from,.bn-sheet-leave-to{opacity:0}
+.bn-sheet-enter-from .bn-sheet,.bn-sheet-leave-to .bn-sheet{transform:translateY(100%)}
+/* Page scroll lock while the sheet is open */
+body.bn-lock{overflow:hidden}
+
 /* SUMMARY */
 .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
 .summary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;text-align:center;box-shadow:var(--shadow-sm)}

@@ -91,6 +91,15 @@
     </div>
 
     <!-- Bottom Nav -->
+    <!--
+      Miller's law (7±2) applied in three levels. Level 1: the bar carries
+      FOUR destinations — the most it can hold while every label stays
+      readable on a 360px phone — plus one More: five chunks in total.
+      Level 2: More opens a sheet holding only the screens that did NOT make
+      the bar, so the app is never dumped as one wall of choices.
+      Level 3: inside the sheet, screens sit under their section headers
+      (Overview / Sales / Operations / …) — a handful of small named groups.
+    -->
     <nav class="bottom-nav">
       <button
         v-for="item in bottomItems"
@@ -102,11 +111,50 @@
         <span v-html="icons[item.icon]"></span>
         <span>{{ item.label }}</span>
       </button>
-      <button class="bn-item bn-more" @click="sidebarOpen = true">
+      <button
+        v-if="sheetItems.length"
+        class="bn-item bn-more"
+        :class="{ active: moreActive }"
+        aria-haspopup="dialog"
+        :aria-expanded="sheetOpen ? 'true' : 'false'"
+        @click="sheetOpen = true"
+      >
         <span v-html="icons['more-horizontal']"></span>
         <span>More</span>
       </button>
     </nav>
+
+    <!-- More sheet: the unpinned screens, chunked by section -->
+    <transition name="bn-sheet">
+      <div v-if="sheetOpen" class="bn-sheet-overlay" @click.self="closeSheet" @touchmove.self.prevent>
+        <div class="bn-sheet" role="dialog" aria-modal="true" aria-label="All screens">
+          <div class="bn-sheet-handle" aria-hidden="true"></div>
+          <div class="bn-sheet-head">
+            <h3>All screens</h3>
+            <button class="bn-sheet-close" @click="closeSheet" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="bn-sheet-body">
+            <section v-for="sec in sheetSections" :key="sec.name" class="bn-sheet-sec">
+              <div class="bn-sheet-sec-name">{{ sec.name }}</div>
+              <div class="bn-sheet-grid">
+                <button
+                  v-for="item in sec.items"
+                  :key="item.view"
+                  class="bn-sheet-item"
+                  :class="{ active: currentView === item.view }"
+                  @click="go(item.view)"
+                >
+                  <span class="bn-sheet-icon" v-html="icons[item.icon]"></span>
+                  <span class="bn-sheet-label">{{ item.label }}</span>
+                </button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -114,7 +162,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { NAV_ITEMS, isOnline, onOnlineChange } from '../api'
+import { NAV_ITEMS, ROLE_DEFAULT_VIEW, isOnline, onOnlineChange } from '../api'
 import { useSync } from '../composables/useSync'
 import { useOrderStore } from '../stores/order'
 import AlertsBanner from './AlertsBanner.vue'
@@ -210,6 +258,25 @@ const navSections = computed(() => {
 // don't hold a view never see it.
 const BOTTOM_PRIORITY = ['tables', 'orders', 'open-checks', 'menu-view', 'checkout', 'dashboard']
 
+// Miller's law (7±2): FOUR destinations + More = five chunks — the most a
+// thumb can parse at a glance on a 360px phone. The previous cap of five
+// items squeezed six targets into the bar and truncated every label. All
+// remaining screens live in the More sheet (sheetItems below), so nothing
+// is lost — it is one deliberate tap deeper instead of half a tap wider.
+const BAR_SLOTS = 4
+
+// The role's landing screen rides in the bar: the first screen a person
+// sees should never sit behind a More tap when they opened the app to use
+// it. Dashboard stays the exception — information-only per UX-2 above, and
+// the sidebar drawer keeps it one tap away.
+function withHomePinned(ranked) {
+  const home = ROLE_DEFAULT_VIEW[auth.roleKey]
+  if (!home || home === 'dashboard') return ranked
+  const homeItem = ranked.find(i => i.view === home)
+  if (!homeItem) return ranked
+  return [homeItem, ...ranked.filter(i => i.view !== home)]
+}
+
 const bottomItems = computed(() => {
   const priorityViews = BOTTOM_PRIORITY.filter(v => allowedItems.value.some(i => i.view === v))
   const priority = priorityViews.map(v => allowedItems.value.find(i => i.view === v))
@@ -219,7 +286,49 @@ const bottomItems = computed(() => {
   // every role holding under 5 nav items — Assistant Chef, Delivery Staff and
   // Cleaner all rendered a blank page, because :key on the <template> reads
   // item.view before the child's v-if can skip it.
-  return [...priority, ...rest].slice(0, 5)
+  return withHomePinned([...priority, ...rest]).slice(0, BAR_SLOTS)
+})
+
+// The sheet holds exactly the screens the bar does not — never a repeat of
+// a pinned destination, and never the full nav dump the sidebar drawer used
+// to be (29 items for the manager, five of them already in the bar).
+const sheetItems = computed(() => {
+  const barViews = new Set(bottomItems.value.map(i => i.view))
+  return allowedItems.value.filter(i => !barViews.has(i.view))
+})
+
+// Grouped by the same sections the sidebar uses (including the barista's
+// 'Sales'→'Tickets' rename), so the sheet reads as a handful of small named
+// chunks — eight groups of two to six screens for the manager — rather than
+// one long undifferentiated list.
+const sheetSections = computed(() => {
+  return navSections.value
+    .map(s => ({ name: s.name, items: s.items.filter(i => sheetItems.value.some(j => j.view === i.view)) }))
+    .filter(s => s.items.length)
+})
+
+// When the current screen lives in the sheet, More lights up — the user is
+// never left wondering which of the two levels owns the screen they're on.
+const moreActive = computed(() => sheetItems.value.some(i => i.view === currentView.value))
+
+const sheetOpen = ref(false)
+
+function closeSheet() { sheetOpen.value = false }
+
+function go(view) {
+  closeSheet()
+  navigate(view)
+}
+
+function onSheetKey(e) { if (e.key === 'Escape') closeSheet() }
+
+watch(sheetOpen, (open) => {
+  // Lock the page behind the sheet: a scroll started on the dimmed area
+  // must not move the screen the user is about to leave. Escape closes for
+  // the same reason a desktop dialog closes.
+  document.body.classList.toggle('bn-lock', open)
+  if (open) document.addEventListener('keydown', onSheetKey)
+  else document.removeEventListener('keydown', onSheetKey)
 })
 
 const pageTitle = computed(() => {
@@ -290,6 +399,8 @@ onUnmounted(() => {
   stopSync()
   unsub()
   document.removeEventListener('visibilitychange', recheckSession)
+  document.removeEventListener('keydown', onSheetKey)
+  document.body.classList.remove('bn-lock')
   window.removeEventListener('focus', recheckSession)
 })
 
