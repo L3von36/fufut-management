@@ -8,13 +8,22 @@
 // POST/PUT/DELETE that isn't an /api/ write (e.g. the Cloudflare Web Analytics
 // beacon POSTing to /cdn-cgi/rum on every Settle click) used to land in
 // cacheFirst, where cache.put() throws "Request method POST is unsupported".
-const CACHE = 'fufut-pos-v6'
+// v7 replaces the PWA icon set: the manifest's old hand-drawn favicon.svg
+// placeholder is gone — the real FUFUT COFFEE badge (same art as the website
+// favicon) now ships as proper 192/512 "any" + "maskable" PNGs. Bumping the
+// cache evicts the stale precached fake SVG on already-installed devices.
+const CACHE = 'fufut-pos-v7'
 // Built with `--base /`, so these live at the site root. '/pos/*' paths only
 // hit the SPA fallback and would silently precache HTML in place of assets.
 const STATIC_ASSETS = [
   '/pos/',
   '/assets/logo.webp',
-  '/favicon.svg'
+  '/manifest.json',
+  '/pwa-icon-192.png',
+  '/pwa-icon-512.png',
+  '/pwa-maskable-192.png',
+  '/pwa-maskable-512.png',
+  '/favicon.ico'
 ]
 
 // Install: precache static assets. Individually, so one missing file cannot
