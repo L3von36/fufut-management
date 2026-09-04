@@ -237,17 +237,19 @@ describe('API Client', () => {
     })
 
     // Time Clock is on every role: everyone clocks on and off, and the screen's
-    // roster half hides itself for a role that cannot read it. What these two
-    // pin is that the narrow roles stay narrow apart from that.
-    it('cleaner should only have waste, dashboard, their own time clock and their own activity', () => {
-      expect(ROLE_PERMISSIONS.cleaner).toEqual(['waste', 'dashboard', 'timeclock', 'my-activity'])
+    // roster half hides itself for a role that cannot read it. My Payslips is
+    // on every role for the same shape of reason: the server scopes
+    // /api/payroll/me to the caller, so the tab widens nothing. What these two
+    // pin is that the narrow roles stay narrow apart from those.
+    it('cleaner should only have waste, dashboard, their own time clock, their own activity and their own payslips', () => {
+      expect(ROLE_PERMISSIONS.cleaner).toEqual(['waste', 'dashboard', 'timeclock', 'my-activity', 'my-pay'])
     })
 
-    it('delivery-staff should only have delivery, dashboard, their own time clock, their own activity and the alerts read view', () => {
+    it('delivery-staff should only have delivery, dashboard, their own time clock, their own activity, their own payslips and the alerts read view', () => {
       // alerts rides along because the server grants delivery-staff alerts
       // read — a driver waiting on a packed order is exactly who the
       // delivery-unassigned rule is for. They can read the board, not sign it.
-      expect(ROLE_PERMISSIONS['delivery-staff']).toEqual(['delivery', 'dashboard', 'timeclock', 'my-activity', 'alerts'])
+      expect(ROLE_PERMISSIONS['delivery-staff']).toEqual(['delivery', 'dashboard', 'timeclock', 'my-activity', 'my-pay', 'alerts'])
     })
 
     it('ROLE_DEFAULT_VIEW should map each role to a valid view', () => {
@@ -263,8 +265,9 @@ describe('API Client', () => {
     // 27 with My Activity, which is the per-role self-performance view.
     // 28 with SLA Alerts, the manager's view of the rules engine.
     // 29 with Barista, the drinks station's own board.
+    // 30 with My Payslips, the self-service half of payroll.
     it('NAV_ITEMS covers the defined sections', () => {
-      expect(NAV_ITEMS.length).toBe(29)
+      expect(NAV_ITEMS.length).toBe(30)
       expect(NAV_ITEMS.map(n => n.view)).toContain('barista')
       expect(NAV_ITEMS.map(n => n.view)).toContain('open-checks')
       expect(NAV_ITEMS.map(n => n.view)).not.toContain('staff')

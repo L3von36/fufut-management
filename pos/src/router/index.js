@@ -97,6 +97,11 @@ const routes = [
       // expenses booked, etc.) plus a filterable activity log. The audit trail
       // is the source of truth: an actor_id-tagged slice of it is "what I did".
       { path: 'my-activity', name: 'my-activity', component: () => import('../views/MyPerformanceView.vue') },
+      // My Payslips — the self-service half of payroll. The server route
+      // (/api/payroll/me) answers the session holder's own lines only; there
+      // is no staffId parameter to pass. Granted to every role, so the tab
+      // renders wherever the person signs in.
+      { path: 'my-pay', name: 'my-pay', component: () => import('../views/MyPayslipsView.vue') },
       { path: 'alerts', name: 'alerts', component: AlertsDashboardView }
     ]
   }

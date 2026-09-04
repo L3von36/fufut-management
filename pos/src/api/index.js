@@ -233,7 +233,11 @@ export const ROLE_PERMISSIONS = {
   // 'staff' is absent deliberately: editing colleague accounts lives in the
   // backoffice, alongside Shifts, Time Clock and the audit log. Time Clock here
   // still reads the staff list to show who is on shift.
-  manager: ['dashboard', 'orders', 'open-checks', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'barista', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control', 'pipeline', 'audit', 'my-activity', 'alerts'],
+  // 'my-pay' is on every role, including this one: the self-service payslip
+  // screen. The server answers /api/payroll/me with the caller's own lines
+  // only (see SELF_SERVICE in fufut-api/src/auth.js) — a grant of 'my-pay'
+  // therefore widens nothing; it is a tab, not a permission.
+  manager: ['dashboard', 'orders', 'open-checks', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'barista', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control', 'pipeline', 'audit', 'my-activity', 'my-pay', 'alerts'],
   // menu-mgmt is granted for one action: taking a dish off when the kitchen has
   // run out. The screen itself hides adding, editing, deleting, cost and margin
   // from anyone but a manager, and the API only lets this role write the
@@ -249,10 +253,10 @@ export const ROLE_PERMISSIONS = {
   // now (barista@fufut.coffee). Drinks route to the barista board by category
   // — the chef's kitchen board already shows every ticket's food lines — so a
   // second path into the bar screen just invites re-doing the bar's work.
-  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases', 'timeclock', 'my-activity', 'alerts'],
+  'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases', 'timeclock', 'my-activity', 'my-pay', 'alerts'],
   // Cooks from the recipes, does not set them. Two people adjusting the same
   // counts is how a stock take stops reconciling.
-  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes', 'timeclock', 'my-activity', 'alerts'],
+  'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'recipes', 'timeclock', 'my-activity', 'my-pay', 'alerts'],
   // The drinks station. The board is still home — ROLE_DEFAULT_VIEW puts the
   // barista on it at sign-in, and it still renders this station's lines only —
   // but around it the role now carries the bar's supporting screens:
@@ -271,7 +275,7 @@ export const ROLE_PERMISSIONS = {
   // money. The nav-filtered views mirror the server grant exactly
   // (fufut-api/src/auth.js, ROLE_ACCESS.barista); anything wider would render
   // and then 403 on contact.
-  barista: ['barista', 'orders', 'alerts', 'waste', 'recipes', 'timeclock', 'my-activity'],
+  barista: ['barista', 'orders', 'alerts', 'waste', 'recipes', 'timeclock', 'my-activity', 'my-pay'],
   // open-checks is the waiter's own outstanding work and the cashier's queue of
   // bills to take, so both get it. It reads orders and tables, which both roles
   // already read.
@@ -287,15 +291,15 @@ export const ROLE_PERMISSIONS = {
   // with a paymentBreakdown body — which the head-waiter's `orders` write grant
   // allows through. Letting the floor see a Checkout button invited them to
   // settle bills, which contradicted the design. Cashier and manager keep it.
-  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'timeclock', 'my-activity', 'alerts'],
-  cashier: ['cashdrawer', 'orders', 'open-checks', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout', 'my-activity', 'alerts'],
-  'delivery-staff': ['delivery', 'dashboard', 'timeclock', 'my-activity', 'alerts'],
-  cleaner: ['waste', 'dashboard', 'timeclock', 'my-activity'],
+  'head-waiter': ['tables', 'orders', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'timeclock', 'my-activity', 'my-pay', 'alerts'],
+  cashier: ['cashdrawer', 'orders', 'open-checks', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout', 'my-activity', 'my-pay', 'alerts'],
+  'delivery-staff': ['delivery', 'dashboard', 'timeclock', 'my-activity', 'my-pay', 'alerts'],
+  cleaner: ['waste', 'dashboard', 'timeclock', 'my-activity', 'my-pay'],
   // §47's seventh role. Reads the financial picture and changes almost none of
   // it — the server matrix grants write on expenses alone, so every other
   // screen here is deliberately view-only. No operational screens: an
   // accountant has no business seating a table or sending a ticket.
-  accountant: ['dashboard', 'reports', 'revenue', 'pnl', 'expenses', 'analytics', 'orders', 'purchases', 'suppliers', 'timeclock', 'my-activity']
+  accountant: ['dashboard', 'reports', 'revenue', 'pnl', 'expenses', 'analytics', 'orders', 'purchases', 'suppliers', 'timeclock', 'my-activity', 'my-pay']
 }
 
 export const ROLE_DEFAULT_VIEW = {
@@ -339,6 +343,11 @@ export const NAV_ITEMS = [
   { view: 'waste', label: 'Waste Log', icon: 'trash-2', section: 'Stock' },
   { view: 'shifts', label: 'Shifts', icon: 'clock', section: 'HR' },
   { view: 'timeclock', label: 'Time Clock', icon: 'fingerprint', section: 'HR' },
+  // Self-service payslips. Sits beside Time Clock because it is the other
+  // half of "my employment": the hours on one tab, the pay on the other. The
+  // server scopes /api/payroll/me to the caller, so the tab is safe on every
+  // role — and the manager's own payslips are one tap away like anybody's.
+  { view: 'my-pay', label: 'My Payslips', icon: 'wallet', section: 'HR' },
   { view: 'reports', label: 'Reports', icon: 'file-text', section: 'Analytics' },
   { view: 'analytics', label: 'Analytics', icon: 'bar-chart-2', section: 'Analytics' },
   { view: 'checkout', label: 'Checkout', icon: 'credit-card', section: 'Sales' },
