@@ -103,6 +103,13 @@ jobs:
         run: cd admin && npx vite build --base /
       - name: Bundle Pages Functions
         run: |
+          # 404.html must be the built shell (not a static file): once the file
+          # exists, Pages serves it with a real 404 for every unmatched path,
+          # which both kills the MIME-type failure for stale asset requests and
+          # still boots the app on SPA deep links via vue-router. Copied here
+          # and not via npm postbuild because this job runs `npx vite build`
+          # directly, bypassing npm lifecycle hooks.
+          cp admin/dist/index.html admin/dist/404.html
           if [ -d admin/functions ]; then
             cp -r admin/functions admin/dist/functions
           fi
@@ -143,6 +150,13 @@ jobs:
         run: cd pos && npx vite build --base /
       - name: Bundle Pages Functions
         run: |
+          # 404.html must be the built shell (not a static file): once the file
+          # exists, Pages serves it with a real 404 for every unmatched path,
+          # which both kills the MIME-type failure for stale asset requests and
+          # still boots the app on SPA deep links via vue-router. Copied here
+          # and not via npm postbuild because this job runs `npx vite build`
+          # directly, bypassing npm lifecycle hooks.
+          cp pos/dist/index.html pos/dist/404.html
           if [ -d pos/functions ]; then
             cp -r pos/functions pos/dist/functions
           fi
@@ -245,6 +259,13 @@ jobs:
         run: cd backoffice && npx vite build --base /
       - name: Bundle Pages Functions
         run: |
+          # 404.html must be the built shell (not a static file): once the file
+          # exists, Pages serves it with a real 404 for every unmatched path,
+          # which both kills the MIME-type failure for stale asset requests and
+          # still boots the app on SPA deep links via vue-router. Copied here
+          # and not via npm postbuild because this job runs `npx vite build`
+          # directly, bypassing npm lifecycle hooks.
+          cp backoffice/dist/index.html backoffice/dist/404.html
           if [ -d backoffice/functions ]; then
             cp -r backoffice/functions backoffice/dist/functions
           fi

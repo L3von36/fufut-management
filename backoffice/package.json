@@ -10,7 +10,8 @@
     "test": "cross-env TZ=Africa/Addis_Ababa vitest run",
     "test:watch": "cross-env TZ=Africa/Addis_Ababa vitest",
     "test:e2e": "cross-env TZ=Africa/Addis_Ababa playwright test",
-    "test:all": "npm test && npm run test:e2e"
+    "test:all": "npm test && npm run test:e2e",
+    "postbuild": "cp dist/index.html dist/404.html"
   },
   "dependencies": {
     "chart.js": "^4.5.1",

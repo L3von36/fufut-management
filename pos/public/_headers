@@ -1,17 +1,18 @@
+# The app shell (and every page served from it) must never be cached. The
+# shell is the file that names which asset hashes to load, so a stale copy
+# sends the browser after files a later deploy has removed — the failure that
+# took the Tables page down. Match-all first, then override for hashed assets:
+# when two rules set the same header, the rule further down the file wins.
+/*
+  Cache-Control: no-store
+
 # Hashed assets are immutable — a new build produces a new filename, so these
 # can be cached hard and forever.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
-# The app shell must never be cached. It is the file that names which asset
-# hashes to load, so a stale copy sends the browser after files a later deploy
-# has removed — the failure that took the Tables page down.
-/
-  Cache-Control: no-store
-/index.html
-  Cache-Control: no-store
-
-# The service worker decides how everything else is cached, so it must always be
-# fetched fresh; a stale one keeps its old rules indefinitely.
+# The service worker decides how everything else is cached, so it must always
+# be fetched fresh; a stale one keeps its old rules indefinitely. (Redundant
+# with the match-all rule, but self-documenting — do not remove.)
 /sw.js
   Cache-Control: no-store
