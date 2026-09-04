@@ -1,3 +1,10 @@
+name: Build & Deploy All Apps
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
 # Action versions are the Node 24-based majors (checkout/setup-node v5, cache v6,
 # wrangler-action v4): GitHub deprecates Node 20-targeting actions and now only
 # warns while force-running them on Node 24. Pinning the current majors stops
