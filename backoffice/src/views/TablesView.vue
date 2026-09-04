@@ -14,6 +14,10 @@
           <base-button text="Back to Heatmap" variant="btn-ghost" extra-class="btn-sm" :on-click="() => { showQr = false }" />
         </template>
         <template v-else>
+          <!-- Zone editor: the floor layout is a manager decision, same as the
+               server assignments. Hidden for every other role, and the API
+               refuses writes from them anyway. -->
+          <base-button v-if="isManager" text="Manage Zones" variant="btn-secondary" extra-class="btn-sm" :on-click="openZoneEditor" />
           <base-button text="QR cards" variant="btn-secondary" extra-class="btn-sm" :on-click="openQrSheet" />
           <base-button text="Refresh" variant="btn-secondary" extra-class="btn-sm" :on-click="loadAll" />
         </template>
@@ -110,7 +114,8 @@
           <!-- Bottom info -->
           <div class="tfc-bottom">
             <div class="tfc-info-row">
-              <span class="tfc-label">{{ table.seats || table.capacity || 4 }} Persons</span>
+              <span class="tfc-zone" :title="table.section || 'No zone'">{{ table.section || 'No zone' }}</span>
+              <span class="tfc-label">&middot; {{ table.seats || table.capacity || 4 }}p</span>
             </div>
             <div v-if="table.status === 'occupied' && tableOrders(table)?.length" class="tfc-info-row">
               <span class="tfc-label">{{ tableOrders(table).length }} Order{{ tableOrders(table).length > 1 ? 's' : '' }}</span>
@@ -181,6 +186,18 @@
           </div>
         </div>
 
+        <!-- Zone: one decision per chunk. The zone select sits apart from the
+             status buttons so a move is never bundled with a status flip. -->
+        <div class="form-group zone-update-form">
+          <label>Zone</label>
+          <div class="zone-edit-row">
+            <select v-model="zoneForm.section" class="select zone-select">
+              <option v-for="z in zoneOptions" :key="z" :value="z">{{ z }}</option>
+            </select>
+            <base-button text="Move" variant="btn-secondary" extra-class="btn-sm" :on-click="saveTableZone" />
+          </div>
+        </div>
+
         <!-- Status update -->
         <div class="form-group status-update-form">
           <label>Change Status</label>
@@ -199,6 +216,89 @@
         </div>
       </div>
     </div>
+
+    <!--
+      Manage Zones.
+
+      Miller's seven-plus-or-minus-two: a screen full of decisions is a screen
+      nobody reads, so the editor is three small chunks instead of one wall —
+
+        1. the zone list itself (rename inline, reorder with arrows, delete
+           with the tap that follows),
+        2. one add-row at the bottom,
+        3. a removal panel that only exists when the zone still holds tables,
+           because that is the only moment the "where do they go" question
+           has an answer worth showing.
+
+      The counter in the header makes the nine-zone budget visible before it
+      is hit, and the API refuses a tenth zone with the same reasoning.
+    -->
+    <div v-if="zoneEditorOpen" class="modal-overlay" @click.self="closeZoneEditor">
+      <div class="modal zone-modal">
+        <div class="table-modal-header">
+          <div>
+            <h3>Manage Zones</h3>
+            <div class="modal-sub">Rename, reorder or remove the areas tables live in. Tables follow their zone when it changes.</div>
+          </div>
+          <span class="zone-counter" :class="{ 'zone-counter--full': zoneList.length >= zoneMax }">
+            {{ zoneList.length }} / {{ zoneMax }}
+          </span>
+        </div>
+
+        <!-- Chunk 1: the zones that exist -->
+        <div class="zone-list">
+          <div v-for="(z, i) in zoneList" :key="z.key" class="zone-row">
+            <span class="zone-order">
+              <button class="zone-arrow" :disabled="i === 0 || zoneSaving" title="Move up" @click="moveZone(i, -1)">&#8593;</button>
+              <button class="zone-arrow" :disabled="i === zoneList.length - 1 || zoneSaving" title="Move down" @click="moveZone(i, 1)">&#8595;</button>
+            </span>
+            <input
+              v-model="z.name"
+              class="input zone-name-input"
+              :maxlength="zoneNameMax"
+              :disabled="zoneSaving"
+              :aria-label="`Rename zone ${z.key}`"
+              @keyup.enter="commitRename(z)"
+              @blur="commitRename(z)"
+            />
+            <span class="zone-count">{{ z.count }} {{ z.count === 1 ? 'table' : 'tables' }}</span>
+            <button class="zone-delete" :disabled="zoneSaving" title="Delete zone" @click="askRemoveZone(z)">&#10005;</button>
+          </div>
+        </div>
+
+        <!-- Chunk 2: add -->
+        <div class="zone-add">
+          <input
+            v-model="zoneAddName"
+            class="input"
+            :maxlength="zoneNameMax"
+            :placeholder="`Add a zone (e.g. Terrace, max ${zoneNameMax} chars)`"
+            @keyup.enter="addZone"
+          />
+          <base-button text="Add Zone" variant="btn-primary" extra-class="btn-sm" :on-click="addZone" />
+        </div>
+
+        <!-- Chunk 3: only when a deletion needs a destination -->
+        <div v-if="zoneRemove" class="zone-remove">
+          <p>
+            <strong>&ldquo;{{ zoneRemove.name }}&rdquo;</strong> still has
+            <strong>{{ zoneRemove.count }}</strong> {{ zoneRemove.count === 1 ? 'table' : 'tables' }}.
+            Move {{ zoneRemove.count === 1 ? 'it' : 'them' }} to:
+          </p>
+          <div class="zone-remove-row">
+            <select v-model="zoneMoveTo" class="select zone-select">
+              <option v-for="z in zoneList.filter(x => x.key !== zoneRemove.key)" :key="z.key" :value="z.name">{{ z.name }}</option>
+            </select>
+            <base-button text="Move & Delete" variant="btn-primary" extra-class="btn-sm" :on-click="confirmRemoveZone" />
+            <base-button text="Cancel" variant="btn-ghost" extra-class="btn-sm" :on-click="cancelRemoveZone" />
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="closeZoneEditor">Done</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -212,9 +312,11 @@ import { formatOrderItems, shortId } from '../lib/formatters'
 import { sameTable } from '../lib/tableRef'
 import { useSSE } from '../composables/useSSE'
 import { useButtonState } from '../composables/useButtonState'
+import { useAuthStore } from '../stores/auth'
 
 const toast = inject('toast')
 const confirmDelete = inject('confirm')
+const auth = useAuthStore()
 const sse = useSSE()
 const btnState = useButtonState({ successDuration: 1500 })
 const tables = ref([])
@@ -223,6 +325,167 @@ const reservations = ref([])
 const selectedTable = ref(null)
 const statusForm = ref({ status: 'available' })
 let durationInterval = null
+
+// ─── Floor zones (sections) ───
+// Zones are data now (settings key tables.sections), edited from the Manage
+// Zones modal. The pickers here render whatever the API serves — defaults
+// when the manager has customised nothing, the stored list when they have.
+const isManager = computed(() => auth.roleKey === 'manager')
+const zoneList = ref([])            // [{ key, name, count }] — key is the stored name
+const zoneMax = ref(9)
+const zoneNameMax = ref(24)
+const zoneEditorOpen = ref(false)
+const zoneSaving = ref(false)
+const zoneAddName = ref('')
+const zoneRemove = ref(null)
+const zoneMoveTo = ref('')
+const zoneForm = ref({ section: '' })
+
+// Options for the table modal's zone select. A legacy zone that exists only
+// on this table (free text typed before zones were data) stays selectable —
+// hiding it would silently move the table on the next save.
+const zoneOptions = computed(() => {
+  const names = zoneList.value.map(z => z.name)
+  const cur = selectedTable.value?.section
+  if (cur && !names.some(n => n.toLowerCase() === cur.toLowerCase())) names.unshift(cur)
+  return names
+})
+
+async function loadZones() {
+  try {
+    const res = await apiGet('tables/sections')
+    zoneMax.value = res.max || 9
+    zoneNameMax.value = res.nameMax || 24
+    const lowerUsage = {}
+    for (const [k, v] of Object.entries(res.usage || {})) lowerUsage[k.toLowerCase()] = v
+    zoneList.value = (res.sections || []).map(n => ({
+      key: n,
+      name: n,
+      count: lowerUsage[n.toLowerCase()] || 0,
+    }))
+  } catch {
+    // Zone chrome is optional: the page still works without the list, and
+    // every write path re-checks against the server anyway.
+  }
+}
+
+function openZoneEditor() {
+  zoneRemove.value = null
+  zoneAddName.value = ''
+  zoneEditorOpen.value = true
+  loadZones()
+}
+
+function closeZoneEditor() {
+  zoneEditorOpen.value = false
+  zoneRemove.value = null
+}
+
+/** After any zone mutation: fresh list (order + counts) and fresh table cards. */
+async function refreshZoneData() {
+  await Promise.all([loadZones(), loadAll()])
+}
+
+async function commitRename(z) {
+  const to = String(z.name || '').trim()
+  if (!to || to === z.key) return
+  zoneSaving.value = true
+  try {
+    const res = await apiPost('tables/sections', { action: 'rename', from: z.key, to })
+    toast(res.tablesMoved ? `${z.key} → ${to} — ${res.tablesMoved} table${res.tablesMoved === 1 ? '' : 's'} moved with it` : `Zone renamed to ${to}`)
+    await refreshZoneData()
+  } catch (e) {
+    toast(e.message || 'Could not rename the zone', 'error')
+    z.name = z.key
+  } finally { zoneSaving.value = false }
+}
+
+async function moveZone(i, dir) {
+  const names = zoneList.value.map(z => z.name)
+  const j = i + dir
+  if (j < 0 || j >= names.length) return
+  ;[names[i], names[j]] = [names[j], names[i]]
+  zoneSaving.value = true
+  try {
+    await apiPost('tables/sections', { action: 'reorder', sections: names })
+    await loadZones()
+  } catch (e) {
+    toast(e.message || 'Could not reorder zones', 'error')
+  } finally { zoneSaving.value = false }
+}
+
+async function addZone() {
+  const name = String(zoneAddName.value || '').trim()
+  if (!name) return
+  zoneSaving.value = true
+  try {
+    await apiPost('tables/sections', { action: 'add', name })
+    zoneAddName.value = ''
+    toast(`Zone "${name}" added`)
+    await loadZones()
+  } catch (e) {
+    toast(e.message || 'Could not add the zone', 'error')
+  } finally { zoneSaving.value = false }
+}
+
+function askRemoveZone(z) {
+  if (z.count > 0) {
+    // Progressive disclosure: the destination question only exists when the
+    // zone holds tables. Empty zones go with a plain confirm.
+    const others = zoneList.value.filter(x => x.key !== z.key)
+    zoneRemove.value = z
+    zoneMoveTo.value = others.length ? others[0].name : ''
+    return
+  }
+  confirmDelete(`Delete the zone "${z.name}"?`)
+    .then(async (yes) => {
+      if (!yes) return
+      zoneSaving.value = true
+      try {
+        await apiPost('tables/sections', { action: 'remove', name: z.name })
+        toast(`Zone "${z.name}" deleted`)
+        await refreshZoneData()
+      } catch (e) {
+        toast(e.message || 'Could not delete the zone', 'error')
+      } finally { zoneSaving.value = false }
+    })
+}
+
+function cancelRemoveZone() {
+  zoneRemove.value = null
+  zoneMoveTo.value = ''
+}
+
+async function confirmRemoveZone() {
+  if (!zoneRemove.value || !zoneMoveTo.value) return
+  zoneSaving.value = true
+  try {
+    const res = await apiPost('tables/sections', {
+      action: 'remove',
+      name: zoneRemove.value.name,
+      moveTo: zoneMoveTo.value,
+    })
+    toast(`Zone deleted — ${res.tablesMoved} table${res.tablesMoved === 1 ? '' : 's'} moved to ${zoneMoveTo.value}`)
+    cancelRemoveZone()
+    await refreshZoneData()
+  } catch (e) {
+    toast(e.message || 'Could not delete the zone', 'error')
+  } finally { zoneSaving.value = false }
+}
+
+async function saveTableZone() {
+  if (!selectedTable.value) return
+  const next = String(zoneForm.value.section || '').trim()
+  if (!next || next === String(selectedTable.value.section || '').trim()) return
+  try {
+    await apiPut(`tables/${selectedTable.value.id}`, { section: next })
+    toast(`Table moved to ${next}`)
+    selectedTable.value.section = next
+    await refreshZoneData()
+  } catch (e) {
+    toast(e.message || 'Could not move the table', 'error')
+  }
+}
 
 /* Human-readable labels for table statuses, used in the status-change
    buttons inside the detail modal. Previously the buttons showed the raw
@@ -284,6 +547,7 @@ const tableDuration = computed(() => {
 
 onMounted(() => {
   loadAll()
+  loadZones()
   sse.connect('tables')
   sse.on('table_update', (data) => {
     const idx = tables.value.findIndex(t => t.id === data.id)
@@ -379,6 +643,7 @@ async function loadOrders() { try { orders.value = await apiGet('orders') } catc
 function selectTable(table) {
   selectedTable.value = table
   statusForm.value = { status: table.status || 'available' }
+  zoneForm.value = { section: table.section || '' }
 }
 
 async function updateTableStatus() {
@@ -475,6 +740,35 @@ async function updateTableStatus() {
 .tfc-label{font-weight:500}
 .tfc-amount{font-family:var(--font-mono);font-weight:700;font-size:.82rem;color:var(--text-heading)}
 
+/* ─── Zone chip on table cards ─── */
+.tfc-zone{font-weight:600;color:var(--text-heading);max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ─── Zone edit in the table modal ─── */
+.zone-update-form{margin-top:4px}
+.zone-edit-row{display:flex;gap:8px;align-items:center}
+.zone-select{min-width:180px}
+
+/* ─── Manage Zones modal ─── */
+.zone-modal{width:520px;max-height:86vh;overflow-y:auto}
+.zone-counter{font-size:.78rem;font-weight:700;color:var(--text-muted);background:var(--neutral-50);border:1px solid var(--border);border-radius:8px;padding:4px 10px;white-space:nowrap}
+.zone-counter--full{color:var(--warning);background:var(--gold-50, #FEF3C7);border-color:#FDE68A}
+.zone-list{display:flex;flex-direction:column;gap:8px;margin:14px 0 16px}
+.zone-row{display:flex;align-items:center;gap:8px}
+.zone-order{display:flex;flex-direction:column;gap:2px}
+.zone-arrow{width:22px;height:16px;line-height:1;font-size:.6rem;border:1px solid var(--border);background:var(--surface);border-radius:4px;cursor:pointer;color:var(--text-muted);padding:0}
+.zone-arrow:hover:not(:disabled){color:var(--primary);border-color:var(--primary)}
+.zone-arrow:disabled{opacity:.35;cursor:default}
+.zone-name-input{flex:1;min-width:0}
+.zone-count{font-size:.72rem;color:var(--text-muted);white-space:nowrap;min-width:52px;text-align:right}
+.zone-delete{width:26px;height:26px;border:1px solid var(--border);background:var(--surface);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:.7rem;line-height:1;padding:0;flex-shrink:0}
+.zone-delete:hover:not(:disabled){color:var(--danger);border-color:var(--danger);background:var(--red-50)}
+.zone-delete:disabled{opacity:.35;cursor:default}
+.zone-add{display:flex;gap:8px;align-items:center;border-top:1px solid var(--border);padding-top:14px}
+.zone-add .input{flex:1;min-width:0}
+.zone-remove{margin-top:14px;padding:12px;background:var(--gold-50, #FEF3C7);border:1px solid #FDE68A;border-radius:var(--radius-md)}
+.zone-remove p{margin:0 0 10px;font-size:.85rem;color:var(--text-body)}
+.zone-remove-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
 /* ─── Table Modal ─── */
 .table-modal{width:640px}
 .table-modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
@@ -511,6 +805,10 @@ async function updateTableStatus() {
   .status-buttons{flex-direction:column}
   .status-buttons .btn{width:100%}
   .heatmap-legend{justify-content:center}
+  .zone-modal{width:92vw;max-width:520px}
+  .zone-select{min-width:0;flex:1}
+  .zone-edit-row{flex-wrap:wrap}
+  .zone-edit-row .btn{margin-left:auto}
 }
 
 @media(max-width: 420px) {

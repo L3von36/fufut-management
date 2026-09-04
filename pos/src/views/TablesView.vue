@@ -423,6 +423,7 @@ import { useOrderStore } from '../stores/order'
 import { formatOrderItems } from '../lib/formatters'
 import { occupancyUrgency } from '../lib/tableUrgency'
 import { isResumableCheck, latestResumableCheck } from '../lib/openChecks'
+import { mergeSections } from '../lib/sections'
 
 const router = useRouter()
 
@@ -445,7 +446,13 @@ const { playNewOrder, playOrderReady } = useAudioAlerts()
 const tables = ref([])
 const orders = ref([])
 const loading = ref(true)
-const sections = ref(['Patio', 'Main Hall', 'Window', 'VIP Room', 'Bar'])
+// The floor's zones. Ships with the defaults so the page renders instantly
+// and works offline; the server's list (settings key tables.sections, edited
+// by the manager in the backoffice) replaces this the moment it arrives, and
+// any zone that exists only on tables is unioned in so a table can never
+// fall out of the picker because the setting moved on.
+const DEFAULT_SECTIONS = ['Patio', 'Main Hall', 'Window', 'VIP Room', 'Bar']
+const sections = ref([...DEFAULT_SECTIONS])
 const allSections = computed(() => ['All', ...sections.value])
 const activeSection = ref('All')
 const statusFilter = ref('')
@@ -809,6 +816,25 @@ async function loadTables() {
 }
 
 /**
+ * The zone list, from the same source the manager edits.
+ *
+ * Server order wins; zones found on tables but missing from the list are
+ * appended (case-insensitive), because a table whose zone vanished from the
+ * picker would be unfilterable and unassignable. A failed read — the till is
+ * offline, the request timed out — is not an error: the last known list (or
+ * the defaults) keeps the floor working.
+ */
+async function loadSections() {
+  try {
+    const res = await apiGet('tables/sections')
+    const merged = mergeSections(res?.sections, tables.value)
+    if (merged.length) sections.value = merged
+  } catch (e) {
+    console.warn('Zone list unavailable — keeping the last known zones', e?.message || e)
+  }
+}
+
+/**
  * Orders the floor plan still cares about: kitchen-flow tickets whatever their
  * payment state, plus served-but-unpaid tabs. A fulfilled ticket that HAS been
  * paid is history and stays off the board. Filtering 'fulfilled' outright —
@@ -1043,7 +1069,10 @@ function goToCheckout() {
 
 function openAddTable() {
   const maxNum = tables.value.reduce((m, t) => Math.max(m, t.number || 0), 0)
-  newTable.value = { number: maxNum + 1, name: '', capacity: 4, section: 'Main Hall', shape: 'square' }
+  // Default to the first zone the manager arranged — not a hardcoded room
+  // that may not exist on a floor they have reshaped.
+  const defaultZone = sections.value[0] || 'Main Hall'
+  newTable.value = { number: maxNum + 1, name: '', capacity: 4, section: defaultZone, shape: 'square' }
   showAddModal.value = true
 }
 
@@ -1067,6 +1096,9 @@ let pendingInterval = null
 
 onMounted(async () => {
   await Promise.all([loadTables(), loadOrders(), loadPending()])
+  // Zones read after the tables land so the first merge already unions any
+  // legacy section values sitting on rows.
+  await loadSections()
   loading.value = false
   setupSSE()
   timerInterval = setInterval(() => {
