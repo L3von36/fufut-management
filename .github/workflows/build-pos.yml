@@ -116,7 +116,15 @@ jobs:
   build-pos:
     runs-on: ubuntu-latest
     needs: test-pos
-    timeout-minutes: 10
+    # 25, not the 10 it shipped with. Measured on a real run: npm ci alone
+    # swung from 151s (test-pos, cache hit) to 423s (here, cache miss — the
+    # parallel jobs race GitHub's cache service), and the Pages upload adds
+    # ~170s on top. Total ~600s: killed at exactly the ceiling, mid-upload,
+    # so the POS quietly did not deploy and the floor kept the old build.
+    # Same failure that already bit build-admin; same cure. A job that runs
+    # out of time is indistinguishable from one that passed nothing, so give
+    # it room and let a genuine failure be what stops a deploy.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -211,7 +219,11 @@ jobs:
   build-backoffice:
     needs: e2e-backoffice
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 25 for the same reason as build-pos: its npm ci hit 421s on a cache miss
+    # in one run — under half the old ceiling, with the whole Pages upload
+    # still ahead of it. One more job that must not die quietly at a ceiling
+    # that was set from a lucky fast run.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
