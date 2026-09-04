@@ -1,9 +1,7 @@
-name: Build & Deploy All Apps
-
-on:
-  push:
-    branches: [master]
-  workflow_dispatch:
+# Action versions are the Node 24-based majors (checkout/setup-node v5, cache v6,
+# wrangler-action v4): GitHub deprecates Node 20-targeting actions and now only
+# warns while force-running them on Node 24. Pinning the current majors stops
+# the warning from ageing into a hard failure.
 
 # Required so the build-pos job can commit the freshly built assets back to
 # the repo (the "Commit built assets back" step). Without this, the default
@@ -28,8 +26,8 @@ jobs:
       run:
         working-directory: pos
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -44,7 +42,7 @@ jobs:
       # Caching it removes the download; --with-deps still runs apt, which is
       # the remaining variance.
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pos/package-lock.json') }}
@@ -76,10 +74,16 @@ jobs:
 
   build-admin:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 25, not the 10 it was born with: the admin build is small, but npm ci plus
+    # a cold upload to Pages has run past ten minutes twice now — once killed at
+    # exactly 10m01s with the timeout annotation, once cancelled mid-run. A job
+    # killed at the ceiling reports a timeout, not the step that was slow, so
+    # give it the same room test-pos and e2e-backoffice get and let a genuine
+    # failure name itself.
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -95,7 +99,7 @@ jobs:
           if [ -d admin/functions ]; then
             cp -r admin/functions admin/dist/functions
           fi
-      - uses: cloudflare/wrangler-action@v3
+      - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -107,8 +111,8 @@ jobs:
     needs: test-pos
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -127,7 +131,7 @@ jobs:
           if [ -d pos/functions ]; then
             cp -r pos/functions pos/dist/functions
           fi
-      - uses: cloudflare/wrangler-action@v3
+      - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -168,15 +172,15 @@ jobs:
     # minutes on a cold cache.
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: backoffice/package-lock.json
       - run: cd backoffice && npm ci
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('backoffice/package-lock.json') }}
@@ -202,8 +206,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
