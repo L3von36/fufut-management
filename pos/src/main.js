@@ -33,3 +33,19 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('unhandledrejection', (event) => {
   console.warn('[Unhandled Promise]:', event.reason)
 })
+
+// A deploy replaces the entire hashed-asset set. A tab still running the
+// previous shell then fails its next lazy route import, and Vite surfaces
+// that on the window as `vite:preloadError`. Reload once so the tab lands on
+// the fresh shell (the shell itself is served no-store, so one reload is
+// always enough) instead of staying broken until somebody force-quits the
+// browser. The sessionStorage guard keeps a genuinely inconsistent deploy
+// from becoming a reload loop: if another chunk fails within a minute of the
+// last bounce, stop and let the error show so it can be diagnosed.
+window.addEventListener('vite:preloadError', () => {
+  const KEY = 'pos:deploy-reload-at'
+  const last = Number(sessionStorage.getItem(KEY) || 0)
+  if (Date.now() - last < 60000) return
+  try { sessionStorage.setItem(KEY, String(Date.now())) } catch { /* private mode */ }
+  window.location.reload()
+})

@@ -1,1 +1,11 @@
+# A missing hashed asset must return a real 404, never the SPA shell.
+# The bare catch-all below answered every stale-asset request with index.html
+# (status 200, Content-Type: text/html) — for a module script that is the
+# "Expected a JavaScript-or-Wasm module script but the server responded with a
+# MIME type of text/html" failure. A deploy swaps the whole hashed-asset set,
+# so any tab holding the previous shell trips this the moment it asks for a
+# hash the new deployment no longer contains. Static assets always win over
+# redirect rules; only genuinely missing /assets/* paths reach the 404 rule.
+/assets/* /404.html 404
+
 /*  /index.html  200
