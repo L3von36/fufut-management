@@ -101,6 +101,9 @@
       (Overview / Sales / Operations / …) — a handful of small named groups.
     -->
     <nav class="bottom-nav">
+      <!-- Material 3 destination: a 24px icon inside a 64x32dp pill (the
+           "active indicator") over the label. Selection paints the pill —
+           no ticker line. -->
       <button
         v-for="item in bottomItems"
         :key="item.view"
@@ -108,18 +111,18 @@
         :class="{ active: currentView === item.view }"
         @click="navigate(item.view); sidebarOpen = false"
       >
-        <span v-html="icons[item.icon]"></span>
+        <span class="bn-pill" v-html="icons[item.icon]"></span>
         <span>{{ item.label }}</span>
       </button>
       <button
         v-if="sheetItems.length"
         class="bn-item bn-more"
-        :class="{ active: moreActive }"
+        :class="{ active: moreActive || sheetOpen }"
         aria-haspopup="dialog"
         :aria-expanded="sheetOpen ? 'true' : 'false'"
         @click="sheetOpen = true"
       >
-        <span v-html="icons['more-horizontal']"></span>
+        <span class="bn-pill" v-html="icons['more-horizontal']"></span>
         <span>More</span>
       </button>
     </nav>

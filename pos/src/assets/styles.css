@@ -276,15 +276,38 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 
 .content-wrap{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 28px 40px}
 
-/* BOTTOM NAV */
-.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:150;background:var(--surface);border-top:1.5px solid var(--border);padding:4px 0 env(safe-area-inset-bottom,4px);justify-content:space-around;align-items:stretch;box-shadow:0 -4px 20px rgba(7,55,53,.08)}
-.bn-item{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 4px;background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;transition:color var(--duration-fast) var(--ease);min-width:0;flex:1;border-radius:0;-webkit-tap-highlight-color:transparent;position:relative}
-.bn-item svg{width:22px;height:22px;opacity:.6;transition:opacity var(--duration-fast) var(--ease)}
+/* BOTTOM NAV — Material Design 3 navigation bar.
+   Container: surface-container tone (--neutral-50), no hard top border — M3
+   separates with tone; one soft shadow keeps the seam readable over busy
+   floor content. Destination: a 24px icon inside a 64x32dp pill (the
+   "active indicator") over the label, per the M3 navigation-bar spec.
+   Selection paints the pill alone — the old top ticker line is gone.
+   --teal-50 is the secondary container in BOTH themes: the dark palette
+   re-issues it as a deep teal. Press feedback is a state layer on the pill,
+   not the whole cell. The Miller cap stands: FOUR destinations + More —
+   Material's own guidance is 3-5 destinations, so the two systems agree. */
+.bottom-nav{
+  --bn-indicator:var(--teal-50);
+  --bn-indicator-press:var(--teal-100);
+  --bn-active:var(--primary);
+  --bn-inactive:var(--text-muted);
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:150;
+  background:var(--neutral-50);
+  padding:8px 8px calc(10px + env(safe-area-inset-bottom,0px));
+  justify-content:space-around;align-items:stretch;
+  box-shadow:0 -1px 0 var(--border),0 -4px 20px rgba(7,55,53,.05)
+}
+[data-theme="dark"] .bottom-nav{--bn-active:var(--teal-300)}
+.bn-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;background:none;border:none;color:var(--bn-inactive);font-size:.78rem;font-weight:500;cursor:pointer;min-width:0;flex:1;max-width:120px;min-height:44px;-webkit-tap-highlight-color:transparent;position:relative;transition:color var(--duration-fast) var(--ease)}
+.bn-pill{display:flex;align-items:center;justify-content:center;width:64px;height:32px;border-radius:999px;flex-shrink:0;transition:background-color var(--duration-fast) var(--ease)}
+.bn-item svg{width:24px;height:24px;opacity:.72;transition:opacity var(--duration-fast) var(--ease)}
 .bn-item span{line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.bn-item.active,.bn-item.router-link-active{color:var(--primary)}
+.bn-item.active,.bn-item.router-link-active{color:var(--bn-active)}
 .bn-item.active svg{opacity:1}
-.bn-item.active::after{content:'';position:absolute;top:-1.5px;left:20%;right:20%;height:2.5px;background:var(--primary);border-radius:0 0 3px 3px}
-.bn-item:active{background:var(--teal-50)}
+.bn-item.active .bn-pill{background:var(--bn-indicator)}
+.bn-item:active .bn-pill{background:var(--bn-indicator-press)}
+.bn-item:focus-visible{outline:none}
+.bn-item:focus-visible .bn-pill{outline:2px solid var(--bn-active);outline-offset:2px}
 .bn-more{display:none!important}
 
 /* MORE SHEET (mobile) — Miller's law level 2 and 3: the screens that did
@@ -292,7 +315,7 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
    the More trigger is display:none. z-index 190: above the bar (150),
    below modals (500). */
 .bn-sheet-overlay{position:fixed;inset:0;z-index:190;background:rgba(7,55,53,.45);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
-.bn-sheet{position:absolute;left:0;right:0;bottom:0;max-height:min(72vh,560px);background:var(--surface);border-radius:16px 16px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+.bn-sheet{position:absolute;left:0;right:0;bottom:0;max-height:min(72vh,560px);background:var(--surface);border-radius:28px 28px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
 .bn-sheet-handle{width:40px;height:4px;border-radius:99px;background:var(--border);margin:10px auto 0;flex-shrink:0}
 .bn-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 4px;flex-shrink:0}
 .bn-sheet-head h3{margin:0;font-size:.95rem;color:var(--text-heading)}
@@ -702,7 +725,7 @@ body.bn-lock{overflow:hidden}
   .main{margin-left:0}
   .bottom-nav{display:flex}
   .bn-more{display:flex!important}
-  .content-wrap{padding:16px;padding-bottom:80px}
+  .content-wrap{padding:16px;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
   .topbar{height:52px;padding:0 10px}
   .topbar h2{font-size:.9rem}
   .kpi-grid{grid-template-columns:1fr 1fr;gap:10px}
@@ -772,9 +795,8 @@ body.bn-lock{overflow:hidden}
   .kpi-value{font-size:1.2rem}
   .table-grid{grid-template-columns:1fr}
   .login-box{padding:28px 16px;margin:12px}
-  .bottom-nav{padding:2px 0 env(safe-area-inset-bottom,2px)}
-  .bn-item{padding:4px 2px;font-size:.78rem}
-  .bn-item svg{width:20px;height:20px}
+  .bottom-nav{padding:6px 4px calc(8px + env(safe-area-inset-bottom,0px))}
+  .bn-item{padding:2px 0;font-size:.78rem}
   /* The table â†’ card conversion now lives in the 768px block above so tablet
      portrait gets it too; only the tighter phone spacing belongs here. */
   .table-scroll tr{padding:10px}
@@ -804,7 +826,7 @@ button:focus-visible,.nav-item:focus-visible,input:focus-visible,select:focus-vi
   .btn{min-height:44px;min-width:44px}
   .btn-sm{min-height:44px;min-width:44px}
   .nav-item{min-height:48px}
-  .bn-item{min-height:48px;padding:8px 4px}
+  .bn-item{min-height:48px;padding:6px 4px}
   .bn-item svg{width:24px;height:24px}
   input,select,textarea{min-height:44px}
   .btn-icon{width:44px;height:44px}
