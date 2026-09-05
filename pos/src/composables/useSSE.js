@@ -5,6 +5,17 @@ import { getSSEUrl } from '../api'
 const MAX_RECONNECT_DELAY = 30000
 const INITIAL_RECONNECT_DELAY = 1000
 
+/**
+ * The API's quota circuit breaker mode, shared by EVERY useSSE instance via
+ * module scope — one EventSource per screen, one truth. The server emits
+ * `quota_mode` the moment degradation starts or ends, and `connected` already
+ * carries the current mode on first attach, so a tablet that mounts mid-
+ * emergency learns it without waiting for the next transition. Boards read
+ * this to explain why live updates slowed — the one case where silently
+ * freezing is worse than telling the room.
+ */
+const quotaMode = ref('normal')
+
 export function useSSE() {
   const connected = ref(false)
   const lastEvent = ref(null)
@@ -83,6 +94,29 @@ export function useSSE() {
         console.warn('SSE: failed to parse alerts_update event', err)
       }
     })
+
+    // First attach: the server states the channel's mode alongside the hello.
+    eventSource.addEventListener('connected', (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        if (data && data.mode) quotaMode.value = data.mode
+      } catch (err) {
+        console.warn('SSE: failed to parse connected event', err)
+      }
+    })
+
+    // Degradation ladder transitions (normal/conserve/emergency/critical).
+    // Emitted on start AND on the way back down, so the notice clears itself.
+    eventSource.addEventListener('quota_mode', (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        if (data && data.mode) quotaMode.value = data.mode
+        lastEvent.value = { type: 'quota_mode', data }
+        if (listeners['quota_mode']) listeners['quota_mode'].forEach(fn => fn(data))
+      } catch (err) {
+        console.warn('SSE: failed to parse quota_mode event', err)
+      }
+    })
   }
 
   function scheduleReconnect() {
@@ -121,5 +155,5 @@ export function useSSE() {
     disconnect()
   })
 
-  return { connected, lastEvent, connect, disconnect, on }
+  return { connected, lastEvent, connect, disconnect, on, quotaMode }
 }

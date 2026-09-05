@@ -1,4 +1,10 @@
 <template>
+  <div v-if="quotaNotice" class="quota-notice" :class="quotaNotice.tier" role="status">
+    <span class="quota-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </span>
+    <span class="quota-text">{{ quotaNotice.text }}</span>
+  </div>
   <div v-if="alerts.length" class="alerts-banner" :class="{ critical: hasCritical, expanded }">
     <div class="alerts-top">
       <button class="alerts-summary" @click="expanded = !expanded" :aria-expanded="expanded">
@@ -67,6 +73,22 @@ const expanded = ref(false)
 const acking = ref(null)
 const auth = useAuthStore()
 const toast = inject('toast', () => {})
+const { quotaMode } = useSSE()
+
+// The circuit breaker's human voice. A board that silently freezes looks like
+// a broken tablet; the same freeze with an explanation is a system protecting
+// its quota. Mode text mirrors the API ladder (Task 39): conserve/emergency
+// stretch the freshness window, critical stops the board's broad queries
+// entirely while orders and payments keep running.
+const quotaNotice = computed(() => {
+  if (quotaMode.value === 'conserve' || quotaMode.value === 'emergency') {
+    return { tier: 'slow', text: 'Live updates slowed to conserve quota — boards refresh less often' }
+  }
+  if (quotaMode.value === 'critical') {
+    return { tier: 'paused', text: 'Live updates paused to protect the database quota — boards show the last known state; orders and payments still work' }
+  }
+  return null
+})
 
 // Sound is for the critical tier only: a warning is the banner's job, a
 // critical is the room's. One chime per batch of new criticals — the sweep
@@ -199,6 +221,30 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.quota-notice {
+  margin: 0 16px 8px;
+  border-radius: 10px;
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: #92400e;
+  color: #fff;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+.quota-notice.paused {
+  background: #991b1b;
+}
+.quota-icon {
+  flex: none;
+  width: 17px;
+  height: 17px;
+}
+.quota-icon svg {
+  width: 100%;
+  height: 100%;
+}
 .alerts-banner {
   margin: 0 16px;
   border-radius: 10px;

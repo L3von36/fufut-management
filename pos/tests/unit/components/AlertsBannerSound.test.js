@@ -42,6 +42,9 @@ vi.mock('../../../src/composables/useSSE', () => ({
     connect: vi.fn(),
     disconnect: vi.fn(),
     on: (evt, cb) => { listeners[evt] = cb },
+    // Shared module ref in the real composable — the quota circuit-breaker
+    // mode the banner mirrors. Tests here run in 'normal'.
+    quotaMode: { value: 'normal' },
   }),
 }))
 
