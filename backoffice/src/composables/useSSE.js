@@ -1,5 +1,5 @@
 // SSE connection for real-time kitchen & table events
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { API } from '../api'
 
 const MAX_RECONNECT_DELAY = 30000
@@ -129,6 +129,16 @@ export function useSSE() {
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', handleVisibilityChange)
   }
+
+  // Mirror pos/src/composables/useSSE.js: a screen that forgets to call
+  // disconnect() must still release its listener and stream on unmount, not
+  // leak both into the next screen for the life of the tab.
+  onUnmounted(() => {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+    disconnect()
+  })
 
   return {
     connected,
