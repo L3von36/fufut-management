@@ -150,8 +150,34 @@ export function useSSE() {
     }
   }
 
+  function handleVisibilityChange() {
+    if (typeof document === 'undefined') return
+    if (document.visibilityState === 'hidden') {
+      // Pause stream when screen locks or tab goes into background to save worker connections & quota
+      if (eventSource) {
+        eventSource.close()
+        eventSource = null
+        connected.value = false
+      }
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = null
+      }
+    } else if (document.visibilityState === 'visible' && currentEventPath && !intentionalClose) {
+      // Reconnect immediately when screen unlocks
+      connect(currentEventPath)
+    }
+  }
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+  }
+
   // Auto-cleanup on component unmount if used in setup()
   onUnmounted(() => {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
     disconnect()
   })
 

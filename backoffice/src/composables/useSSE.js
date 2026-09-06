@@ -109,5 +109,37 @@ export function useSSE() {
     }
   }
 
-  return { connected, lastEvent, connect, disconnect, on }
+  function handleVisibilityChange() {
+    if (typeof document === 'undefined') return
+    if (document.visibilityState === 'hidden') {
+      if (eventSource) {
+        eventSource.close()
+        eventSource = null
+        connected.value = false
+      }
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = null
+      }
+    } else if (document.visibilityState === 'visible' && currentEventPath && !intentionalClose) {
+      connect(currentEventPath)
+    }
+  }
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+  }
+
+  return {
+    connected,
+    lastEvent,
+    connect,
+    disconnect: () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+      }
+      disconnect()
+    },
+    on
+  }
 }
