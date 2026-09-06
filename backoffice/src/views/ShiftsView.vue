@@ -113,9 +113,19 @@ const filteredShifts = computed(() => {
     }))
 })
 
+function offsetFromToday(days) {
+  const d = new Date(`${TODAY()}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
 onMounted(async () => {
-  const d = new Date(); d.setDate(d.getDate() - 7); dateFrom.value = d.toISOString().slice(0, 10)
-  const dTo = new Date(); dTo.setDate(dTo.getDate() + 7); dateTo.value = dTo.toISOString().slice(0, 10)
+  // Anchor the default window on TODAY() — the app's central date source —
+  // not a raw clock read. Both must move together: a window computed from the
+  // live clock silently filters away everything the TODAY()-pinned data (and
+  // tests) consider current.
+  dateFrom.value = offsetFromToday(-7)
+  dateTo.value = offsetFromToday(7)
   try {
     const staff = await apiGet('staff')
     staffList.value = staff || []
