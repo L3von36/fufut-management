@@ -74,6 +74,96 @@
       </div>
       <div v-else style="text-align:center;padding:16px;color:var(--text-muted);font-size:.85rem">Loading tables...</div>
     </div>
+
+    <!-- ─── Day Summary — the simulation's end-of-day scoreboard ─────────── -->
+    <!-- Mirrors the POS manager dashboard's Day Summary panel so the backoffice -->
+    <!-- has the same picture the simulation produces: customers, items cooked, -->
+    <!-- drinks made, deliveries, reviews, audit entries, peak concurrency. -->
+    <div class="day-summary">
+      <div class="card day-summary-card">
+        <div class="card-header">
+          <h3>📊 Day Summary</h3>
+          <span class="day-summary-sub">{{ daySummary.customers }} customers · {{ clock() }}</span>
+        </div>
+        <div class="day-summary-grid">
+          <div class="ds-stat">
+            <div class="ds-stat-label">Total Customers</div>
+            <div class="ds-stat-value">{{ daySummary.customers }}</div>
+            <div class="ds-stat-sub">Dine-in {{ daySummary.byType.dineIn }} · QR {{ daySummary.byType.qr }} · Takeout {{ daySummary.byType.takeout }} · Delivery {{ daySummary.byType.delivery }}</div>
+          </div>
+          <div class="ds-stat">
+            <div class="ds-stat-label">Kitchen</div>
+            <div class="ds-stat-value">{{ daySummary.itemsCooked }} <span class="ds-stat-unit">items</span></div>
+            <div class="ds-stat-sub">{{ daySummary.drinksMade }} drinks made by barista</div>
+          </div>
+          <div class="ds-stat">
+            <div class="ds-stat-label">Deliveries</div>
+            <div class="ds-stat-value">{{ daySummary.deliveriesInitiated }} <span class="ds-stat-unit">initiated</span></div>
+            <div class="ds-stat-sub">
+              <span style="color:var(--success)">{{ daySummary.deliveriesCompleted }} completed</span>
+              <span v-if="daySummary.deliveriesFailed" style="color:var(--danger)"> · {{ daySummary.deliveriesFailed }} failed</span>
+            </div>
+          </div>
+          <div class="ds-stat">
+            <div class="ds-stat-label">Reviews</div>
+            <div class="ds-stat-value">
+              {{ daySummary.reviewsCount }} <span class="ds-stat-unit">⭐ {{ daySummary.reviewsAvg }}/5</span>
+            </div>
+            <div class="ds-stat-sub">{{ operations.complaints }} complaints today</div>
+          </div>
+          <div class="ds-stat">
+            <div class="ds-stat-label">Peak Concurrency</div>
+            <div class="ds-stat-value">{{ daySummary.peakConcurrentOrders }} <span class="ds-stat-unit">orders</span></div>
+            <div class="ds-stat-sub">High-water mark today</div>
+          </div>
+          <div class="ds-stat">
+            <div class="ds-stat-label">Audit Entries</div>
+            <div class="ds-stat-value">{{ daySummary.auditEntries }}</div>
+            <div class="ds-stat-sub">Back-office activity today</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Operations panel — voids, refunds, splits, modifications, cancellations -->
+      <div class="card ops-card">
+        <div class="card-header">
+          <h3>❌ Operations</h3>
+          <span class="ops-sub">Today's voids, refunds, splits, modifications, cancellations</span>
+        </div>
+        <div class="ops-grid">
+          <div class="ops-stat">
+            <div class="ops-stat-label" style="color:var(--danger)">Voids</div>
+            <div class="ops-stat-value">{{ operations.voids }}</div>
+            <div class="ops-stat-sub">ETB {{ operations.voidsTotal.toFixed(0) }}</div>
+          </div>
+          <div class="ops-stat">
+            <div class="ops-stat-label" style="color:var(--warning)">Refunds</div>
+            <div class="ops-stat-value">{{ operations.refunds }}</div>
+            <div class="ops-stat-sub">ETB {{ operations.refundsTotal.toFixed(0) }}</div>
+          </div>
+          <div class="ops-stat">
+            <div class="ops-stat-label">Splits</div>
+            <div class="ops-stat-value">{{ operations.splits }}</div>
+            <div class="ops-stat-sub">Bill splits today</div>
+          </div>
+          <div class="ops-stat">
+            <div class="ops-stat-label">Modifications</div>
+            <div class="ops-stat-value">{{ operations.modifications }}</div>
+            <div class="ops-stat-sub">Order item updates</div>
+          </div>
+          <div class="ops-stat">
+            <div class="ops-stat-label" style="color:var(--info)">Cancellations</div>
+            <div class="ops-stat-value">{{ operations.cancellations }}</div>
+            <div class="ops-stat-sub">ETB {{ operations.cancellationsTotal.toFixed(0) }}</div>
+          </div>
+          <div class="ops-stat">
+            <div class="ops-stat-label" style="color:var(--danger)">Complaints</div>
+            <div class="ops-stat-value">{{ operations.complaints }}</div>
+            <div class="ops-stat-sub">From audit log reasons</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -106,6 +196,122 @@ const topItems = ref([])
 const tables = ref([])
 let chart = null
 let interval = null
+
+// ─── Day Summary + Operations ────────────────────────────────────────────
+// The simulation's end-of-day scoreboard, surfaced live on the backoffice
+// dashboard. Same shape as the POS manager dashboard's Day Summary panel.
+const daySummary = ref({
+  customers: 0,
+  byType: { dineIn: 0, qr: 0, takeout: 0, delivery: 0 },
+  itemsCooked: 0,
+  drinksMade: 0,
+  deliveriesInitiated: 0,
+  deliveriesCompleted: 0,
+  deliveriesFailed: 0,
+  reviewsCount: 0,
+  reviewsAvg: 0,
+  auditEntries: 0,
+  peakConcurrentOrders: 0,
+})
+const operations = ref({
+  voids: 0, voidsTotal: 0,
+  refunds: 0, refundsTotal: 0,
+  splits: 0,
+  modifications: 0,
+  cancellations: 0, cancellationsTotal: 0,
+  complaints: 0,
+})
+
+function clock() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+async function loadDaySummary() {
+  try {
+    const [allOrders, pays, reviews, deliv, audit] = await Promise.all([
+      apiGet('orders').catch(() => []),
+      apiGet('payments').catch(() => []),
+      apiGet('reviews').catch(() => []),
+      apiGet('delivery').catch(() => []),
+      apiGet('audit?limit=500').catch(() => []),
+    ])
+    const oList = Array.isArray(allOrders) ? allOrders : []
+    const payList = Array.isArray(pays) ? pays : (pays?.payments || [])
+    const revList = Array.isArray(reviews) ? reviews : []
+    const delList = Array.isArray(deliv) ? deliv : []
+    const audList = Array.isArray(audit) ? audit : []
+
+    const today = oList.filter(o => isRealOrder(o) && isToday(o.created))
+    const todayVoided = oList.filter(o => o.voided_at && isToday(o.voided_at))
+    const todayCancelled = oList.filter(o => o.status === 'cancelled' && isToday(o.created) && !o.voided_at)
+
+    const byType = {
+      dineIn: today.filter(o => o.type === 'dine-in' && o.source !== 'qr').length,
+      qr: today.filter(o => o.source === 'qr').length,
+      takeout: today.filter(o => o.type === 'takeout' || o.type === 'takeaway').length,
+      delivery: today.filter(o => o.type === 'delivery').length,
+    }
+
+    const DRINK_CATS = new Set(['C-COF','C-TEA','C-DRK','C-BAK','Coffee','Tea','Drinks','Bakery'])
+    let itemsCooked = 0, drinksMade = 0
+    for (const o of today) {
+      const lines = o.order_items || o.orderItems
+      if (Array.isArray(lines)) {
+        for (const l of lines) {
+          if (l.status === 'cancelled' || l.status === 'voided') continue
+          const qty = parseInt(l.qty) || 1
+          if (DRINK_CATS.has(l.category || '')) drinksMade += qty
+          else itemsCooked += qty
+        }
+      }
+    }
+
+    const todayDel = delList.filter(d => isToday(d.created))
+    const todayRev = revList.filter(r => isToday(r.date || r.created))
+    const reviewsAvg = todayRev.length
+      ? Math.round(todayRev.reduce((s, r) => s + (Number(r.rating) || 0), 0) / todayRev.length * 10) / 10
+      : 0
+    const auditEntries = audList.filter(a => isToday(a.at || a.created)).length
+
+    // Peak concurrent orders — sweep created→served/voided intervals.
+    let peakConcurrent = 0
+    const events = []
+    for (const o of today) {
+      const start = new Date(o.created).getTime()
+      const end = new Date(o.served_at || o.voided_at || o.updated_at || o.created).getTime()
+      events.push([start, +1], [Math.max(end, start + 1), -1])
+    }
+    events.sort((a, b) => a[0] - b[0] || b[1] - a[1])
+    let cur = 0
+    for (const [, d] of events) { cur += d; if (cur > peakConcurrent) peakConcurrent = cur }
+
+    daySummary.value = {
+      customers: today.length, byType,
+      itemsCooked, drinksMade,
+      deliveriesInitiated: todayDel.length,
+      deliveriesCompleted: todayDel.filter(d => d.status === 'delivered').length,
+      deliveriesFailed: todayDel.filter(d => d.status === 'cancelled').length,
+      reviewsCount: todayRev.length, reviewsAvg,
+      auditEntries, peakConcurrentOrders: peakConcurrent,
+    }
+
+    // Operations panel
+    const todayPays = payList.filter(p => isToday(p.created_at || p.created))
+    const refundsToday = todayPays.filter(p => Number(p.amount) < 0 || p.status === 'refunded')
+    const complaintKeywords = ['complaint', 'wrong', 'cold', 'slow', 'rude']
+    operations.value = {
+      voids: todayVoided.length,
+      voidsTotal: todayVoided.reduce((s, o) => s + (Number(o.total) || 0), 0),
+      refunds: refundsToday.length,
+      refundsTotal: refundsToday.reduce((s, p) => s + Math.abs(Number(p.amount) || 0), 0),
+      splits: oList.filter(o => o.payment_status === 'split' && isToday(o.created)).length,
+      modifications: audList.filter(a => isToday(a.at || a.created) && a.action === 'update' && a.entity === 'order_items').length,
+      cancellations: todayCancelled.length,
+      cancellationsTotal: todayCancelled.reduce((s, o) => s + (Number(o.total) || 0), 0),
+      complaints: audList.filter(a => isToday(a.at || a.created) && a.reason && complaintKeywords.some(k => String(a.reason).toLowerCase().includes(k))).length,
+    }
+  } catch (e) { console.error('Day summary load failed', e) }
+}
 
 const { displayValue: revDisplay, animateTo: animateRev } = useAnimatedNumber(800)
 const { displayValue: ordDisplay, animateTo: animateOrd } = useAnimatedNumber(600)
@@ -198,6 +404,8 @@ async function loadDashboard() {
     // Peak hours chart
     await nextTick()
     await buildPeakChart(o.filter(isRealOrder))
+    // Day Summary + Operations panel — the simulation's end-of-day scoreboard
+    loadDaySummary()
   } catch (e) { console.error(e) }
 }
 
@@ -297,4 +505,25 @@ async function buildPeakChart(orders) {
 .dash-table-cell.status-reserved .dash-table-status{color:var(--warning)}
 .dash-table-guests{font-size:.62rem;color:var(--text-heading);font-weight:500;margin-top:2px}
 .dash-table-duration{font-size:.6rem;color:var(--text-muted);font-family:var(--font-mono)}
+
+/* ─── Day Summary + Operations panels ──────────────────────────────────── */
+.day-summary{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-top:20px}
+@media(max-width:900px){.day-summary{grid-template-columns:1fr}}
+.day-summary-card,.ops-card{margin-bottom:0}
+.day-summary-sub,.ops-sub{font-size:.75rem;color:var(--text-muted);font-weight:400}
+.day-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:600px){.day-summary-grid{grid-template-columns:repeat(2,1fr)}}
+.ds-stat{padding:10px 12px;border-radius:var(--radius-sm);background:var(--neutral-50);border:1px solid var(--border)}
+.ds-stat-label{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.ds-stat-value{font-size:1.4rem;font-weight:700;color:var(--text-heading);line-height:1.1;font-variant-numeric:tabular-nums}
+.ds-stat-unit{font-size:.78rem;font-weight:500;color:var(--text-muted);margin-left:4px}
+.ds-stat-sub{font-size:.7rem;color:var(--text-muted);margin-top:3px;line-height:1.3}
+
+.ops-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:600px){.ops-grid{grid-template-columns:repeat(2,1fr)}}
+.ops-stat{padding:8px 10px;border-radius:var(--radius-sm);background:var(--neutral-50);border:1px solid var(--border)}
+.ops-stat-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;font-weight:600}
+.ops-stat-value{font-size:1.15rem;font-weight:700;color:var(--text-heading);line-height:1.1;font-variant-numeric:tabular-nums}
+.ops-stat-sub{font-size:.68rem;color:var(--text-muted);margin-top:2px}
+:global([data-theme="dark"]) .ds-stat,:global([data-theme="dark"]) .ops-stat{background:rgba(255,255,255,.03)}
 </style>

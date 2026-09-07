@@ -301,11 +301,8 @@
         </div>
         <div class="card">
           <div class="card-header"><h3>Orders Per Hour</h3></div>
-          <div v-if="ordersByHour.length" style="display:flex;align-items:flex-end;gap:4px;height:80px;padding-top:10px">
-            <div v-for="(h, i) in ordersByHour" :key="i" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-              <div :style="{ height: Math.max(4, h.count * 12) + 'px', width: '100%', background: h.count > 0 ? 'var(--primary)' : 'var(--border)', borderRadius: '3px 3px 0 0' }" :title="`${h.hour}:00 — ${h.count} orders`"></div>
-              <span style="font-size:.6rem;color:var(--text-muted)">{{ h.label }}</span>
-            </div>
+          <div v-if="ordersByHour.length" style="height:140px;padding-top:6px">
+            <canvas ref="ordersByHourChart"></canvas>
           </div>
           <div v-else class="empty-state" style="font-size:.85rem">No orders today</div>
         </div>
@@ -347,6 +344,96 @@
           </div>
         </div>
       </template>
+    </div>
+
+    <!-- ─── Day Summary (manager) — the simulation's end-of-day scoreboard ─── -->
+    <!-- Shows the same picture the full-day simulation produces: customers, -->
+    <!-- items cooked, drinks made, deliveries, reviews, audit entries, peak -->
+    <!-- concurrency. Refreshed every 30s. Visible to manager + accountant. -->
+    <div v-if="auth.roleKey === 'manager' || auth.roleKey === 'accountant'" class="day-summary">
+      <div class="card day-summary-card">
+        <div class="card-header">
+          <h3>📊 Day Summary</h3>
+          <span class="day-summary-sub">{{ daySummary.customers }} customers · {{ clock() }}</span>
+        </div>
+        <div class="day-summary-grid">
+          <div class="ds-stat">
+            <div class="ds-stat-label">Total Customers</div>
+            <div class="ds-stat-value">{{ daySummary.customers }}</div>
+            <div class="ds-stat-sub">Dine-in {{ daySummary.byType.dineIn }} · QR {{ daySummary.byType.qr }} · Takeout {{ daySummary.byType.takeout }} · Delivery {{ daySummary.byType.delivery }}</div>
+          </div>
+          <div class="ds-stat">
+            <div class="ds-stat-label">Kitchen</div>
+            <div class="ds-stat-value">{{ daySummary.itemsCooked }} <span class="ds-stat-unit">items</span></div>
+            <div class="ds-stat-sub">{{ daySummary.drinksMade }} drinks made by barista</div>
+          </div>
+          <div class="ds-stat">
+            <div class="ds-stat-label">Deliveries</div>
+            <div class="ds-stat-value">{{ daySummary.deliveriesInitiated }} <span class="ds-stat-unit">initiated</span></div>
+            <div class="ds-stat-sub">
+              <span style="color:var(--success)">{{ daySummary.deliveriesCompleted }} completed</span>
+              <span v-if="daySummary.deliveriesFailed" style="color:var(--danger)"> · {{ daySummary.deliveriesFailed }} failed</span>
+            </div>
+          </div>
+          <div class="ds-stat">
+            <div class="ds-stat-label">Reviews</div>
+            <div class="ds-stat-value">
+              {{ daySummary.reviewsCount }} <span class="ds-stat-unit">⭐ {{ daySummary.reviewsAvg }}/5</span>
+            </div>
+            <div class="ds-stat-sub">{{ operations.complaints }} complaints today</div>
+          </div>
+          <div class="ds-stat">
+            <div class="ds-stat-label">Peak Concurrency</div>
+            <div class="ds-stat-value">{{ daySummary.peakConcurrentOrders }} <span class="ds-stat-unit">orders</span></div>
+            <div class="ds-stat-sub">High-water mark today</div>
+          </div>
+          <div class="ds-stat">
+            <div class="ds-stat-label">Audit Entries</div>
+            <div class="ds-stat-value">{{ daySummary.auditEntries }}</div>
+            <div class="ds-stat-sub">Back-office activity today</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Operations panel — voids, refunds, splits, modifications, cancellations -->
+      <div class="card ops-card">
+        <div class="card-header">
+          <h3>❌ Operations</h3>
+          <span class="ops-sub">Today's voids, refunds, splits, modifications, cancellations</span>
+        </div>
+        <div class="ops-grid">
+          <div class="ops-stat">
+            <div class="ops-stat-label" style="color:var(--danger)">Voids</div>
+            <div class="ops-stat-value">{{ operations.voids }}</div>
+            <div class="ops-stat-sub">ETB {{ operations.voidsTotal.toFixed(0) }}</div>
+          </div>
+          <div class="ops-stat">
+            <div class="ops-stat-label" style="color:var(--warning)">Refunds</div>
+            <div class="ops-stat-value">{{ operations.refunds }}</div>
+            <div class="ops-stat-sub">ETB {{ operations.refundsTotal.toFixed(0) }}</div>
+          </div>
+          <div class="ops-stat">
+            <div class="ops-stat-label">Splits</div>
+            <div class="ops-stat-value">{{ operations.splits }}</div>
+            <div class="ops-stat-sub">Bill splits today</div>
+          </div>
+          <div class="ops-stat">
+            <div class="ops-stat-label">Modifications</div>
+            <div class="ops-stat-value">{{ operations.modifications }}</div>
+            <div class="ops-stat-sub">Order item updates</div>
+          </div>
+          <div class="ops-stat">
+            <div class="ops-stat-label" style="color:var(--info)">Cancellations</div>
+            <div class="ops-stat-value">{{ operations.cancellations }}</div>
+            <div class="ops-stat-sub">ETB {{ operations.cancellationsTotal.toFixed(0) }}</div>
+          </div>
+          <div class="ops-stat">
+            <div class="ops-stat-label" style="color:var(--danger)">Complaints</div>
+            <div class="ops-stat-value">{{ operations.complaints }}</div>
+            <div class="ops-stat-sub">From audit log reasons</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -398,6 +485,35 @@ const lowStockItems = ref([])
 // The cleaner's own work record — the dashboard's Waste Logged Today card.
 const recentWaste = ref([])
 const loading = ref(false)
+
+// ─── Day Summary (manager) ─────────────────────────────────────────────
+// The simulation's end-of-day scoreboard, surfaced live on the manager
+// dashboard so the manager sees the same picture the test harness produces.
+// Refreshed every 30s alongside the rest of the dashboard.
+const daySummary = ref({
+  customers: 0,
+  byType: { dineIn: 0, qr: 0, takeout: 0, delivery: 0 },
+  itemsCooked: 0,
+  drinksMade: 0,
+  deliveriesInitiated: 0,
+  deliveriesCompleted: 0,
+  deliveriesFailed: 0,
+  reviewsCount: 0,
+  reviewsAvg: 0,
+  auditEntries: 0,
+  peakConcurrentOrders: 0,
+})
+// Operations panel — voids, refunds, splits, modifications, cancellations.
+// Each shows a count + an ETB total where the money dimension exists.
+const operations = ref({
+  voids: 0, voidsTotal: 0,
+  refunds: 0, refundsTotal: 0,
+  splits: 0,
+  modifications: 0,
+  cancellations: 0, cancellationsTotal: 0,
+  complaints: 0,
+})
+const ordersByHourChart = ref(null)
 
 let charts = {}
 let interval = null
@@ -471,6 +587,11 @@ function orderSummary(o) {
 function isToday(d) {
   if (!d) return false
   return d.slice(0, 10) === TODAY()
+}
+
+// Wall-clock display for the Day Summary header — refreshes on every load.
+function clock() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 const digitalPending = ref([])
@@ -563,6 +684,9 @@ async function loadCashierExtras() {
       d.setHours(h, m, 0, 0); clockInTime.value = d.getTime()
     }
     onBreak.value = false
+    // Build the orders-per-hour chart with the freshly-computed hourly bins.
+    await nextTick()
+    await buildOrdersByHourChart()
   } catch (e) { console.error('Cashier extras load failed', e) }
 }
 
@@ -571,6 +695,152 @@ async function fetchShiftAudit() {
     const res = await apiGet('cashdrawer/shift-log')
     shiftLogs.value = res.entries || []
   } catch { shiftLogs.value = [] }
+}
+
+// ─── Day Summary + Operations (manager) ──────────────────────────────────
+// Mirrors the simulation's end-of-day scoreboard. Computed client-side from
+// the same endpoints the simulation queried: orders, payments, tips, reviews,
+// delivery, audit. Refreshed every 30s alongside the rest of the dashboard.
+// The manager role is the only one with read access to all of these — the
+// accountant could see most of it but the manager dashboard is where the
+// floor owner looks.
+async function loadDaySummary() {
+  if (auth.roleKey !== 'manager' && auth.roleKey !== 'accountant') return
+  try {
+    // Fire all the reads in parallel; each fails to an empty list on its own.
+    const [allOrders, pays, tips, reviews, deliv, audit] = await Promise.all([
+      apiGet('orders').catch(() => []),
+      apiGet('payments').catch(() => []),
+      apiGet('tips').catch(() => []),
+      apiGet('reviews').catch(() => []),
+      apiGet('delivery').catch(() => []),
+      apiGet('audit?limit=500').catch(() => []),
+    ])
+    const oList = Array.isArray(allOrders) ? allOrders : []
+    const payList = Array.isArray(pays) ? pays : (pays?.payments || [])
+    const tipList = Array.isArray(tips) ? tips : []
+    const revList = Array.isArray(reviews) ? reviews : []
+    const delList = Array.isArray(deliv) ? deliv : []
+    const audList = Array.isArray(audit) ? audit : []
+
+    // Today's real orders only — voided and cancelled parents are history.
+    const today = oList.filter(o => isRealOrder(o) && isToday(o.created))
+    const todayVoided = oList.filter(o => o.voided_at && isToday(o.voided_at))
+    const todayCancelled = oList.filter(o => o.status === 'cancelled' && isToday(o.created) && !o.voided_at)
+
+    // By order type — dine-in (waiter-taken), QR, takeout, delivery.
+    // QR orders carry source='qr'; waiter-taken dine-in is the rest of type='dine-in'.
+    const byType = {
+      dineIn: today.filter(o => o.type === 'dine-in' && o.source !== 'qr').length,
+      qr: today.filter(o => o.source === 'qr').length,
+      takeout: today.filter(o => o.type === 'takeout' || o.type === 'takeaway').length,
+      delivery: today.filter(o => o.type === 'delivery').length,
+    }
+
+    // Items cooked + drinks made — count order_items on today's orders by category.
+    // The barista's station handles Coffee/Tea/Drinks/Bakery; the kitchen handles
+    // Breakfast/Mains/Sides/Desserts. This mirrors lib/drinks.js's word list.
+    const DRINK_CATS = new Set(['C-COF','C-TEA','C-DRK','C-BAK','Coffee','Tea','Drinks','Bakery'])
+    let itemsCooked = 0
+    let drinksMade = 0
+    for (const o of today) {
+      const lines = o.order_items || o.orderItems
+      if (Array.isArray(lines)) {
+        for (const l of lines) {
+          if (l.status === 'cancelled' || l.status === 'voided') continue
+          const cat = l.category || ''
+          const qty = parseInt(l.qty) || 1
+          if (DRINK_CATS.has(cat)) drinksMade += qty
+          else itemsCooked += qty
+        }
+      }
+    }
+
+    // Deliveries — initiated today (created today), completed (status=delivered),
+    // failed (status=cancelled). The lifecycle covers the rest.
+    const todayDel = delList.filter(d => isToday(d.created))
+    const deliveriesInitiated = todayDel.length
+    const deliveriesCompleted = todayDel.filter(d => d.status === 'delivered').length
+    const deliveriesFailed = todayDel.filter(d => d.status === 'cancelled').length
+
+    // Reviews — count + average rating for today.
+    const todayRev = revList.filter(r => isToday(r.date || r.created))
+    const reviewsCount = todayRev.length
+    const reviewsAvg = reviewsCount
+      ? Math.round(todayRev.reduce((s, r) => s + (Number(r.rating) || 0), 0) / reviewsCount * 10) / 10
+      : 0
+
+    // Audit entries today — the manager's "how busy was the back office" count.
+    const auditEntries = audList.filter(a => isToday(a.at || a.created)).length
+
+    // Peak concurrent orders — the high-water mark of simultaneous open tickets
+    // today. Computed by sweeping created→served/voided intervals: each order
+    // contributes +1 at its created timestamp and -1 at its terminal timestamp.
+    // O(n²) over today's orders, which is fine for a single-day window.
+    let peakConcurrent = 0
+    const events = []
+    for (const o of today) {
+      const start = new Date(o.created).getTime()
+      const endStr = o.served_at || o.voided_at || o.updated_at || o.created
+      const end = new Date(endStr).getTime()
+      events.push([start, +1])
+      events.push([Math.max(end, start + 1), -1])
+    }
+    events.sort((a, b) => a[0] - b[0] || b[1] - a[1])  // -1 before +1 at same ts
+    let cur = 0
+    for (const [, delta] of events) {
+      cur += delta
+      if (cur > peakConcurrent) peakConcurrent = cur
+    }
+
+    daySummary.value = {
+      customers: today.length,
+      byType,
+      itemsCooked,
+      drinksMade,
+      deliveriesInitiated,
+      deliveriesCompleted,
+      deliveriesFailed,
+      reviewsCount,
+      reviewsAvg,
+      auditEntries,
+      peakConcurrentOrders: peakConcurrent,
+    }
+
+    // Operations panel — voids, refunds, splits, modifications, cancellations.
+    // Each is a count + an ETB total where the money dimension exists.
+    const todayPays = payList.filter(p => isToday(p.created_at || p.created))
+    const refundsToday = todayPays.filter(p => Number(p.amount) < 0 || p.status === 'refunded')
+    const splitsToday = oList.filter(o => o.payment_status === 'split' && isToday(o.created))
+    // Modifications = audit entries that updated an order_item today.
+    const modsToday = audList.filter(a =>
+      isToday(a.at || a.created) &&
+      a.action === 'update' &&
+      a.entity === 'order_items'
+    )
+    // Complaints = audit entries with a reason containing 'complaint' or
+    // refund reasons mentioning 'complaint'/'wrong'/'cold'/'slow'. This is a
+    // heuristic — the API has no first-class complaint entity.
+    const complaintKeywords = ['complaint', 'wrong', 'cold', 'slow', 'rude']
+    const complaints = audList.filter(a =>
+      isToday(a.at || a.created) &&
+      a.reason && complaintKeywords.some(k => String(a.reason).toLowerCase().includes(k))
+    ).length
+
+    operations.value = {
+      voids: todayVoided.length,
+      voidsTotal: todayVoided.reduce((s, o) => s + (Number(o.total) || 0), 0),
+      refunds: refundsToday.length,
+      refundsTotal: refundsToday.reduce((s, p) => s + Math.abs(Number(p.amount) || 0), 0),
+      splits: splitsToday.length,
+      modifications: modsToday.length,
+      cancellations: todayCancelled.length,
+      cancellationsTotal: todayCancelled.reduce((s, o) => s + (Number(o.total) || 0), 0),
+      complaints,
+    }
+  } catch (e) {
+    console.error('Day summary load failed', e)
+  }
 }
 
 async function fetchDigitalPending() {
@@ -658,6 +928,65 @@ async function buildPayBreakdownChart(methods) {
   })
 }
 
+// ─── Orders-per-hour chart (Chart.js replaces the old inline div bars) ────
+// The inline-div version had no tooltips, no axis labels, and no animations.
+// The Chart.js bar chart below has a gradient fill, ETB tooltips on hover,
+// and animates in on every refresh. Replaces the inline divs in the cashier
+// extras template section.
+async function buildOrdersByHourChart() {
+  if (!ordersByHourChart.value) return
+  const Chart = await _loadChart()
+  if (charts.ordersByHour) charts.ordersByHour.destroy()
+  const labels = ordersByHour.value.map(h => h.label)
+  const data = ordersByHour.value.map(h => h.count)
+  // Gradient fill — primary teal fading down. The chart's ctx is only
+  // available after the canvas is mounted, so we read it here. Mocks in
+  // tests may return null from getContext; fall back to flat color.
+  const ctx = ordersByHourChart.value.getContext && ordersByHourChart.value.getContext('2d')
+  const gradient = ctx
+    ? (() => { const g = ctx.createLinearGradient(0, 0, 0, 120); g.addColorStop(0, 'rgba(15,123,120,0.9)'); g.addColorStop(1, 'rgba(24,180,183,0.35)'); return g })()
+    : 'rgba(15,123,120,0.7)'
+  const hoverGradient = ctx
+    ? (() => { const g = ctx.createLinearGradient(0, 0, 0, 120); g.addColorStop(0, 'rgba(15,123,120,1)'); g.addColorStop(1, 'rgba(24,180,183,0.55)'); return g })()
+    : 'rgba(15,123,120,1)'
+  charts.ordersByHour = new Chart(ordersByHourChart.value, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Orders',
+        data,
+        backgroundColor: gradient,
+        hoverBackgroundColor: hoverGradient,
+        borderRadius: 6,
+        maxBarThickness: 22,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 600, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const idx = items[0].dataIndex
+              const h = ordersByHour.value[idx]
+              return `${h.hour}:00 – ${h.hour + 1}:00`
+            },
+            label: (item) => `${item.parsed.y} order${item.parsed.y === 1 ? '' : 's'}`,
+          },
+        },
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0, font: { size: 10 } } },
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      },
+    },
+  })
+}
+
 onMounted(async () => {
   await loadDashboard()
   const role = auth.roleKey
@@ -711,6 +1040,13 @@ async function loadDashboard() {
     if (auth.roleKey === 'cashier') {
       fetchTillStatus()
       fetchTopItems()
+    }
+    // Manager + accountant: the Day Summary + Operations panels pull from
+    // orders/payments/tips/reviews/delivery/audit in parallel. Only roles
+    // with audit read access can run this — the API enforces it server-side,
+    // and each fetch falls back to an empty list on 403.
+    if (auth.roleKey === 'manager' || auth.roleKey === 'accountant') {
+      loadDaySummary()
     }
 
     // Voided and cancelled orders are audit history, not today's revenue —
@@ -979,16 +1315,43 @@ async function buildCharts() {
     expData.push(expenses.value.filter(e => e.date === ds).reduce((s,e) => s + parseFloat(e.amount||0), 0))
   }
 
+  // Gradient fills for the revenue bars — teal fading down — and gold for
+  // expenses. The canvas ctx may be null in a test environment that mocks
+  // the canvas element without a 2d context; fall back to flat colors.
+  const revCtx = revenueChart.value.getContext && revenueChart.value.getContext('2d')
+  const revGradient = revCtx
+    ? (() => { const g = revCtx.createLinearGradient(0, 0, 0, 200); g.addColorStop(0, 'rgba(15,123,120,0.95)'); g.addColorStop(1, 'rgba(15,123,120,0.35)'); return g })()
+    : 'rgba(15,123,120,0.7)'
+  const expGradient = revCtx
+    ? (() => { const g = revCtx.createLinearGradient(0, 0, 0, 200); g.addColorStop(0, 'rgba(214,179,106,0.95)'); g.addColorStop(1, 'rgba(214,179,106,0.35)'); return g })()
+    : 'rgba(214,179,106,0.7)'
+
   charts.revenue = new Chart(revenueChart.value, {
     type: 'bar',
     data: {
       labels: days,
       datasets: [
-        { label: 'Revenue', data: revData, backgroundColor: 'rgba(15,123,120,.7)', borderRadius: 6 },
-        { label: 'Expenses', data: expData, backgroundColor: 'rgba(214,179,106,.7)', borderRadius: 6 }
+        { label: 'Revenue', data: revData, backgroundColor: revGradient, hoverBackgroundColor: 'rgba(15,123,120,1)', borderRadius: 6, maxBarThickness: 32 },
+        { label: 'Expenses', data: expData, backgroundColor: expGradient, hoverBackgroundColor: 'rgba(214,179,106,1)', borderRadius: 6, maxBarThickness: 32 }
       ]
     },
-    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      animation: { duration: 700, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: (item) => `${item.dataset.label}: ETB ${Math.round(item.parsed.y).toLocaleString()}`,
+          },
+        },
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { font: { size: 10 }, callback: (v) => 'ETB ' + v } },
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+      },
+    }
   })
 
   // Expense breakdown pie (use already-fetched data)
@@ -1095,4 +1458,27 @@ async function buildCharts() {
 .bill-req-meta{font-size:.76rem;color:var(--text-muted)}
 @media (prefers-reduced-motion: reduce){.bill-req-pulse{animation:none}}
 :global([data-theme="dark"]) .bill-req-card{background:rgba(245,158,11,.1)}
+
+/* ─── Day Summary + Operations panels (manager/accountant) ──────────────── */
+/* The simulation's end-of-day scoreboard, surfaced live on the dashboard. */
+/* Two cards side-by-side on desktop, stacked on mobile. */
+.day-summary{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-top:20px}
+@media(max-width:900px){.day-summary{grid-template-columns:1fr}}
+.day-summary-card,.ops-card{margin-bottom:0}
+.day-summary-sub,.ops-sub{font-size:.75rem;color:var(--text-muted);font-weight:400}
+.day-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:600px){.day-summary-grid{grid-template-columns:repeat(2,1fr)}}
+.ds-stat{padding:10px 12px;border-radius:var(--radius-sm);background:var(--neutral-50);border:1px solid var(--border)}
+.ds-stat-label{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.ds-stat-value{font-size:1.4rem;font-weight:700;color:var(--text-heading);line-height:1.1;font-variant-numeric:tabular-nums}
+.ds-stat-unit{font-size:.78rem;font-weight:500;color:var(--text-muted);margin-left:4px}
+.ds-stat-sub{font-size:.7rem;color:var(--text-muted);margin-top:3px;line-height:1.3}
+
+.ops-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:600px){.ops-grid{grid-template-columns:repeat(2,1fr)}}
+.ops-stat{padding:8px 10px;border-radius:var(--radius-sm);background:var(--neutral-50);border:1px solid var(--border)}
+.ops-stat-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;font-weight:600}
+.ops-stat-value{font-size:1.15rem;font-weight:700;color:var(--text-heading);line-height:1.1;font-variant-numeric:tabular-nums}
+.ops-stat-sub{font-size:.68rem;color:var(--text-muted);margin-top:2px}
+:global([data-theme="dark"]) .ds-stat,:global([data-theme="dark"]) .ops-stat{background:rgba(255,255,255,.03)}
 </style>
