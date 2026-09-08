@@ -226,6 +226,16 @@ jobs:
       - name: Install Playwright browser
         run: cd backoffice && npx playwright install chromium
         timeout-minutes: 6
+      # Restore the dev-server index.html from the source template, same as
+      # test-pos does. The committed index.html may be a built version with
+      # stale asset hashes (if a build step ran and committed the output); the
+      # vite dev server can't resolve built hashes, so the E2E tests all fail
+      # with "Failed to load url /backoffice/assets/index-XXX.js".
+      - name: Restore dev index.html
+        run: |
+          if [ -f backoffice/index.html.source ]; then
+            cp backoffice/index.html.source backoffice/index.html
+          fi
       - name: E2E Backoffice
         run: cd backoffice && npx playwright test --reporter=list
         timeout-minutes: 8

@@ -2,6 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 
+// Mock ECharts — the test environment (happy-dom) doesn't support the canvas
+// APIs ECharts needs. ReportsView (mounted at line 314) dynamically imports
+// ECharts in its onMounted hook; without this mock the animation loop fires
+// after the test completes and crashes with "Cannot read properties of null
+// (reading 'clearRect')", producing an unhandled error that fails the CI step.
+vi.mock('echarts', () => ({
+  init: vi.fn(() => ({ setOption: vi.fn(), dispose: vi.fn(), resize: vi.fn() })),
+  graphic: { LinearGradient: class { constructor() {} } },
+}))
+
 /**
  * Regression tests for the second cashier mobile audit pass (2026-08-27,
  * evening) — findings N2..N6, all found live on an iPhone 14 viewport.
