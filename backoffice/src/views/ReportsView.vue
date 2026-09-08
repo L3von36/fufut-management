@@ -113,12 +113,23 @@ const receiptId = ref('')
 let charts = {}
 
 onMounted(loadData)
+let resizeObserver = null
 onUnmounted(() => {
   // Dispose every ECharts instance — the library attaches listeners and
   // canvas resize observers to the DOM; without this they leak across
   // route changes.
   Object.values(charts).forEach(c => c && c.dispose && c.dispose())
   charts = {}
+  // Remove the window resize listener (the POS file does this; the backoffice
+  // was missing it, so every route change leaked a stale listener).
+  if (window.__echartsResize) {
+    window.removeEventListener('resize', window.__echartsResize)
+    delete window.__echartsResize
+  }
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 
 async function loadData() {
@@ -171,7 +182,7 @@ async function buildCharts(orders, expenses, pays) {
       tooltip: {
         trigger: 'axis',
         backgroundColor: 'rgba(15,23,42,.92)',
-        borderWidth: 0,
+        borderWidth: 0, confine: true,
         textStyle: { color: '#F8FAFC', fontSize: 12 },
         axisPointer: { type: 'line', lineStyle: { color: '#CBD5E1', type: 'dashed' } },
         formatter: (params) => {
@@ -272,7 +283,7 @@ async function buildCharts(orders, expenses, pays) {
       tooltip: {
         trigger: 'item',
         backgroundColor: 'rgba(15,23,42,.92)',
-        borderWidth: 0,
+        borderWidth: 0, confine: true,
         textStyle: { color: '#F8FAFC', fontSize: 12 },
         formatter: (p) =>
           `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
@@ -325,7 +336,7 @@ async function buildCharts(orders, expenses, pays) {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
         backgroundColor: 'rgba(15,23,42,.92)',
-        borderWidth: 0,
+        borderWidth: 0, confine: true,
         textStyle: { color: '#F8FAFC', fontSize: 12 },
         formatter: (params) => {
           const p = params[0]
@@ -396,7 +407,7 @@ async function buildCharts(orders, expenses, pays) {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
         backgroundColor: 'rgba(15,23,42,.92)',
-        borderWidth: 0,
+        borderWidth: 0, confine: true,
         textStyle: { color: '#F8FAFC', fontSize: 12 },
         formatter: (params) => {
           const p = params[0]
@@ -445,6 +456,16 @@ async function buildCharts(orders, expenses, pays) {
   if (!window.__echartsResize) {
     window.__echartsResize = () => Object.values(charts).forEach(c => c && c.resize && c.resize())
     window.addEventListener('resize', window.__echartsResize)
+  }
+  // ResizeObserver: sidebar toggles and container width changes don't
+  // fire a window.resize event, so observe the chart containers directly.
+  if (!resizeObserver) {
+    resizeObserver = new ResizeObserver(() => {
+      Object.values(charts).forEach(c => c && c.resize && c.resize())
+    })
+    Object.values({ reportChart, statusChart, payChart, hourChart }).forEach(r => {
+      if (r.value) resizeObserver.observe(r.value)
+    })
   }
 }
 

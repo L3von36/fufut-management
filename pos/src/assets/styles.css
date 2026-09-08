@@ -147,7 +147,10 @@ tr:hover td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
 .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
 .chart-card{background:var(--surface);border-radius:var(--radius-md);padding:20px;box-shadow:var(--shadow-card);border:1px solid var(--border)}
 .chart-card h3{font-size:.85rem;color:var(--text-heading);margin-bottom:14px;font-weight:600}
-.chart-card canvas{max-height:220px;max-width:100%}
+/* ECharts canvases are sized by their container via echarts.init(); do not
+   clip them. The old max-height was a Chart.js leftover that silently hid
+   the bottom 100px of every chart (legends, visualMap, bottom axis labels). */
+.chart-card canvas{max-width:100%}
 
 /* TABLES */
 .table-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
@@ -779,7 +782,9 @@ body.bn-lock{overflow:hidden}
   /* Charts: shorter canvases and tighter padding so a chart card does not eat
      a whole phone screen. */
   .chart-card{padding:14px}
-  .chart-card canvas{max-height:180px}
+  /* ECharts canvases should not be clipped on mobile either — the container
+     drives the size. The old max-height:180px hid the heatmap's visualMap
+     and the bottom axis labels on phone screens. */
   .chart-card h3{font-size:.95rem}
 
   /* Date-range / filter rows stack instead of overflowing. */

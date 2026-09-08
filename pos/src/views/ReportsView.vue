@@ -121,13 +121,13 @@
     <!-- 3. Heatmap: Orders by Day-of-Week × Hour (30 days) — a 7×24 grid     -->
     <!--    where each cell's color intensity = order count. The manager sees  -->
     <!--    rush patterns at a glance: dark cells = peak, light = quiet.       -->
-    <div class="card chart-card" style="margin-top:16px">
+    <div class="card chart-card chart-card--wide">
       <h3>🔥 Orders by Day × Hour (30 days)</h3>
-      <div ref="heatmapChart" class="echart-box" style="height:280px"></div>
+      <div ref="heatmapChart" class="echart-box echart-box--heatmap"></div>
     </div>
 
     <!-- ─── Staff Performance + Hourly Distribution (existing, kept) ───────── -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+    <div class="staff-hourly-grid">
       <div class="card">
         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
           <h3>Staff Performance</h3>
@@ -143,10 +143,10 @@
       </div>
       <div class="card">
         <div class="card-header"><h3>Hourly Activity Distribution</h3></div>
-        <div v-if="hourlyData.length" style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding-top:8px">
-          <div v-for="h in hourlyData" :key="h.hour" style="text-align:center;padding:6px;background:var(--surface);border:1px solid var(--border);border-radius:4px">
-            <div style="font-size:.68rem;color:var(--text-muted)">{{ h.hour }}:00</div>
-            <div style="font-size:.85rem;font-weight:700">{{ h.orders }}</div>
+        <div v-if="hourlyData.length" class="hourly-mini-grid">
+          <div v-for="h in hourlyData" :key="h.hour" class="hourly-mini-cell">
+            <div class="hourly-mini-hour">{{ h.hour }}:00</div>
+            <div class="hourly-mini-count">{{ h.orders }}</div>
           </div>
         </div>
         <div v-else-if="hourlyLoaded" class="empty-state" style="padding:24px"><div>No hourly activity in this period.</div></div>
@@ -319,7 +319,7 @@ async function buildCharts() {
       grid: { left: 50, right: 16, top: 30, bottom: 50 },
       legend: { data: ['Revenue', 'Expenses'], bottom: 0, icon: 'roundRect', itemWidth: 14, itemHeight: 8, textStyle: { fontSize: 12, color: '#475569' } },
       tooltip: {
-        trigger: 'axis', backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 },
+        trigger: 'axis', backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 }, confine: true,
         axisPointer: { type: 'line', lineStyle: { color: '#CBD5E1', type: 'dashed' } },
         formatter: (params) => params.map(p => `<div style="display:flex;justify-content:space-between;gap:14px"><span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color}"></span>${p.seriesName}</span><strong>ETB ${p.value.toLocaleString()}</strong></div>`).join(''),
       },
@@ -342,7 +342,7 @@ async function buildCharts() {
     charts.status.setOption({
       animation: true, animationDuration: 900, animationEasing: 'cubicOut',
       legend: { orient: 'vertical', right: 10, top: 'center', icon: 'circle', itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 12, color: '#475569' } },
-      tooltip: { trigger: 'item', backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 },
+      tooltip: { trigger: 'item', backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 }, confine: true,
         formatter: (p) => `<div style="font-weight:600">${p.name}</div><div>${p.value} order${p.value === 1 ? '' : 's'} · <strong>${p.percent}%</strong></div>` },
       series: [{
         type: 'pie', radius: ['38%', '70%'], center: ['38%', '50%'], roseType: 'radius',
@@ -368,7 +368,7 @@ async function buildCharts() {
     charts.pay.setOption({
       animation: true, animationDuration: 700, animationEasing: 'cubicOut',
       grid: { left: 80, right: 50, top: 20, bottom: 20 },
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 }, confine: true,
         formatter: (params) => `<div style="font-weight:600;text-transform:capitalize">${params[0].name}</div><div>ETB ${params[0].value.toLocaleString()}</div>` },
       xAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: '#E2E8F0', type: 'dashed' } }, axisLabel: { color: '#64748B', fontSize: 11, formatter: (v) => v >= 1000 ? (v/1000).toFixed(0)+'k' : v } },
       yAxis: { type: 'category', data: methodLabels, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#475569', fontSize: 12, formatter: (v) => v.charAt(0).toUpperCase() + v.slice(1) } },
@@ -396,7 +396,7 @@ async function buildCharts() {
     charts.hour.setOption({
       animation: true, animationDuration: 800, animationEasing: 'cubicOut',
       grid: { left: 40, right: 16, top: 20, bottom: 40 },
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 }, confine: true,
         formatter: (params) => `<div style="font-weight:600">${params[0].name}:00 – ${params[0].name}:59</div><div>${params[0].value} order${params[0].value === 1 ? '' : 's'}</div>` },
       xAxis: { type: 'category', data: Array.from({ length: 24 }, (_, h) => String(h)), axisLine: { lineStyle: { color: '#CBD5E1' } }, axisTick: { show: false }, axisLabel: { color: '#64748B', fontSize: 10, interval: 2 } },
       yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: '#E2E8F0', type: 'dashed' } }, axisLabel: { color: '#64748B', fontSize: 11 } },
@@ -428,7 +428,7 @@ async function buildCharts() {
       grid: { left: 50, right: 16, top: 40, bottom: 50 },
       legend: { bottom: 0, icon: 'roundRect', itemWidth: 14, itemHeight: 8, textStyle: { fontSize: 12, color: '#475569' } },
       tooltip: {
-        trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 },
+        trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 }, confine: true,
         formatter: (params) => {
           const total = params.reduce((s, p) => s + p.value, 0)
           const lines = params.map(p => `<div style="display:flex;justify-content:space-between;gap:14px"><span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${p.color}"></span>${p.seriesName}</span><strong>ETB ${p.value.toLocaleString()}</strong></div>`)
@@ -459,7 +459,7 @@ async function buildCharts() {
       xAxis: { type: 'category', show: false, data: sparkLabels, boundaryGap: false },
       yAxis: { type: 'value', show: false },
       tooltip: {
-        trigger: 'axis', backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 },
+        trigger: 'axis', backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 }, confine: true,
         formatter: (params) => `<div style="font-weight:600">${params[0].axisValueLabel}</div><div>ETB ${params[0].value.toLocaleString()}</div>`,
         axisPointer: { type: 'line', lineStyle: { color: '#CBD5E1', type: 'dashed' } },
       },
@@ -511,17 +511,19 @@ async function buildCharts() {
   }
   if (heatmapChart.value) {
     charts.heatmap = echarts.init(heatmapChart.value)
+    const isNarrow = heatmapChart.value.clientWidth < 480
     charts.heatmap.setOption({
       animation: true, animationDuration: 600,
-      grid: { left: 50, right: 20, top: 20, bottom: 40 },
+      grid: { left: isNarrow ? 28 : 50, right: isNarrow ? 10 : 20, top: 16, bottom: isNarrow ? 40 : 36, containLabel: true },
       tooltip: {
-        backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 },
+        backgroundColor: 'rgba(15,23,42,.92)', borderWidth: 0, textStyle: { color: '#F8FAFC', fontSize: 12 }, confine: true,
+        confine: true,
         formatter: (p) => `<div style="font-weight:600">${dayNames[p.value[0]]} ${String(p.value[1]).padStart(2,'0')}:00</div><div>${p.value[2]} order${p.value[2] === 1 ? '' : 's'}</div>`,
       },
       xAxis: {
         type: 'category', data: Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0')),
         axisLine: { lineStyle: { color: '#CBD5E1' } }, axisTick: { show: false },
-        axisLabel: { color: '#64748B', fontSize: 10, interval: 1 },
+        axisLabel: { color: '#64748B', fontSize: 10, interval: isNarrow ? 2 : 1, hideOverlap: true },
         splitArea: { show: false },
       },
       yAxis: {
@@ -532,25 +534,38 @@ async function buildCharts() {
       },
       visualMap: {
         min: 0, max: Math.max(heatMax.v, 1), calculable: false, orient: 'horizontal',
-        left: 'center', bottom: 0, itemWidth: 14, itemHeight: 100,
+        left: 'center', bottom: 0, itemWidth: 12, itemHeight: isNarrow ? 160 : 220,
         textStyle: { color: '#64748B', fontSize: 10 },
         inRange: { color: ['#F0FDFA', '#99F6E4', '#5EEAD4', '#14B8A6', '#0F7B78', '#0D5F5C'] },
       },
       series: [{
         type: 'heatmap', data: heatData,
-        itemStyle: { borderRadius: 3, borderColor: '#fff', borderWidth: 1 },
+        itemStyle: { borderRadius: isNarrow ? 1 : 3, borderColor: '#fff', borderWidth: 1 },
         emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.15)' } },
         label: { show: false },
       }],
     })
   }
 
-  // Resize handler
+  // Resize handler — both window.resize and ResizeObserver so sidebar
+  // toggles and bottom-nav changes trigger a chart resize without a window
+  // resize event.
   if (!window.__echartsResize) {
     window.__echartsResize = () => Object.values(charts).forEach(c => c && c.resize && c.resize())
     window.addEventListener('resize', window.__echartsResize)
   }
+  if (!resizeObserver) {
+    resizeObserver = new ResizeObserver(() => {
+      Object.values(charts).forEach(c => c && c.resize && c.resize())
+    })
+    // Observe each chart container
+    Object.values({ revExpChart, statusChart, payChart, hourChart, orderTypeChart, sparkChart, heatmapChart }).forEach(r => {
+      if (r.value) resizeObserver.observe(r.value)
+    })
+  }
 }
+
+let resizeObserver = null
 
 onUnmounted(() => {
   Object.values(charts).forEach(c => c && c.dispose && c.dispose())
@@ -558,6 +573,10 @@ onUnmounted(() => {
   if (window.__echartsResize) {
     window.removeEventListener('resize', window.__echartsResize)
     delete window.__echartsResize
+  }
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
   }
 })
 
@@ -633,9 +652,28 @@ onMounted(async () => {
 .rt-row-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.78rem;color:var(--text-muted)}
 
 /* ECharts containers */
-.echart-box{width:100%;height:320px}
+.echart-box{width:100%;min-height:280px;height:320px}
+.echart-box--heatmap{height:320px}
+.chart-card--wide{margin-top:16px;margin-bottom:16px}
 .echart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 @media(max-width:900px){.echart-grid{grid-template-columns:1fr}}
 .chart-card{padding:16px}
 .chart-card h3{font-size:.9rem;color:var(--text-heading);margin-bottom:12px}
+
+/* Staff Performance + Hourly Activity — stacks on mobile */
+.staff-hourly-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media(max-width:600px){.staff-hourly-grid{grid-template-columns:1fr}}
+
+/* Hourly mini-grid — 6 cols on desktop, 4 on narrow phones */
+.hourly-mini-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding-top:8px}
+@media(max-width:600px){.hourly-mini-grid{grid-template-columns:repeat(4,1fr)}}
+.hourly-mini-cell{text-align:center;padding:6px;background:var(--surface);border:1px solid var(--border);border-radius:4px}
+.hourly-mini-hour{font-size:.68rem;color:var(--text-muted)}
+.hourly-mini-count{font-size:.85rem;font-weight:700}
+
+@media(max-width:600px){
+  .echart-box{height:260px;min-height:220px}
+  .echart-box--heatmap{height:280px}
+  .rt-range .btn{min-height:40px;padding:6px 10px}
+}
 </style>
