@@ -3,6 +3,23 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ReportsView from '../../../src/views/ReportsView.vue'
 
+// Mock ECharts — the test environment (happy-dom) doesn't support the canvas
+// APIs ECharts needs to render. Replace init() with a no-op that returns an
+// object with the same methods (setOption, dispose, resize) so the component's
+// lifecycle hooks don't crash.
+vi.mock('echarts', () => ({
+  init: vi.fn(() => ({
+    setOption: vi.fn(),
+    dispose: vi.fn(),
+    resize: vi.fn(),
+  })),
+  graphic: {
+    LinearGradient: class {
+      constructor() {}
+    },
+  },
+}))
+
 vi.mock('../../../src/stores/auth', () => ({
   useAuthStore: vi.fn(() => ({ roleKey: 'manager', isAuthenticated: true }))
 }))
