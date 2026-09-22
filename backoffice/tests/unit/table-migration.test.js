@@ -60,6 +60,21 @@ async function open(view, rows) {
 /** Dates inside the views' default windows, or the rows filter themselves out. */
 const TODAY = '2026-08-11'
 
+/**
+ * ExpensesView / WasteView seed dateFrom with the REAL clock minus 30 days
+ * while dateTo keeps the mocked TODAY — as the calendar moved away from
+ * 2026-08-11 that window inverted and the fixture rows filtered themselves
+ * out. Pin both inputs to the fixture day so these characterization tests
+ * are calendar-independent again (the views themselves are fine: an operator
+ * picks the range they want).
+ */
+async function pinDay(w, day = TODAY) {
+  const dates = w.findAll('input[type="date"]')
+  await dates[0].setValue(day)
+  await dates[1].setValue(day)
+  await flushPromises()
+}
+
 describe('Expenses table', () => {
   const ROWS = [
     { id: 'E1', date: TODAY, category: 'Gas', description: 'Cylinder refill', amount: 1200, paidBy: 'Amanuel' },
@@ -71,12 +86,14 @@ describe('Expenses table', () => {
 
   it('renders a row per live expense', async () => {
     const w = await open(ExpensesView, ROWS)
+    await pinDay(w)
     expect(w.findAll('tbody tr')).toHaveLength(2)
     expect(w.text()).toContain('Cylinder refill')
   })
 
   it('excludes voided expenses from the total', async () => {
     const w = await open(ExpensesView, ROWS)
+    await pinDay(w)
     // 1200 + 800 = 2000, not 7000.
     expect(w.find('.summary-grid').text()).toContain('2000')
     expect(w.find('.summary-grid').text()).not.toContain('7000')
@@ -84,6 +101,7 @@ describe('Expenses table', () => {
 
   it('names the top category with its amount', async () => {
     const w = await open(ExpensesView, ROWS)
+    await pinDay(w)
     expect(w.find('.summary-grid').text()).toMatch(/Gas/)
   })
 
@@ -151,6 +169,7 @@ describe('Waste table', () => {
 
   it('renders one row per waste entry', async () => {
     const w = await open(WasteView, ROWS)
+    await pinDay(w)
     expect(w.findAll('tbody tr')).toHaveLength(2)
     expect(w.text()).toContain('Milk')
   })
@@ -158,6 +177,7 @@ describe('Waste table', () => {
   /** Litres and pieces cannot be summed into one figure. */
   it('reports quantity per unit rather than adding units together', async () => {
     const w = await open(WasteView, ROWS)
+    await pinDay(w)
     const summary = w.find('.summary-grid').text()
     expect(summary).toMatch(/litre|piece/)
     expect(summary).not.toContain('7.0 litre')
@@ -165,6 +185,7 @@ describe('Waste table', () => {
 
   it('sums only real costs', async () => {
     const w = await open(WasteView, ROWS)
+    await pinDay(w)
     expect(w.find('.summary-grid').text()).toContain('170')
   })
 

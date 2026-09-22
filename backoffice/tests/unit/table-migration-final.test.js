@@ -48,6 +48,19 @@ async function mountWith(view, impl) {
   return w
 }
 
+/** PnLView seeds dateFrom with the real clock minus 30 days while dateTo
+ *  keeps the mocked TODAY — the calendar moved, the window inverted, and
+ *  the fixture rows filtered themselves out. Pin the range and re-apply. */
+async function pinDay(w, day = '2026-08-11') {
+  const dates = w.findAll('input[type="date"]')
+  await dates[0].setValue(day)
+  await dates[1].setValue(day)
+  const apply = w.findAll('button').find(b => b.text().includes('Apply'))
+  if (apply) await apply.trigger('click')
+  await flushPromises()
+  await flushPromises()
+}
+
 describe('Audit log table', () => {
   const ENTRIES = [
     {
@@ -220,6 +233,7 @@ describe('P&L statement', () => {
 
   it('lists each expense category as its own line', async () => {
     const w = await open()
+    await pinDay(w)
     expect(w.text()).toContain('Gas')
   })
 })
