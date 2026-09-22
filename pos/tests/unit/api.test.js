@@ -236,20 +236,19 @@ describe('API Client', () => {
       expect(nonManagerViews.sort()).toEqual(['revenue'].sort())
     })
 
-    // Time Clock is on every role: everyone clocks on and off, and the screen's
-    // roster half hides itself for a role that cannot read it. My Payslips is
-    // on every role for the same shape of reason: the server scopes
-    // /api/payroll/me to the caller, so the tab widens nothing. What these two
-    // pin is that the narrow roles stay narrow apart from those.
-    it('cleaner should only have waste, dashboard, their own time clock, their own activity and their own payslips', () => {
-      expect(ROLE_PERMISSIONS.cleaner).toEqual(['waste', 'dashboard', 'timeclock', 'my-activity', 'my-pay'])
+    // Least-privilege pass: the cleaner's landing view is the waste log and
+    // its own overview — the HR tabs (time clock, payslips, activity) left
+    // the staff nav. Clocking in and out still works: the server's
+    // self-service routes never consulted this list.
+    it('cleaner should only have waste and its dashboard', () => {
+      expect(ROLE_PERMISSIONS.cleaner).toEqual(['waste', 'dashboard'])
     })
 
-    it('delivery-staff should only have delivery, dashboard, their own time clock, their own activity, their own payslips and the alerts read view', () => {
+    it('delivery-staff should only have delivery, dashboard and the alerts read view', () => {
       // alerts rides along because the server grants delivery-staff alerts
       // read — a driver waiting on a packed order is exactly who the
       // delivery-unassigned rule is for. They can read the board, not sign it.
-      expect(ROLE_PERMISSIONS['delivery-staff']).toEqual(['delivery', 'dashboard', 'timeclock', 'my-activity', 'my-pay', 'alerts'])
+      expect(ROLE_PERMISSIONS['delivery-staff']).toEqual(['delivery', 'dashboard', 'alerts'])
     })
 
     it('ROLE_DEFAULT_VIEW should map each role to a valid view', () => {
@@ -300,13 +299,25 @@ describe('API Client', () => {
      * The stock screens consume the recipe and ledger engine. Without them
      * nothing can enter a BOM, and a sale therefore consumes no ingredients —
      * the engine sits inert with no way to switch it on.
+     *
+     * Least-privilege pass: the chef keeps the recipe book (they cook from it)
+     * and the stock counts (they take them); suppliers, purchases and
+     * stock-control intelligence are backoffice reading — manager and
+     * accountant — exactly like the reporting screens.
      */
-    it('exposes the stock intelligence screens to the roles that own food cost', () => {
+    it('keeps procurement and stock intelligence out of the staff roles', () => {
       for (const view of ['recipes', 'stock-control', 'suppliers', 'purchases']) {
         expect(ROLE_PERMISSIONS.manager).toContain(view)
       }
+      for (const role of ['accountant']) {
+        for (const view of ['suppliers', 'purchases']) {
+          expect(ROLE_PERMISSIONS[role]).toContain(view)
+        }
+      }
       expect(ROLE_PERMISSIONS['head-chef']).toContain('recipes')
-      expect(ROLE_PERMISSIONS['head-chef']).toContain('stock-control')
+      expect(ROLE_PERMISSIONS['head-chef']).not.toContain('stock-control')
+      expect(ROLE_PERMISSIONS['head-chef']).not.toContain('suppliers')
+      expect(ROLE_PERMISSIONS['head-chef']).not.toContain('purchases')
       // Cooks from recipes, does not set them or commit spend.
       expect(ROLE_PERMISSIONS['assistant-chef']).toContain('recipes')
       expect(ROLE_PERMISSIONS['assistant-chef']).not.toContain('purchases')
@@ -334,14 +345,17 @@ describe('API Client', () => {
      * carries the screens that support bar work — the full Orders list (whole
      * tickets, not just the board's routed lines), read-only SLA Alerts,
      * Waste logging for milk/beans/cups, and the recipe book filtered to
-     * drinks — plus its own clock and activity. Mirrors
-     * fufut-api ROLE_ACCESS.barista; both sides are pinned so the nav filter
-     * and the server matrix cannot drift apart silently.
+     * drinks. Mirrors fufut-api ROLE_ACCESS.barista; both sides are pinned so
+     * the nav filter and the server matrix cannot drift apart silently.
      */
     it('gives the barista the station support screens', () => {
-      for (const view of ['barista', 'orders', 'alerts', 'waste', 'recipes', 'timeclock', 'my-activity']) {
+      for (const view of ['barista', 'orders', 'alerts', 'waste', 'recipes']) {
         expect(ROLE_PERMISSIONS.barista).toContain(view)
       }
+      // The HR tabs left the staff nav in the least-privilege pass.
+      expect(ROLE_PERMISSIONS.barista).not.toContain('timeclock')
+      expect(ROLE_PERMISSIONS.barista).not.toContain('my-pay')
+      expect(ROLE_PERMISSIONS.barista).not.toContain('my-activity')
     })
 
     it('keeps the barista out of the kitchen, the counts and the money', () => {

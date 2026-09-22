@@ -228,35 +228,42 @@ export async function apiPatch(endpoint, data) {
   }
 }
 
-// Role permissions (unchanged)
+// Role permissions — least-privilege edition (the owner's call, 2026-09).
+// An employed staff member sees the screens their job needs and nothing else:
+// procurement (suppliers, purchases), stock intelligence (stock-control) and
+// the reporting/BI screens (reports, revenue, analytics) are manager views —
+// the accountant keeps the financial slice, which is their job. The HR
+// self-service trio (timeclock, my-pay, my-activity) rides for the manager
+// alone; clocking in and out still works for any signed-in account through
+// the server's SELF_SERVICE routes, but the screens stay off the staff nav.
+// The server matrix in fufut-api/src/auth.js (ROLE_ACCESS) mirrors this; if
+// the two disagree, the screen renders and every request on it fails.
 export const ROLE_PERMISSIONS = {
   // 'staff' is absent deliberately: editing colleague accounts lives in the
   // backoffice, alongside Shifts, Time Clock and the audit log. Time Clock here
   // still reads the staff list to show who is on shift.
-  // 'my-pay' is on every role, including this one: the self-service payslip
-  // screen. The server answers /api/payroll/me with the caller's own lines
-  // only (see SELF_SERVICE in fufut-api/src/auth.js) — a grant of 'my-pay'
-  // therefore widens nothing; it is a tab, not a permission.
+  // 'my-pay' is on this role: the self-service payslip screen. The server
+  // answers /api/payroll/me with the caller's own lines only (see
+  // SELF_SERVICE in fufut-api/src/auth.js) — a grant of 'my-pay' therefore
+  // widens nothing; it is a tab, not a permission.
   manager: ['dashboard', 'orders', 'orders-history', 'open-checks', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'shifts', 'timeclock', 'kitchen', 'barista', 'reports', 'reservations', 'delivery', 'analytics', 'checkout', 'recipes', 'suppliers', 'purchases', 'stock-control', 'pipeline', 'audit', 'my-activity', 'my-pay', 'alerts'],
   // menu-mgmt is granted for one action: taking a dish off when the kitchen has
   // run out. The screen itself hides adding, editing, deleting, cost and margin
   // from anyone but a manager, and the API only lets this role write the
   // availability flag - so the grant cannot widen into repricing.
-  // Recipes, stock control, suppliers and purchases are all food cost, which is
-  // the head chef's responsibility. They write recipes and stock; suppliers and
-  // purchases are read-only for them — seeing what arrived and at what price is
-  // part of the job, committing the business to a vendor is not. This mirrors
-  // the server matrix in fufut-api/src/auth.js; if the two disagree, the screen
-  // renders and every request on it fails.
+  // Recipes and the stock list stay because the chef cooks from the first and
+  // takes the counts of the second; suppliers, purchases, stock-control and
+  // reports were removed at the owner's direction — what arrived, what it cost
+  // and how the margin looks are read in the backoffice, not on the line.
   // No 'barista': while the drinks board was grafted onto the kitchen screen
   // the chef rode along, but the station has its own role and its own account
   // now (barista@fufut.coffee). Drinks route to the barista board by category
   // — the chef's kitchen board already shows every ticket's food lines — so a
   // second path into the bar screen just invites re-doing the bar's work.
-  'head-chef': ['kitchen', 'orders', 'orders-history', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline', 'menu-mgmt', 'recipes', 'stock-control', 'suppliers', 'purchases', 'timeclock', 'my-activity', 'my-pay', 'alerts'],
+  'head-chef': ['kitchen', 'orders', 'orders-history', 'dashboard', 'inventory', 'waste', 'pipeline', 'menu-mgmt', 'recipes', 'alerts'],
   // Cooks from the recipes, does not set them. Two people adjusting the same
   // counts is how a stock take stops reconciling.
-  'assistant-chef': ['kitchen', 'orders', 'orders-history', 'dashboard', 'inventory', 'recipes', 'timeclock', 'my-activity', 'my-pay', 'alerts'],
+  'assistant-chef': ['kitchen', 'orders', 'orders-history', 'dashboard', 'inventory', 'recipes', 'alerts'],
   // The drinks station. The board is still home — ROLE_DEFAULT_VIEW puts the
   // barista on it at sign-in, and it still renders this station's lines only —
   // but around it the role now carries the bar's supporting screens:
@@ -275,31 +282,31 @@ export const ROLE_PERMISSIONS = {
   // money. The nav-filtered views mirror the server grant exactly
   // (fufut-api/src/auth.js, ROLE_ACCESS.barista); anything wider would render
   // and then 403 on contact.
-  barista: ['barista', 'orders', 'orders-history', 'alerts', 'waste', 'recipes', 'timeclock', 'my-activity', 'my-pay'],
+  barista: ['barista', 'orders', 'orders-history', 'alerts', 'waste', 'recipes'],
   // open-checks is the waiter's own outstanding work and the cashier's queue of
   // bills to take, so both get it. It reads orders and tables, which both roles
   // already read.
-  // Every role carries 'timeclock' because everyone clocks on and off. The
-  // screen's roster half needs `timeclock` and `staff` reads and is guarded,
-  // falling back to empty; the clock-in/out half is self-service and works for
-  // any signed-in account. Granting the underlying resources instead would give
-  // the floor the power to rewrite anybody's hours.
   //
   // 'checkout' is deliberately NOT in the head-waiter's list. The server's
-  // role matrix (fufut-api/src/auth.js:200-207) explicitly says the head-waiter
+  // role matrix (fufut-api/src/auth.js) explicitly says the head-waiter
   // cannot write `payments`, but the settlement endpoint PUTs /api/orders/:id
   // with a paymentBreakdown body — which the head-waiter's `orders` write grant
   // allows through. Letting the floor see a Checkout button invited them to
   // settle bills, which contradicted the design. Cashier and manager keep it.
-  'head-waiter': ['tables', 'orders', 'orders-history', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'timeclock', 'my-activity', 'my-pay', 'alerts'],
-  cashier: ['cashdrawer', 'orders', 'orders-history', 'open-checks', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout', 'my-activity', 'my-pay', 'alerts'],
-  'delivery-staff': ['delivery', 'dashboard', 'timeclock', 'my-activity', 'my-pay', 'alerts'],
-  cleaner: ['waste', 'dashboard', 'timeclock', 'my-activity', 'my-pay'],
+  'head-waiter': ['tables', 'orders', 'orders-history', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'alerts'],
+  // The till: drawer home, menu view for walk-in sales, checks to settle, the
+  // floor and the book. Revenue, Analytics and Reports are manager and
+  // accountant reading — the cashier's own numbers live on their Dashboard and
+  // Cash Drawer, which read /api/reports/dashboard (the server keeps the
+  // `reports` READ for exactly that; the screens stay off this list).
+  cashier: ['cashdrawer', 'orders', 'orders-history', 'open-checks', 'dashboard', 'tables', 'reservations', 'menu-view', 'checkout', 'alerts'],
+  'delivery-staff': ['delivery', 'dashboard', 'alerts'],
+  cleaner: ['waste', 'dashboard'],
   // §47's seventh role. Reads the financial picture and changes almost none of
   // it — the server matrix grants write on expenses alone, so every other
   // screen here is deliberately view-only. No operational screens: an
   // accountant has no business seating a table or sending a ticket.
-  accountant: ['dashboard', 'reports', 'revenue', 'pnl', 'expenses', 'analytics', 'orders', 'orders-history', 'purchases', 'suppliers', 'timeclock', 'my-activity', 'my-pay']
+  accountant: ['dashboard', 'reports', 'revenue', 'pnl', 'expenses', 'analytics', 'orders', 'orders-history', 'purchases', 'suppliers']
 }
 
 export const ROLE_DEFAULT_VIEW = {
