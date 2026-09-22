@@ -15,7 +15,17 @@ vi.mock('../../../src/api', () => ({
   apiPost: (...args) => mockApiPost(...args),
   ROLE_PERMISSIONS: { manager: ['dashboard','orders','tables','menu-mgmt','menu-view','expenses','pnl','cashdrawer','inventory','waste','staff','shifts','timeclock','kitchen','reports','reservations','delivery','analytics','checkout','pipeline','revenue'] },
   ROLE_DEFAULT_VIEW: { manager: 'dashboard' },
-  NAV_ITEMS: []
+  NAV_ITEMS: [],
+  // Real local-today implementations: the suites fabricate orders with
+  // new Date(), so the mocked helpers must agree with the device clock.
+  TODAY: () => {
+    const d = new Date(); const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  },
+  isTodayStamp: (s) => {
+    const d = new Date(); const pad = (n) => String(n).padStart(2, '0')
+    return String(s || '').slice(0, 10) === `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
 }))
 
 describe('OrdersView', () => {
@@ -24,7 +34,7 @@ describe('OrdersView', () => {
     setActivePinia(createPinia())
 
     mockApiGet.mockImplementation((endpoint) => {
-      if (endpoint === 'orders') return Promise.resolve([])
+      if (endpoint.startsWith('orders')) return Promise.resolve([])
       if (endpoint === 'menu') return Promise.resolve([
         { id: 'M-1', name: 'Espresso', category: 'Espresso', price: 60 },
         { id: 'M-2', name: 'Latte', category: 'Espresso', price: 85 },
@@ -65,7 +75,7 @@ describe('OrdersView', () => {
 
   it('should display orders in the table', async () => {
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve([
+      if (ep.startsWith('orders')) return Promise.resolve([
         { id: 'O-1', items: '2xEspresso', total: 120, payment: 'cash', type: 'dine-in', status: 'new', created: new Date().toISOString() }
       ])
       if (ep === 'menu') return Promise.resolve([])
@@ -109,7 +119,7 @@ describe('OrdersView', () => {
 
   it('should filter orders by status', async () => {
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve([
+      if (ep.startsWith('orders')) return Promise.resolve([
         { id: 'O-1', items: 'Espresso', total: 60, status: 'new', created: new Date().toISOString() },
         { id: 'O-2', items: 'Latte', total: 85, status: 'preparing', created: new Date().toISOString() },
         { id: 'O-3', items: 'Cappuccino', total: 90, status: 'new', created: new Date().toISOString() }
@@ -135,7 +145,7 @@ describe('OrdersView', () => {
 
   it('should show status badge on each order', async () => {
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve([
+      if (ep.startsWith('orders')) return Promise.resolve([
         { id: 'O-1', items: 'Espresso', total: 60, status: 'preparing', created: new Date().toISOString() }
       ])
       if (ep === 'menu') return Promise.resolve([])
@@ -207,7 +217,7 @@ describe('OrdersView', () => {
 
   it('barista sees only tickets carrying drinks, with drink lines only', async () => {
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve(scopeOrders)
+      if (ep.startsWith('orders')) return Promise.resolve(scopeOrders)
       return Promise.resolve([])
     })
 
@@ -226,7 +236,7 @@ describe('OrdersView', () => {
 
   it('head-chef sees only tickets carrying food, with food lines only', async () => {
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve(scopeOrders)
+      if (ep.startsWith('orders')) return Promise.resolve(scopeOrders)
       return Promise.resolve([])
     })
 
@@ -243,7 +253,7 @@ describe('OrdersView', () => {
 
   it('head-waiter sees only his own tickets and his assigned tables', async () => {
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve([
+      if (ep.startsWith('orders')) return Promise.resolve([
         { id: 'O-mine', items: 'Espresso', total: 60, status: 'new', created_by: 'S-me', table_id: '3', created: new Date().toISOString() },
         { id: 'O-mytable', items: 'Latte', total: 85, status: 'new', created_by: 'S-other', table_id: '7', created: new Date().toISOString() },
         { id: 'O-theirs', items: 'Chechebesa', total: 180, status: 'new', created_by: 'S-other', table_id: '9', created: new Date().toISOString() },
@@ -268,7 +278,7 @@ describe('OrdersView', () => {
 
   it('manager keeps the unscoped list', async () => {
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve(scopeOrders)
+      if (ep.startsWith('orders')) return Promise.resolve(scopeOrders)
       return Promise.resolve([])
     })
 
@@ -280,5 +290,43 @@ describe('OrdersView', () => {
     expect(text).toContain('O-food')
     expect(text).toContain('O-drink')
     expect(text).toContain('3 results')
+  })
+
+  // ─── Today-only scoping (Order History owns everything older) ───────────
+  const localToday = () => {
+    const d = new Date(); const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
+
+  it('fetches the day window from the server and hides previous-day tickets', async () => {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().replace('T', ' ').slice(0, 19)
+    mockApiGet.mockImplementation((ep) => {
+      if (ep.startsWith('orders')) return Promise.resolve([
+        { id: 'O-today', items: '1xLatte', total: 90, status: 'new', created: `${localToday()} 09:15:00` },
+        { id: 'O-yest', items: '2xTea', total: 80, status: 'fulfilled', created: yesterday },
+      ])
+      return Promise.resolve([])
+    })
+
+    const wrapper = mount(OrdersView)
+    await flushPromises()
+
+    // The server is asked for today's window, not the plain last-200 list.
+    const called = mockApiGet.mock.calls.map(c => c[0]).find(e => String(e).startsWith('orders'))
+    expect(called).toBe(`orders?from=${localToday()}&to=${localToday()}`)
+
+    const text = wrapper.text()
+    expect(text).toContain('O-today')
+    // Yesterday's ticket belongs to Order History, even if the cache coughs it up.
+    expect(text).not.toContain('O-yest')
+    expect(text).toContain('1 result')
+  })
+
+  it('links to Order History from the toolbar', async () => {
+    const wrapper = mount(OrdersView)
+    await flushPromises()
+    const hist = wrapper.findAll('button').find(b => b.text().includes('History'))
+    expect(hist).toBeTruthy()
+    expect(hist.attributes('title')).toContain('Order History')
   })
 })

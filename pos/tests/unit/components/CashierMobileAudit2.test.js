@@ -49,6 +49,10 @@ vi.mock('../../../src/api', () => ({
   ROLE_DEFAULT_VIEW: {},
   NAV_ITEMS: [],
   TODAY: () => '2026-08-27',
+  isTodayStamp: (s) => {
+    const d = new Date(); const pad = (n) => String(n).padStart(2, '0')
+    return String(s || '').slice(0, 10) === `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
 }))
 
 // CheckoutView mounts need these; see CheckoutStaleSuccess.test.js.
@@ -84,6 +88,17 @@ describe('N2: RevenueView Orders KPI counts the filtered range', () => {
     currentPermissions = null
   })
 
+  // RevenueView's onMounted mixes a real-now dateFrom with the mocked TODAY
+  // dateTo, so the tests pin the range on the view's own inputs — calendar-
+  // independent and anchored to the mocked TODAY ('2026-08-27') calendar.
+  async function pinRange(wrapper) {
+    const dates = wrapper.findAll('input[type="date"]')
+    await dates[0].setValue('2026-08-27')
+    await dates[1].setValue('2026-08-27')
+    await wrapper.findAll('button').find(b => b.text() === 'Apply').trigger('click')
+    await flushPromises()
+  }
+
   it('shows today\'s order count, not every order ever taken', async () => {
     const today = { id: 'A1', total: 220, payment: 'cash', created: '2026-08-27 19:15:03' }
     const stale = { id: 'B1', total: 150, payment: 'cash', created: '2026-08-01 12:00:00' }
@@ -91,6 +106,7 @@ describe('N2: RevenueView Orders KPI counts the filtered range', () => {
 
     const wrapper = mount(RevenueView, globalConfig)
     await flushPromises()
+    await pinRange(wrapper)
 
     const kpis = wrapper.findAll('.kpi-card').map(k => k.text())
     const ordersKpi = kpis.find(k => k.includes('Orders'))
@@ -106,6 +122,7 @@ describe('N2: RevenueView Orders KPI counts the filtered range', () => {
 
     const wrapper = mount(RevenueView, globalConfig)
     await flushPromises()
+    await pinRange(wrapper)
 
     const kpis = wrapper.findAll('.kpi-card').map(k => k.text())
     const revKpi = kpis.find(k => k.includes('Total Revenue'))
@@ -172,7 +189,7 @@ describe('N4: dine-in orders cannot be paid without a table', () => {
     setActivePinia(createPinia())
     currentPermissions = ['orders', 'checkout', 'tables']
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve([])
+      if (ep.startsWith('orders')) return Promise.resolve([])
       if (ep === 'menu') return Promise.resolve([
         { id: 'M-1', name: 'Espresso', category: 'Coffee', price: 150 },
       ])
@@ -351,7 +368,7 @@ describe('N6: AnalyticsView cancellation rate is bounded by definition', () => {
       id: 'R' + i, total: 178, status: 'served', payment_status: 'paid', created: `${daysAgo(5)} 19:00:00`,
     }))
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve([...cancelled, ...real])
+      if (ep.startsWith('orders')) return Promise.resolve([...cancelled, ...real])
       if (ep === 'menu') return Promise.resolve([])
       return Promise.resolve([])
     })

@@ -46,6 +46,10 @@ vi.mock('../../../src/api', () => ({
   ROLE_DEFAULT_VIEW: {},
   NAV_ITEMS: [],
   TODAY: () => '2026-08-27',
+  isTodayStamp: (s) => {
+    const d = new Date(); const pad = (n) => String(n).padStart(2, '0')
+    return String(s || '').slice(0, 10) === `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
 }))
 
 const globalConfig = {
@@ -213,7 +217,7 @@ describe('C4: OrdersView quick-sale clears the cart after payment', () => {
     setActivePinia(createPinia())
     currentPermissions = ['orders', 'checkout']
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve([])
+      if (ep.startsWith('orders')) return Promise.resolve([])
       if (ep === 'menu') return Promise.resolve([
         { id: 'M-1', name: 'Espresso', category: 'Coffee', price: 150 },
       ])
@@ -225,7 +229,7 @@ describe('C4: OrdersView quick-sale clears the cart after payment', () => {
       return Promise.resolve([])
     })
     mockApiPost.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve({ ok: true, id: 'Oqk0001' })
+      if (ep.startsWith('orders')) return Promise.resolve({ ok: true, id: 'Oqk0001' })
       return Promise.resolve({ ok: true })
     })
   })
@@ -277,11 +281,15 @@ describe('C6: AnalyticsView counts real orders and finished service', () => {
     currentPermissions = ['analytics', 'dashboard']
   })
 
-  const today = '2026-08-27'
+  // Days relative to *now* — fixed dates slid out of the 14-day default
+  // window as the calendar moved (the same trap N6 documented), reading as a
+  // mysteriously calm cafe.
+  const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
+  const today = daysAgo(0)
 
   it('excludes voided orders from revenue and the order count', async () => {
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve([
+      if (ep.startsWith('orders')) return Promise.resolve([
         { id: 'O-real', items: '1xTEA', total: 140, status: 'fulfilled', payment_status: 'paid', created: `${today} 15:54:00` },
         { id: 'O-void', items: '10xPizza', total: 3800, status: 'cancelled', voided_at: `${today} 09:00:00`, created: `${today} 08:00:00` },
         { id: 'O-void2', items: '5xTibs', total: 1900, status: 'new', voided_at: `${today} 10:00:00`, created: `${today} 09:30:00` },
@@ -304,7 +312,7 @@ describe('C6: AnalyticsView counts real orders and finished service', () => {
 
   it('counts served+paid as fulfilled and voided not at all', async () => {
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve([
+      if (ep.startsWith('orders')) return Promise.resolve([
         // Real and complete three ways:
         { id: 'O-a', items: 'TEA', total: 70, status: 'fulfilled', payment_status: 'paid', created: `${today} 11:00:00` },
         { id: 'O-b', items: 'TEA', total: 70, status: 'served', payment_status: 'paid', created: `${today} 11:30:00` },
@@ -340,18 +348,30 @@ describe('C7: RevenueView sums only the picked range, real orders only', () => {
 
   it('keeps history out of the KPIs', async () => {
     mockApiGet.mockImplementation((ep) => {
-      if (ep === 'orders') return Promise.resolve([
-        // In range, real:
+      if (ep.startsWith('orders')) return Promise.resolve([
+        // In range, real (fixed to the mocked TODAY calendar — see the note):
         { id: 'O-in', total: 140, payment: 'cash', status: 'fulfilled', created: '2026-08-27 15:54:00' },
         // In range, voided — excluded by isRealOrder:
         { id: 'O-invoid', total: 5000, payment: 'cash', status: 'cancelled', voided_at: '2026-08-27 10:00:00', created: '2026-08-27 09:00:00' },
-        // Out of range (before the default 14-day window start 2026-08-14):
-        { id: 'O-old', total: 9999, payment: 'cash', status: 'fulfilled', created: '2026-07-01 10:00:00' },
+        // Out of range (the test pins the range explicitly — RevenueView's
+        // onMounted mixes real-now dateFrom with the mocked TODAY dateTo, an
+        // inverted window no fixture can satisfy):
+        { id: 'O-old', total: 9999, payment: 'cash', status: 'fulfilled', created: '2026-08-01 10:00:00' },
       ])
       return Promise.resolve([])
     })
 
     const wrapper = mount(RevenueView, globalConfig)
+    await flushPromises()
+    await new Promise(r => setTimeout(r, 50))
+
+    // Pin the range on the view's own inputs: dateFrom derives from the real
+    // clock while dateTo defaults to the mocked TODAY — pinning both makes
+    // the test calendar-independent.
+    const dates = wrapper.findAll('input[type="date"]')
+    await dates[0].setValue('2026-08-20')
+    await dates[1].setValue('2026-08-27')
+    await wrapper.findAll('button').find(b => b.text() === 'Apply').trigger('click')
     await flushPromises()
     await new Promise(r => setTimeout(r, 50))
 

@@ -29,7 +29,15 @@ vi.mock('../../../src/api', () => ({
   apiPut: vi.fn(),
   ROLE_PERMISSIONS: { manager: ['reservations'], 'head-waiter': ['reservations'] },
   ROLE_DEFAULT_VIEW: { manager: 'dashboard' },
-  NAV_ITEMS: []
+  NAV_ITEMS: [],
+  TODAY: () => {
+    const d = new Date(); const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  },
+  isTodayStamp: (s) => {
+    const d = new Date(); const pad = (n) => String(n).padStart(2, '0')
+    return String(s || '').slice(0, 10) === `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
 }))
 
 vi.mock('../../../src/stores/auth', () => ({
@@ -65,8 +73,11 @@ const TABLES = [
 const RESERVATIONS = [
   { id: 'R1', name: 'Abebe Kebede', date: '2026-08-28', time: '19:00', guests: 4, table_num: 3, phone: '+251911223344', status: 'new' },
 ]
+// OrdersView now reads the live service day, so the fixture must carry a
+// today stamp in the device's local calendar (what isTodayStamp compares).
+const LOCAL_TODAY = (() => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
 const ORDERS = [
-  { id: 'O961bf4a', items: [{ name: 'Macchiato', qty: 2 }, { name: 'Tea', qty: 1 }], total: 840, tip: 40, discount: 0, payment_method: 'cash', order_type: 'dine-in', table_number: 3, status: 'served', created: '2026-08-27T11:02:00Z' },
+  { id: 'O961bf4a', items: [{ name: 'Macchiato', qty: 2 }, { name: 'Tea', qty: 1 }], total: 840, tip: 40, discount: 0, payment_method: 'cash', order_type: 'dine-in', table_number: 3, status: 'served', created: `${LOCAL_TODAY}T11:02:00Z` },
 ]
 
 const toastFn = vi.fn()
@@ -267,7 +278,7 @@ describe('UX-3 — compact card hooks', () => {
     setActivePinia(createPinia())
     mockApiGet.mockReset()
     mockApiGet.mockImplementation((path) => {
-      if (path === 'orders' || path === 'menu') return Promise.resolve(ORDERS)
+      if (path === 'orders' || path.startsWith('orders?') || path === 'menu') return Promise.resolve(ORDERS)
       if (path === 'reservations') return Promise.resolve(RESERVATIONS)
       if (path === 'tables') return Promise.resolve(TABLES)
       return Promise.resolve([])

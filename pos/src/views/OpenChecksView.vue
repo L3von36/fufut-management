@@ -3,7 +3,7 @@
     <div class="oc-toolbar">
       <div>
         <h3>Open Checks</h3>
-        <span class="oc-sub">Money owed right now &middot; oldest first</span>
+        <span class="oc-sub">Money owed right now &middot; today's checks first, older ones grouped below</span>
       </div>
       <button class="btn btn-secondary btn-sm" :disabled="loading" @click="load">
         {{ loading ? 'Refreshing…' : 'Refresh' }}
@@ -30,8 +30,12 @@
       <div class="oc-empty-hint">Every check has been settled.</div>
     </div>
 
+    <p v-if="!loading && !todaysChecks.length && olderChecks.length" class="oc-daynote">
+      No checks opened today — {{ olderChecks.length }} older check{{ olderChecks.length !== 1 ? 's' : '' }} still unpaid below.
+    </p>
+
     <div class="oc-list">
-      <article v-for="c in checks" :key="c.id" class="oc-check" :class="{ 'is-stale': ageMinutes(c) >= STALE_MIN }">
+      <article v-for="c in todaysChecks" :key="c.id" class="oc-check" :class="{ 'is-stale': ageMinutes(c) >= STALE_MIN }">
         <header class="oc-check-head">
           <span class="oc-where">{{ whereLabel(c) }}</span>
           <span class="oc-age" :title="c.created">{{ ageLabel(c) }}</span>
@@ -56,6 +60,40 @@
           </div>
         </footer>
       </article>
+    </div>
+
+    <!-- ─── Older open checks: unpaid tabs from previous days. Hidden by
+         default so the day's work leads, but never unreachable — an unpaid
+         check is money owed, whatever day it was opened. ─── -->
+    <div v-if="olderChecks.length" class="oc-older">
+      <button class="oc-older-toggle" type="button" @click="showOlder = !showOlder" :aria-expanded="showOlder">
+        <span>
+          Older open checks ({{ olderChecks.length }}) — from previous days
+        </span>
+        <span class="oc-older-chevron" :class="{ open: showOlder }">&#9662;</span>
+      </button>
+      <div v-if="showOlder" class="oc-list oc-older-list">
+        <article v-for="c in olderChecks" :key="c.id" class="oc-check is-older">
+          <header class="oc-check-head">
+            <span class="oc-where">{{ whereLabel(c) }}</span>
+            <span class="oc-age" :title="c.created">{{ ageLabel(c) }} old</span>
+          </header>
+          <div class="oc-lines">{{ itemSummary(c) }}</div>
+          <footer class="oc-check-foot">
+            <div class="oc-money">
+              <span class="oc-total">ETB {{ Number(c.total || 0).toFixed(0) }}</span>
+              <span class="badge" :class="'badge-' + (c.payment_status || 'unpaid')">{{ c.payment_status || 'unpaid' }}</span>
+            </div>
+            <div class="oc-actions">
+              <button class="btn btn-sm btn-outline" @click="openSplit(c)">Split</button>
+              <button class="btn btn-sm btn-outline" @click="openMove(c)">Move</button>
+              <button class="btn btn-sm btn-outline" @click="openMerge(c)">Merge</button>
+              <button v-if="authStore?.hasPermission('checkout')" class="btn btn-sm btn-primary" @click="settle(c)">Settle</button>
+            </div>
+          </footer>
+        </article>
+      </div>
+      <p v-else class="oc-older-hint">Unpaid checks from earlier days stay here until they are settled or voided.</p>
     </div>
 
     <!-- ─── Move a check to another table ─── -->
@@ -136,7 +174,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
-import { apiGet, apiPost } from '../api'
+import { apiGet, apiPost, isTodayStamp } from '../api'
 import { useOrderStore } from '../stores/order'
 import { useAuthStore } from '../stores/auth'
 import { useSSE } from '../composables/useSSE'
@@ -154,6 +192,9 @@ const STALE_MIN = 90
 const checks = ref([])
 const tables = ref([])
 const loading = ref(false)
+// Older open checks (previous days) start collapsed — today's service leads
+// the screen, the debt stays one tap away.
+const showOlder = ref(false)
 const moving = ref(null)
 const moveTarget = ref('')
 const movingBusy = ref(false)
@@ -169,6 +210,11 @@ const mergeBusy = ref(false)
 const totalOwed = computed(() =>
   checks.value.reduce((sum, c) => sum + (Number(c.total) || 0), 0)
 )
+
+/** Today's checks lead the screen; the summary cards still count every open
+ *  check (the money owed does not care which day it was run up). */
+const todaysChecks = computed(() => checks.value.filter(c => isTodayStamp(c.created)))
+const olderChecks = computed(() => checks.value.filter(c => !isTodayStamp(c.created)))
 
 const oldestLabel = computed(() => {
   if (!checks.value.length) return '—'
@@ -344,6 +390,30 @@ onUnmounted(() => sseDisconnect())
 .oc-check { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
 /* A check open past the stale mark is the one that walks out unpaid. */
 .oc-check.is-stale { border-left: 3px solid var(--danger); }
+
+/* Previous-day debt: grouped under a toggle instead of mixed into the day's
+   list, but never hidden from the summary numbers. */
+.oc-daynote {
+  margin: 0 0 12px; padding: 8px 14px;
+  font-size: .78rem; color: var(--text-muted);
+  background: color-mix(in srgb, var(--warning, #F59E0B) 8%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--warning, #F59E0B) 45%, transparent);
+  border-radius: 10px;
+}
+.oc-older { margin-top: 14px; }
+.oc-older-toggle {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  gap: 10px; padding: 10px 14px; cursor: pointer;
+  background: color-mix(in srgb, var(--warning, #F59E0B) 7%, var(--surface, var(--surface)));
+  border: 1px dashed color-mix(in srgb, var(--warning, #F59E0B) 45%, transparent);
+  border-radius: var(--radius-md); color: var(--text-heading);
+  font-size: .82rem; font-weight: 600; text-align: left;
+}
+.oc-older-chevron { transition: transform .15s ease; color: var(--text-muted); }
+.oc-older-chevron.open { transform: rotate(180deg); }
+.oc-older-list { margin-top: 10px; }
+.oc-older-hint { margin: 8px 2px 0; font-size: .74rem; color: var(--text-muted); }
+.oc-check.is-older { border-left: 3px solid var(--warning, #F59E0B); }
 .oc-check-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .oc-where { font-weight: 600; color: var(--text-heading); }
 .oc-age { font-size: .74rem; color: var(--text-muted); font-family: var(--font-mono, monospace); white-space: nowrap; }

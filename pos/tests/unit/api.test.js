@@ -267,7 +267,7 @@ describe('API Client', () => {
     // 29 with Barista, the drinks station's own board.
     // 30 with My Payslips, the self-service half of payroll.
     it('NAV_ITEMS covers the defined sections', () => {
-      expect(NAV_ITEMS.length).toBe(30)
+      expect(NAV_ITEMS.length).toBe(31)
       expect(NAV_ITEMS.map(n => n.view)).toContain('barista')
       expect(NAV_ITEMS.map(n => n.view)).toContain('open-checks')
       expect(NAV_ITEMS.map(n => n.view)).not.toContain('staff')

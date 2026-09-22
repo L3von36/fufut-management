@@ -24,6 +24,10 @@
           <option value="cancelled">Cancelled</option>
         </select>
         <button v-if="auth.hasPermission('checkout')" class="btn btn-primary" @click="openNewOrder">New Order</button>
+        <button class="btn btn-ghost btn-sm" @click="goToHistory" title="Order History — earlier days">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="ov-history-label">History</span>
+        </button>
         <button class="btn btn-ghost btn-sm" @click="loadOrders" title="Refresh">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
@@ -258,7 +262,8 @@
 
 <script setup>
 import { ref, computed, onMounted , inject} from 'vue'
-import { apiGet, apiPut, apiPost } from '../api'
+import { useRouter } from 'vue-router'
+import { apiGet, apiPut, apiPost, TODAY, isTodayStamp } from '../api'
 import { useOrderStore } from '../stores/order'
 import { useButtonState } from '../composables/useButtonState'
 import { useAuthStore } from '../stores/auth'
@@ -269,6 +274,7 @@ import ModifierSelectionSheet from '../components/ModifierSelectionSheet.vue'
 
 const toast = inject('toast')
 const auth = useAuthStore()
+const router = useRouter()
 const orderStore = useOrderStore()
 const orders = ref([])
 const menuItems = ref([])
@@ -305,13 +311,16 @@ const newOrder = ref({
 })
 
 const filteredOrders = computed(() => {
+  // Today only: Orders is the live service day. Anything older belongs to
+  // Order History — the server already narrows to from/to=TODAY, and this
+  // guard keeps a stale offline cache from resurrecting yesterday's tickets.
   // Role scoping runs before the status/search filters: a barista filtering
   // "new" must not conjure the kitchen's tickets back into their list, and
   // the count in the toolbar has to describe what this role can actually
   // work. Unscoped roles (manager, cashier, accountant…) pass through
   // orderVisibleToRole untouched.
   const scopeCtx = { myId: auth.user && auth.user.id, myTables: myTableNumbers.value }
-  let result = orders.value.filter(o => orderVisibleToRole(o, auth.roleKey, scopeCtx))
+  let result = orders.value.filter(o => isTodayStamp(o.created) && orderVisibleToRole(o, auth.roleKey, scopeCtx))
   if (filter.value) result = result.filter(o => o.status === filter.value)
   if (search.value) {
     const q = search.value.toLowerCase()
@@ -406,7 +415,15 @@ async function freeUpTable(tableNum) {
 }
 
 async function loadOrders() {
-  try { orders.value = await apiGet('orders') } catch (e) { console.error(e) }
+  // Today's tickets only — the day window the server understands (and the
+  // dashboard's yesterday panel was already sending before it did). Older
+  // orders are Order History's job.
+  const day = TODAY()
+  try { orders.value = await apiGet(`orders?from=${day}&to=${day}`) } catch (e) { console.error(e) }
+}
+
+function goToHistory() {
+  router.push({ name: 'orders-history' })
 }
 
 /**

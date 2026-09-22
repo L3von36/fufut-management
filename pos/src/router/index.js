@@ -6,6 +6,9 @@ import { createAuthGuard } from './guard'
 const LoginView = () => import('../views/LoginView.vue')
 const DashboardView = () => import('../views/DashboardView.vue')
 const OrdersView = () => import('../views/OrdersView.vue')
+// The past tense of Orders: operational screens read the live service day,
+// this page reads any day window (server-side from/to) with paging.
+const OrdersHistoryView = () => import('../views/OrdersHistoryView.vue')
 const MenuMgmtView = () => import('../views/MenuMgmtView.vue')
 const MenuView = () => import('../views/MenuView.vue')
 const TablesView = () => import('../views/TablesView.vue')
@@ -63,6 +66,7 @@ const routes = [
       { path: '', redirect: { name: 'dashboard' } },
       { path: 'dashboard', name: 'dashboard', component: DashboardView },
       { path: 'orders', name: 'orders', component: OrdersView },
+      { path: 'orders-history', name: 'orders-history', component: OrdersHistoryView },
       { path: 'menu-mgmt', name: 'menu-mgmt', component: MenuMgmtView },
       { path: 'menu-view', name: 'menu-view', component: MenuView },
       { path: 'tables', name: 'tables', component: TablesView },

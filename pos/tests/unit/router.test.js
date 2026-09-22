@@ -17,6 +17,7 @@ describe('Router Configuration', () => {
           { path: '', redirect: { name: 'dashboard' } },
           { path: 'dashboard', name: 'dashboard' },
           { path: 'orders', name: 'orders' },
+          { path: 'orders-history', name: 'orders-history' },
           { path: 'menu-mgmt', name: 'menu-mgmt' },
           { path: 'menu-view', name: 'menu-view' },
           { path: 'tables', name: 'tables' },
@@ -39,7 +40,7 @@ describe('Router Configuration', () => {
     ]
 
     const appRoutes = routes[2].children
-    expect(appRoutes.length).toBe(20) // 1 redirect + 19 named routes
+    expect(appRoutes.length).toBe(21) // 1 redirect + 20 named routes
   })
 
   it('should require auth for /app routes', () => {
@@ -62,18 +63,18 @@ describe('Router Configuration', () => {
 
   describe('Route names match ROLE_PERMISSIONS views', () => {
     const routeNames = [
-      'dashboard', 'orders', 'menu-mgmt', 'menu-view', 'tables',
+      'dashboard', 'orders', 'orders-history', 'menu-mgmt', 'menu-view', 'tables',
       'reservations', 'delivery', 'kitchen', 'expenses', 'pnl',
       'cashdrawer', 'inventory', 'waste', 'staff', 'shifts',
       'timeclock', 'reports', 'pipeline', 'revenue', 'checkout', 'analytics'
     ]
 
     const ROLE_PERMISSIONS = {
-      manager: ['dashboard', 'orders', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout'],
-      'head-chef': ['kitchen', 'orders', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline'],
-      'assistant-chef': ['kitchen', 'orders', 'dashboard', 'inventory'],
-      'head-waiter': ['tables', 'orders', 'dashboard', 'menu-view', 'reservations', 'checkout'],
-      cashier: ['cashdrawer', 'orders', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout'],
+      manager: ['dashboard', 'orders', 'orders-history', 'tables', 'menu-mgmt', 'menu-view', 'expenses', 'pnl', 'cashdrawer', 'inventory', 'waste', 'staff', 'shifts', 'timeclock', 'kitchen', 'reports', 'reservations', 'delivery', 'analytics', 'checkout'],
+      'head-chef': ['kitchen', 'orders', 'orders-history', 'dashboard', 'inventory', 'waste', 'reports', 'pipeline'],
+      'assistant-chef': ['kitchen', 'orders', 'orders-history', 'dashboard', 'inventory'],
+      'head-waiter': ['tables', 'orders', 'orders-history', 'dashboard', 'menu-view', 'reservations', 'checkout'],
+      cashier: ['cashdrawer', 'orders', 'orders-history', 'dashboard', 'tables', 'reports', 'timeclock', 'reservations', 'revenue', 'menu-view', 'analytics', 'checkout'],
       'delivery-staff': ['delivery', 'dashboard'],
       cleaner: ['waste', 'dashboard']
     }

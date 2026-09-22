@@ -17,6 +17,9 @@
         <button class="btn btn-sm btn-secondary" @click="loadOrders">↺ Refresh</button>
       </div>
     </div>
+    <p v-if="olderHiddenCount > 0" class="pipeline-older-note">
+      {{ olderHiddenCount }} earlier ticket{{ olderHiddenCount !== 1 ? 's' : '' }} from previous days hidden — see Order History
+    </p>
 
     <!-- Kanban Board -->
     <div class="pipeline">
@@ -189,7 +192,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
-import { apiGet, apiPut } from '../api'
+import { apiGet, apiPut, isTodayStamp } from '../api'
 import { useSSE } from '../composables/useSSE'
 import { useAuthStore } from '../stores/auth'
 import { useAudioAlerts } from '../composables/useAudioAlerts'
@@ -218,13 +221,23 @@ const stages = [
 const grouped = computed(() => {
   const g = {}
   stages.forEach(s => { g[s.key] = [] })
+  // Today only: the pipeline is the kitchen's live board, not an archive.
+  // Yesterday's tickets (usually stale leftovers from before a close-out) go
+  // to Order History; the count is surfaced so nothing silently vanishes.
   orders.value.forEach(o => {
+    if (!isTodayStamp(o.created)) return
     const k = o.status || 'new'
     if (g[k]) g[k].push(o)
   })
   Object.values(g).forEach(arr => arr.sort((a, b) => (a.created || '').localeCompare(b.created || '')))
   return g
 })
+
+// Older non-terminal tickets the today filter hides — shown as a count so a
+// leftover from yesterday is discoverable, not lost.
+const olderHiddenCount = computed(() =>
+  orders.value.filter(o => !isTodayStamp(o.created)).length
+)
 
 const orderTimeline = computed(() => {
   if (!selectedOrder.value) return []
@@ -417,6 +430,14 @@ function dismissCancel() {
 /* Header */
 .pipeline-header {
   display: flex; justify-content: space-between; align-items: center;
+}
+/* Today-only transparency: the count of pre-today tickets the board hides. */
+.pipeline-older-note {
+  margin: -10px 0 0; padding: 8px 14px;
+  font-size: .74rem; color: var(--text-muted);
+  background: color-mix(in srgb, var(--warning, #F59E0B) 8%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--warning, #F59E0B) 45%, transparent);
+  border-radius: 10px;
 }
 .pipeline-title { display: flex; align-items: center; gap: 14px; }
 .pipeline-icon { font-size: 1.7rem; }

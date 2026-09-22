@@ -20,7 +20,11 @@ vi.mock('../../../src/api', () => ({
   getSSEUrl: (p) => `http://localhost:1234/api/events/${p}`,
   ROLE_PERMISSIONS: { 'head-chef': ['pipeline'] },
   ROLE_DEFAULT_VIEW: { 'head-chef': 'kitchen' },
-  NAV_ITEMS: []
+  NAV_ITEMS: [],
+  isTodayStamp: (s) => {
+    const d = new Date(); const pad = (n) => String(n).padStart(2, '0')
+    return String(s || '').slice(0, 10) === `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
 }))
 
 class MockEventSource {
@@ -116,5 +120,21 @@ describe('PipelineView stage transitions', () => {
     expect(w.text()).toContain('Preparing')
     expect(w.text()).toContain('Ready to Serve')
     expect(w.text()).toContain('Served')
+  })
+
+  // ─── Today-only pipeline: previous-day tickets belong to Order History ──
+  it('hides previous-day tickets from the lanes and says how many', async () => {
+    const localToday = (() => { const d = new Date(); const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` })()
+    const yesterday = new Date(Date.now() - 86400000).toISOString().replace('T', ' ').slice(0, 19)
+    mockApiGet.mockResolvedValue([
+      { ...order('O-today', 'new'), created: `${localToday} 10:00:00` },
+      { ...order('O-old', 'preparing'), created: yesterday },
+    ])
+    const w = mount(PipelineView, globalConfig)
+    await flushPromises()
+    // Cards display the id tail uppercased (O-today → #TODAY).
+    expect(w.text()).toContain('#TODAY')
+    expect(w.text()).not.toContain('O-OLD')
+    expect(w.text()).toContain('1 earlier ticket from previous days hidden')
   })
 })
