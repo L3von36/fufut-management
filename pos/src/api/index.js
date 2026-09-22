@@ -295,11 +295,16 @@ export const ROLE_PERMISSIONS = {
   // settle bills, which contradicted the design. Cashier and manager keep it.
   'head-waiter': ['tables', 'orders', 'orders-history', 'open-checks', 'dashboard', 'menu-view', 'reservations', 'alerts'],
   // The till: drawer home, menu view for walk-in sales, checks to settle, the
-  // floor and the book. Revenue, Analytics and Reports are manager and
-  // accountant reading — the cashier's own numbers live on their Dashboard and
-  // Cash Drawer, which read /api/reports/dashboard (the server keeps the
-  // `reports` READ for exactly that; the screens stay off this list).
-  cashier: ['cashdrawer', 'orders', 'orders-history', 'open-checks', 'dashboard', 'tables', 'reservations', 'menu-view', 'checkout', 'alerts'],
+  // book. The floor plan left (owner's call, 2026-09): running the tables is
+  // the head-waiter's job — the till's table work is answering the Bill
+  // Requests card on the Dashboard and settling from Open Checks. The server
+  // keeps the cashier's `tables` READ (the Dashboard card and the checkout
+  // this role runs still fetch it) — only the screen left. Revenue, Analytics
+  // and Reports are manager and accountant reading — the cashier's own
+  // numbers live on their Dashboard and Cash Drawer, which read
+  // /api/reports/dashboard (the server keeps the `reports` READ for exactly
+  // that; the screens stay off this list).
+  cashier: ['cashdrawer', 'orders', 'orders-history', 'open-checks', 'dashboard', 'reservations', 'menu-view', 'checkout', 'alerts'],
   'delivery-staff': ['delivery', 'dashboard', 'alerts'],
   cleaner: ['waste', 'dashboard'],
   // §47's seventh role. Reads the financial picture and changes almost none of

@@ -327,9 +327,11 @@
           <!-- An occupied table used to offer only "Go to Checkout", so a seated
                party could never be given a second round: the waiter had to leave
                the floor plan and rebuild the table context by hand. Ordering is
-               now always available, and reads "Add Round" once people are seated,
-               which is what the action actually means at that point. -->
-          <button class="btn btn-primary btn-sm" @click="newOrderForTable">
+               now gated to the floor (head-waiter, manager — owner's call,
+               2026-09): opening a table's ticket is the waiter's job, not the
+               till's, the kitchen's or housekeeping's. Reads "Add Round" once
+               people are seated, which is what the action actually means. -->
+          <button v-if="canTakeOrder" class="btn btn-primary btn-sm" @click="newOrderForTable">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             {{ detailTable.status === 'occupied' ? 'Add Round' : 'New Order' }}
           </button>
@@ -1051,6 +1053,11 @@ async function deleteTable() {
 // asker; their screen clears the request by settling the bill.
 const billRequesting = ref(false)
 const canRequestBill = computed(() => ['head-waiter', 'manager'].includes(authStore?.roleKey))
+// Opening a table's ticket is floor work — the same two roles the server's
+// request-bill gate names. (2026-09: the cashier's floor tab left their nav;
+// the kitchen's upcoming floor view is read-shaped, so the gate doubles as
+// the seam it will slot into.)
+const canTakeOrder = computed(() => ['head-waiter', 'manager'].includes(authStore?.roleKey))
 
 function paymentLabel(state) {
   return { paid: 'Paid', partial: 'Partly Paid', unpaid: 'Unpaid' }[state] || state
