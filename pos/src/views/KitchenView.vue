@@ -256,7 +256,9 @@
               <span v-if="isStaleReady(o)" class="ko-stale-badge">⏰ Pick up!</span>
               <span class="ko-waiting">Waiting {{ waitMinutes(o) }}m</span>
               <!-- Fix #6: Bump to Pass -->
-              <base-button text="Served" variant="btn-outline" extra-class="btn-sm" :on-click="() => bulkAdvance(o, 'ready')" />
+              <!-- Barista wording (owner, 2026-09): the bar hands off — it
+                   never says served. Same ticket-level fulfilled write. -->
+              <base-button :text="isBarista ? 'Picked up by waiter' : 'Served'" variant="btn-outline" extra-class="btn-sm" :on-click="() => bulkAdvance(o, 'ready')" />
             </div>
           </div>
           <div v-if="!readyOrders.length" class="kitchen-empty">
@@ -269,7 +271,7 @@
     <div class="kitchen-kb-hint">
       <span class="kb-key">1</span> advance next New
       <span class="kb-key">2</span> advance next Preparing
-      <span class="kb-key">3</span> serve next Ready
+      <span class="kb-key">3</span> {{ isBarista ? 'pick up next Ready' : 'serve next Ready' }}
       <span class="kb-key">R</span> refresh
     </div>
   </div>
@@ -376,7 +378,9 @@ function nextStatus(status) {
 }
 
 function lineActionLabel(status) {
-  return { new: 'Start', preparing: 'Ready', ready: 'Served' }[status] || 'Done'
+  // The bar's last word is the handoff, never 'served' (owner's rule).
+  if (status === 'ready') return isBarista.value ? 'Picked up' : 'Served'
+  return { new: 'Start', preparing: 'Ready' }[status] || 'Done'
 }
 
 /** "2 of 3 ready" — how much of a ticket is actually finished. */
@@ -720,7 +724,13 @@ async function bulkAdvance(order, fromStatus, { undo = false } = {}) {
     const prev = order.status
     order.status = target
     try {
-      await apiPut('orders/' + order.id, { status: target })
+      // Law 4 (owner, 2026-09): the write is scoped to this station's lines
+      // server-side — the bar handoff never moves the kitchen's food, and
+      // the order's status is re-derived from ALL of its lines afterwards.
+      const station = isBarista.value || stationFilter.value === 'bar'
+        ? 'bar'
+        : stationFilter.value === 'hot' ? 'kitchen' : undefined
+      await apiPut('orders/' + order.id, { status: target, station })
       toast(`Order ${target}`)
       if (target === 'ready') playOrderReady()
       else playOrderUpdate()

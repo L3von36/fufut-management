@@ -966,12 +966,16 @@ function setupSSE() {
   sseOn('order_update', () => loadOrders())
 
   // Second channel: the kitchen. The server pushes a snapshot of every active
-  // order every 10s (handlers/sse.js). We diff against the previous snapshot
-  // and chime when one of OUR tables' orders transitioned INTO ready.
+  // order (handlers/sse.js); we diff against the previous snapshot and chime
+  // when one of OUR tables' orders transitioned INTO ready.
   kitchenSseConnect('kitchen')
-  // The server emits `new_order` for every snapshot, not just new tickets —
-  // the event name is historical. We treat it as "snapshot arrived".
+  // Both event names carry the full board snapshot: `new_order` now means a
+  // ticket GENUINELY landed, `order_update` is every other move (a serve, a
+  // station handoff). The ready chime reads the transition either way —
+  // trusting the event name was the bug that made a mark-served announce a
+  // "new order" (owner report, 2026-09).
   kitchenSseOn('new_order', onKitchenSnapshot)
+  kitchenSseOn('order_update', onKitchenSnapshot)
 }
 
 // ─── Detail panel ───

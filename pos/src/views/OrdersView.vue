@@ -34,7 +34,19 @@
       </div>
     </div>
 
-    <div class="table-wrap">
+    <!-- Service law 2: the till owns the money. The cashier sees the gate,
+         the manager sees the banner and works on. -->
+    <div v-if="cashierBlocked" class="till-closed-panel" role="status">
+      <div style="font-size:34px" aria-hidden="true">🔒</div>
+      <h3 style="margin:8px 0 4px">Till closed</h3>
+      <p style="margin:0;color:var(--text-muted)">The drawer is closed — orders come back the moment the till opens. Open the till from the Cash Drawer screen to start settling.</p>
+      <button class="btn btn-primary" style="margin-top:14px" @click="$router && $router.push('/app/cashdrawer')">Open the till</button>
+    </div>
+    <div v-if="tillClosedBanner" class="till-closed-banner" role="status">
+      🔒 The till is closed — settlements are refused until the drawer opens.
+    </div>
+
+    <div class="table-wrap" v-if="!cashierBlocked">
       <div class="table-scroll">
         <table class="ov-compact">
           <thead>
@@ -261,12 +273,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted , inject} from 'vue'
+import { ref, computed, onMounted, inject, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiGet, apiPut, apiPost, TODAY, isTodayStamp } from '../api'
 import { useOrderStore } from '../stores/order'
 import { useButtonState } from '../composables/useButtonState'
 import { useAuthStore } from '../stores/auth'
+import { useSSE } from '../composables/useSSE'
 import { formatOrderItems } from '../lib/formatters'
 import { orderVisibleToRole, orderLinesForRole } from '../lib/orderScope'
 import BaseButton from '../components/BaseButton.vue'
@@ -386,9 +399,33 @@ function onModifierConfirm(selection) {
 }
 
 // --- Lifecycle ---
+const sse = useSSE()
+// Service law 2 — the till owns the money. A cashier looking at orders with
+// the drawer closed sees the WHY instead of a queue they cannot act on; the
+// manager keeps the list with a banner. Re-read with every orders load so an
+// open/close elsewhere flips this screen within seconds.
+const tillOpen = ref(null)
+const cashierBlocked = computed(() => tillOpen.value === false && auth.roleKey === 'cashier')
+const tillClosedBanner = computed(() => tillOpen.value === false && auth.roleKey === 'manager')
+
+async function loadTill() {
+  try {
+    const v = await apiGet('venue/status')
+    tillOpen.value = v ? v.till_open !== false : null
+  } catch { tillOpen.value = null }
+}
+
 onMounted(async () => {
   await Promise.all([loadOrders(), loadMenu(), loadTables()])
+  loadTill()
+  // Live push — a settle on the till, a serve on the floor or a new ticket
+  // repaints this list without the manual Refresh (owner's screen-state
+  // rule, 2026-09).
+  sse.connect('kitchen')
+  sse.on('new_order', () => { loadOrders(); loadTill() })
+  sse.on('order_update', () => { loadOrders(); loadTill() })
 })
+onUnmounted(() => { sse.disconnect() })
 
 async function loadTables() {
   try { tables.value = (await apiGet('tables')) || [] } catch (e) { console.error(e) }
@@ -885,5 +922,28 @@ function printReceipt(order) {
 /* The empty-state row (colspan) must still span the card. */
 @media (max-width: 768px) {
   .ov-compact td[colspan] { grid-column: 1 / -1; }
+}
+
+/* Service law 2 — till gate (owner, 2026-09) */
+.till-closed-panel {
+  margin: 12px 16px;
+  padding: 38px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+.till-closed-banner {
+  margin: 0 16px 10px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: #92400e;
+  color: #fff;
+  font-size: 13px;
 }
 </style>

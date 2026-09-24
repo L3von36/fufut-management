@@ -48,11 +48,7 @@ vi.mock('../../../src/api', () => ({
   ROLE_PERMISSIONS: {},
   ROLE_DEFAULT_VIEW: {},
   NAV_ITEMS: [],
-  TODAY: () => '2026-08-27',
-  isTodayStamp: (s) => {
-    const d = new Date(); const pad = (n) => String(n).padStart(2, '0')
-    return String(s || '').slice(0, 10) === `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  }
+  TODAY: () => D(0),
 }))
 
 // CheckoutView mounts need these; see CheckoutStaleSuccess.test.js.
@@ -88,25 +84,13 @@ describe('N2: RevenueView Orders KPI counts the filtered range', () => {
     currentPermissions = null
   })
 
-  // RevenueView's onMounted mixes a real-now dateFrom with the mocked TODAY
-  // dateTo, so the tests pin the range on the view's own inputs — calendar-
-  // independent and anchored to the mocked TODAY ('2026-08-27') calendar.
-  async function pinRange(wrapper) {
-    const dates = wrapper.findAll('input[type="date"]')
-    await dates[0].setValue('2026-08-27')
-    await dates[1].setValue('2026-08-27')
-    await wrapper.findAll('button').find(b => b.text() === 'Apply').trigger('click')
-    await flushPromises()
-  }
-
   it('shows today\'s order count, not every order ever taken', async () => {
-    const today = { id: 'A1', total: 220, payment: 'cash', created: '2026-08-27 19:15:03' }
-    const stale = { id: 'B1', total: 150, payment: 'cash', created: '2026-08-01 12:00:00' }
+    const today = { id: 'A1', total: 220, payment: 'cash', created: `${DAY[0]} 19:15:03` }
+    const stale = { id: 'B1', total: 150, payment: 'cash', created: `${DAY[20]} 12:00:00` }
     mockApiGet.mockResolvedValue([today, stale, { ...stale, id: 'B2' }])
 
     const wrapper = mount(RevenueView, globalConfig)
     await flushPromises()
-    await pinRange(wrapper)
 
     const kpis = wrapper.findAll('.kpi-card').map(k => k.text())
     const ordersKpi = kpis.find(k => k.includes('Orders'))
@@ -116,13 +100,12 @@ describe('N2: RevenueView Orders KPI counts the filtered range', () => {
 
   it('nets tips out of revenue, matching Dashboard and Reports', async () => {
     mockApiGet.mockResolvedValue([
-      { id: 'A1', total: 260, tip: 0, payment: 'cash', created: '2026-08-27 19:15:03' },
-      { id: 'A2', total: 225.5, tip: 20.5, payment: 'cash', created: '2026-08-27 18:00:00' },
+      { id: 'A1', total: 260, tip: 0, payment: 'cash', created: `${DAY[0]} 19:15:03` },
+      { id: 'A2', total: 225.5, tip: 20.5, payment: 'cash', created: `${DAY[0]} 18:00:00` },
     ])
 
     const wrapper = mount(RevenueView, globalConfig)
     await flushPromises()
-    await pinRange(wrapper)
 
     const kpis = wrapper.findAll('.kpi-card').map(k => k.text())
     const revKpi = kpis.find(k => k.includes('Total Revenue'))
@@ -148,12 +131,12 @@ describe('N3: CashDrawerView history shows the close time, not the open time', (
         return Promise.resolve({
           drawers: [
             {
-              id: 'CD-new', opened_at: '2026-08-27T15:15:00.000Z', opened: '2026-08-27T15:15:00.000Z',
-              closed_at: '2026-08-27T21:02:00.000Z', closed: '2026-08-27T21:02:00.000Z',
+              id: 'CD-new', opened_at: `${DAY[0]}T15:15:00.000Z`, opened: `${DAY[0]}T15:15:00.000Z`,
+              closed_at: `${DAY[0]}T21:02:00.000Z`, closed: `${DAY[0]}T21:02:00.000Z`,
               opening_balance: 500, cash_sales: 220, closing_balance: 820, expected: 820, variance: 0, status: 'closed',
             },
             {
-              id: 'CD-old', opened_at: '2026-08-26T05:54:24.000Z', opened: '2026-08-26T05:54:24.000Z',
+              id: 'CD-old', opened_at: `${DAY[1]}T05:54:24.000Z`, opened: `${DAY[1]}T05:54:24.000Z`,
               opening_balance: 1000, cash_sales: 0, closing_balance: 1025, expected: 1025, variance: 0, status: 'closed',
             },
           ],
@@ -189,7 +172,7 @@ describe('N4: dine-in orders cannot be paid without a table', () => {
     setActivePinia(createPinia())
     currentPermissions = ['orders', 'checkout', 'tables']
     mockApiGet.mockImplementation((ep) => {
-      if (ep.startsWith('orders')) return Promise.resolve([])
+      if (ep === 'orders') return Promise.resolve([])
       if (ep === 'menu') return Promise.resolve([
         { id: 'M-1', name: 'Espresso', category: 'Coffee', price: 150 },
       ])
@@ -330,8 +313,8 @@ describe('N5: ReportsView revenue matches the dashboard definition', () => {
     mockApiGet.mockImplementation((ep) => {
       if (ep === 'orders') {
         return Promise.resolve([
-          { id: 'O1', total: 260, tip: 0, status: 'served', created: '2026-08-27 19:00:00' },
-          { id: 'O2', total: 225.5, tip: 20.5, status: 'served', created: '2026-08-27 18:00:00' },
+          { id: 'O1', total: 260, tip: 0, status: 'served', created: `${DAY[0]} 19:00:00` },
+          { id: 'O2', total: 225.5, tip: 20.5, status: 'served', created: `${DAY[0]} 18:00:00` },
         ])
       }
       if (ep === 'expenses') return Promise.resolve([])
@@ -349,6 +332,16 @@ describe('N5: ReportsView revenue matches the dashboard definition', () => {
 
 // ─── N6: cancellation rate over all ticketed orders ──────────────────────────
 import AnalyticsView from '../../../src/views/AnalyticsView.vue'
+// Relative day keys — the calendar must not expire these tests (the same
+// lesson as 7eddaf9): a pinned "today" drifts out of the view's real-clock
+// 14-day window and the KPIs go dark. D(n) = today minus n days, YYYY-MM-DD.
+const D = (n = 0) => {
+  const d = new Date()
+  d.setUTCDate(d.getUTCDate() - n)
+  return d.toISOString().slice(0, 10)
+}
+const DAY = { 0: D(0), 1: D(1), 2: D(2), 14: D(14), 20: D(20), 30: D(30) }
+
 
 describe('N6: AnalyticsView cancellation rate is bounded by definition', () => {
   beforeEach(() => {
@@ -368,7 +361,7 @@ describe('N6: AnalyticsView cancellation rate is bounded by definition', () => {
       id: 'R' + i, total: 178, status: 'served', payment_status: 'paid', created: `${daysAgo(5)} 19:00:00`,
     }))
     mockApiGet.mockImplementation((ep) => {
-      if (ep.startsWith('orders')) return Promise.resolve([...cancelled, ...real])
+      if (ep === 'orders') return Promise.resolve([...cancelled, ...real])
       if (ep === 'menu') return Promise.resolve([])
       return Promise.resolve([])
     })

@@ -266,16 +266,28 @@ let touchOrderId = null
 onMounted(() => {
   loadOrders()
   sse.connect('kitchen')
+  // Both events carry the FULL board snapshot ({ orders: [...] }), never a
+  // single order — the old handlers read data.id (undefined) and pushed the
+  // whole payload as one "order", so every board change (even a mark-served)
+  // announced a bogus "New order #undefined" (owner report, 2026-09).
+  // `new_order` now arrives only when the board GAINS tickets, with the new
+  // ids in payload.newIds.
   sse.on('new_order', (data) => {
-    orders.value.push({ ...data, timer: 0 })
-    toast(`New order #${data.id}`, 'success')
+    if (data && Array.isArray(data.orders)) {
+      orders.value = data.orders.map((o) => ({ ...o, timer: 0 }))
+      for (const id of data.newIds || []) toast(`New order #${String(id).slice(-4)}`, 'success')
+    } else {
+      loadOrders()
+    }
     playNewOrder()
   })
   sse.on('order_update', (data) => {
-    const idx = orders.value.findIndex(o => o.id === data.id)
-    if (idx !== -1) orders.value[idx] = { ...orders.value[idx], ...data }
-    if (data.status === 'ready') playOrderReady()
-    else playOrderUpdate()
+    if (data && Array.isArray(data.orders)) {
+      orders.value = data.orders.map((o) => ({ ...o, timer: 0 }))
+    } else {
+      loadOrders()
+    }
+    playOrderUpdate()
   })
   // Fix #9: Timer for all active statuses (new + preparing), not just preparing
   timerInterval = setInterval(() => {

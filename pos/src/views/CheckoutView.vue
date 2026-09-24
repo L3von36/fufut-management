@@ -7,6 +7,13 @@
         <span class="checkout-badge">{{ store.cartItemCount }} items</span>
       </div>
 
+      <!-- Service law 2: a closed drawer refuses every payment — say so
+           before the cashier fills the screen. -->
+      <div v-if="tillOpen === false" class="settle-banner" role="status" style="background:#92400e">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span>The till is closed — open the till (Cash Drawer) before taking payments.</span>
+      </div>
+
       <!-- Open-tab settlement banner: payment goes to the existing check,
            not a new order. Shown only when checkout was entered to settle. -->
       <div v-if="settledFromTab && store.activeOpenOrderId" class="settle-banner" role="status">
@@ -566,6 +573,9 @@ const store = useOrderStore()
 const auth = useAuthStore()
 const { playOrderReady } = useAudioAlerts()
 const processing = ref(false)
+// Service law 2 (owner, 2026-09): the till gate. null = unknown, allow and
+// let the server's 409 speak; false = closed, banner + blocked Process.
+const tillOpen = ref(null)
 const tables = ref([])
 const showAllTables = ref(false)
 // Fix #1: Clear all confirmation
@@ -600,6 +610,14 @@ onMounted(async () => {
   if (store.checkoutStep === 'success') store.checkoutStep = 'cart'
   loadTables()
   hydrateOpenTab()
+  // Service law 2: a closed till blocks settlement — surface it up front.
+  // Deliberately LAST in onMounted and awaited nowhere that matters: an
+  // await above the checkoutStep reset would yield to the caller mid-mount
+  // and misfire the reset (the success-screen test caught exactly that).
+  try {
+    const v = await apiGet('venue/status')
+    tillOpen.value = v ? v.till_open !== false : null
+  } catch { tillOpen.value = null }
 })
 
 /**
@@ -875,6 +893,13 @@ function goToPayment() {
 
 async function processPayment() {
   if (!store.canProcess || processing.value) return
+  // Service law 2 (owner, 2026-09): money needs an open till — the server
+  // refuses every settlement against a closed drawer with 409. Check before
+  // building the payload so the cashier sees the why, not a raw refusal.
+  if (tillOpen.value === false) {
+    toast('The till is closed — open the till (Cash Drawer) before taking payments.', 'error')
+    return
+  }
   processing.value = true
   store.checkoutStep = 'processing'
 
